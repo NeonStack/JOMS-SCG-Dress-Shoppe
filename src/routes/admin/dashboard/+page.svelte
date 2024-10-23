@@ -1,206 +1,450 @@
 <script>
-  import { onMount } from 'svelte';
-  import Chart from 'chart.js/auto';
+  import { onMount } from "svelte";
+  import Chart from "chart.js/auto";
+  import { supabase } from "$lib/supabaseClient";
 
-  let recentOrdersChart;
-  let employeeProductivityChart;
-  let dailyRevenueChart;
-
+  // Core state variables based on existing database
   let totalOrders = 0;
-  let pendingPayments = 0;
-  let upcomingOrders = 0;
-  let dailyRevenue = 0;
+  let ordersByStatus = {
+    PENDING: 0,
+    IN_PROGRESS: 0,
+    COMPLETED: 0
+  };
+  let totalRevenue = 0;
+  let revenueByTime = [];
+  let ordersByTime = [];
+  let revenueByProgram = [];
+  let employeePerformance = [];
+  let recentOrders = [];
+  let averageOrderValue = 0;
 
-  // Sample data - replace with actual data fetching from Supabase when ready
-  const sampleData = {
-    recentOrders: [
-      { date: '2023-10-07', pending: 5, inProgress: 3, completed: 7 },
-      { date: '2023-10-08', pending: 6, inProgress: 4, completed: 5 },
-      { date: '2023-10-09', pending: 4, inProgress: 5, completed: 6 },
-      { date: '2023-10-10', pending: 7, inProgress: 3, completed: 4 },
-      { date: '2023-10-11', pending: 5, inProgress: 6, completed: 5 },
-      { date: '2023-10-12', pending: 3, inProgress: 7, completed: 8 },
-      { date: '2023-10-13', pending: 6, inProgress: 5, completed: 6 }
-    ],
-    employeeProductivity: {
-      'John Doe': 15,
-      'Jane Smith': 12,
-      'Mike Johnson': 18,
-      'Emily Brown': 10,
-      'Chris Lee': 14
-    },
-    dailyRevenue: {
-      '2023-10-07': 25000,
-      '2023-10-08': 27000,
-      '2023-10-09': 22000,
-      '2023-10-10': 30000,
-      '2023-10-11': 28000,
-      '2023-10-12': 32000,
-      '2023-10-13': 29000
-    }
+  // Charts
+  let ordersChart;
+  let revenueChart;
+  let programRevenueChart;
+  let performanceChart;
+
+  // Filters
+  let selectedTimeRange = "30d";
+  let selectedView = "overview";
+
+  const timeRanges = {
+    "1d": { label: "Today", days: 1 },
+    "7d": { label: "Last 7 days", days: 7 },
+    "30d": { label: "Last 30 days", days: 30 }
   };
 
-  function fetchDashboardData() {
-    // TODO: Replace with actual Supabase queries when ready
-    // For now, we'll use the sample data
+  async function fetchOrdersData(startDate) {
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        students (
+          first_name,
+          last_name,
+          course_id,
+          courses (name)
+        ),
+        profiles (first_name, last_name)
+      `)
+      .gte('created_at', startDate.toISOString());
 
-    // Update total orders, pending payments, upcoming orders, and daily revenue
-    totalOrders = sampleData.recentOrders.reduce((sum, day) => sum + day.pending + day.inProgress + day.completed, 0);
-    pendingPayments = 150000; // Sample value
-    upcomingOrders = 25; // Sample value
-    dailyRevenue = sampleData.dailyRevenue[Object.keys(sampleData.dailyRevenue).pop()]; // Latest day's revenue
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return;
+    }
 
-    updateRecentOrdersChart(sampleData.recentOrders);
-    updateEmployeeProductivityChart(sampleData.employeeProductivity);
-    updateDailyRevenueChart(sampleData.dailyRevenue);
+    // Calculate core metrics
+    totalOrders = orders.length;
+    totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+    averageOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
+
+    // Calculate orders by status
+    ordersByStatus = orders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0});
+
+    // Group orders by date
+    const ordersByDate = orders.reduce((acc, order) => {
+      const date = new Date(order.created_at).toLocaleDateString();
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {});
+
+    ordersByTime = Object.entries(ordersByDate).map(([date, count]) => ({
+      date,
+      count
+    }));
+
+    // Calculate revenue by program
+    const programRevenue = orders.reduce((acc, order) => {
+      const courseName = order.students?.courses?.name || 'Unknown';
+      acc[courseName] = (acc[courseName] || 0) + (order.total_amount || 0);
+      return acc;
+    }, {});
+
+    revenueByProgram = Object.entries(programRevenue).map(([name, amount]) => ({
+      name,
+      amount
+    }));
+
+    // Get employee performance
+    const employeeStats = orders.reduce((acc, order) => {
+      const employeeName = order.profiles ? 
+        `${order.profiles.first_name} ${order.profiles.last_name}` : 
+        'Unassigned';
+      
+      if (!acc[employeeName]) {
+        acc[employeeName] = { total: 0, completed: 0 };
+      }
+      acc[employeeName].total++;
+      if (order.status === 'COMPLETED') {
+        acc[employeeName].completed++;
+      }
+      return acc;
+    }, {});
+
+    employeePerformance = Object.entries(employeeStats).map(([name, stats]) => ({
+      name,
+      performance: stats.total ? (stats.completed / stats.total) * 100 : 0
+    }));
+
+    // Get recent orders
+    recentOrders = orders
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 5)
+      .map(order => ({
+        id: order.id,
+        student_name: `${order.students?.first_name} ${order.students?.last_name}`,
+        amount: order.total_amount,
+        status: order.status
+      }));
   }
 
-  function updateRecentOrdersChart(data) {
-    const ctx = document.getElementById('recentOrdersChart').getContext('2d');
-    recentOrdersChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: data.map(d => d.date),
-        datasets: [
-          {
-            label: 'Pending',
-            data: data.map(d => d.pending),
-            backgroundColor: '#FF6B35',
-          },
-          {
-            label: 'In Progress',
-            data: data.map(d => d.inProgress),
-            backgroundColor: '#E85D2F',
-          },
-          {
-            label: 'Completed',
-            data: data.map(d => d.completed),
-            backgroundColor: '#FFB599',
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, stacked: true }, x: { stacked: true } },
-      },
-    });
+  function updateCharts() {
+    // Orders Chart
+    const ordersCtx = document.getElementById("ordersChart")?.getContext("2d");
+    if (ordersCtx) {
+      ordersChart?.destroy();
+      ordersChart = new Chart(ordersCtx, {
+        type: "line",
+        data: {
+          labels: ordersByTime.map(order => order.date),
+          datasets: [{
+            label: "Orders",
+            data: ordersByTime.map(order => order.count),
+            borderColor: "#4A90E2",
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: "Orders Over Time" }
+          }
+        }
+      });
+    }
+
+    // Program Revenue Chart
+    const programRevenueCtx = document.getElementById("programRevenueChart")?.getContext("2d");
+    if (programRevenueCtx) {
+      programRevenueChart?.destroy();
+      programRevenueChart = new Chart(programRevenueCtx, {
+        type: "bar",
+        data: {
+          labels: revenueByProgram.map(program => program.name),
+          datasets: [{
+            label: "Revenue",
+            data: revenueByProgram.map(program => program.amount),
+            backgroundColor: "#4A90E2"
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: "Revenue by Program" }
+          }
+        }
+      });
+    }
+
+    // Employee Performance Chart
+    const performanceCtx = document.getElementById("performanceChart")?.getContext("2d");
+    if (performanceCtx) {
+      performanceChart?.destroy();
+      performanceChart = new Chart(performanceCtx, {
+        type: "bar",
+        data: {
+          labels: employeePerformance.map(emp => emp.name),
+          datasets: [{
+            label: "Completion Rate (%)",
+            data: employeePerformance.map(emp => emp.performance.toFixed(1)),
+            backgroundColor: "#4A90E2"
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: "Employee Performance" }
+          }
+        }
+      });
+    }
   }
 
-  function updateEmployeeProductivityChart(data) {
-    const ctx = document.getElementById('employeeProductivityChart').getContext('2d');
-    employeeProductivityChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(data),
-        datasets: [{
-          label: 'Completed Orders',
-          data: Object.values(data),
-          backgroundColor: '#FF6B35',
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } },
-      },
-    });
-  }
-
-  function updateDailyRevenueChart(data) {
-    const ctx = document.getElementById('dailyRevenueChart').getContext('2d');
-    dailyRevenueChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: Object.keys(data),
-        datasets: [{
-          label: 'Daily Revenue',
-          data: Object.values(data),
-          borderColor: '#FF6B35',
-          backgroundColor: 'rgba(255, 107, 53, 0.2)',
-          fill: true,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } },
-      },
-    });
+  async function fetchDashboardData(range = "7d") {
+    const { days } = timeRanges[range];
+    const now = new Date();
+    const startDate = new Date(now.setDate(now.getDate() - days));
+    await fetchOrdersData(startDate);
+    updateCharts();
   }
 
   onMount(() => {
     fetchDashboardData();
   });
+
+  function handleTimeRangeChange(value) {
+    selectedTimeRange = value;
+    fetchDashboardData(value);
+  }
 </script>
 
-<div class="p-6 bg-white rounded-lg shadow-md">
-  <h1 class="text-3xl font-bold mb-6">Dashboard Overview</h1>
+<div class="dashboard-container">
+  <div class="dashboard-content">
+    <!-- Header -->
+    <div class="dashboard-header">
+      <div class="header-content">
+        <div>
+          <h1 class="dashboard-title">Uniform Management Dashboard</h1>
+          <p class="dashboard-subtitle">Overview of orders and analytics</p>
+        </div>
 
-  <!-- Stats Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="text-lg font-semibold text-gray-600">Total Orders</h3>
-      <p class="text-2xl font-bold">{totalOrders}</p>
-    </div>
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="text-lg font-semibold text-gray-600">Pending Payments</h3>
-      <p class="text-2xl font-bold">₱{pendingPayments.toLocaleString()}</p>
-    </div>
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="text-lg font-semibold text-gray-600">Upcoming Orders (7 days)</h3>
-      <p class="text-2xl font-bold">{upcomingOrders}</p>
-    </div>
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="text-lg font-semibold text-gray-600">Daily Revenue</h3>
-      <p class="text-2xl font-bold">₱{dailyRevenue.toLocaleString()}</p>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Recent Orders Chart -->
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h2 class="text-xl font-semibold mb-4">Recent Orders (Last 7 Days)</h2>
-      <div class="h-72">
-        <canvas id="recentOrdersChart"></canvas>
+        <!-- Time Range Filter -->
+        <div class="time-filters">
+          {#each Object.entries(timeRanges) as [value, { label }]}
+            <button
+              class="time-filter-btn"
+              class:active={selectedTimeRange === value}
+              on:click={() => handleTimeRangeChange(value)}
+            >
+              {label}
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
 
-    <!-- Employee Productivity Chart -->
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h2 class="text-xl font-semibold mb-4">Employee Productivity</h2>
-      <div class="h-72">
-        <canvas id="employeeProductivityChart"></canvas>
+    <!-- Key Metrics -->
+    <div class="metrics-grid">
+      <!-- Total Orders -->
+      <div class="metric-card orders">
+        <div class="metric-content">
+          <div>
+            <p class="metric-label">Total Orders</p>
+            <h3 class="metric-value">{totalOrders}</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revenue -->
+      <div class="metric-card revenue">
+        <div class="metric-content">
+          <div>
+            <p class="metric-label">Total Revenue</p>
+            <h3 class="metric-value">₱{totalRevenue.toLocaleString()}</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Average Order Value -->
+      <div class="metric-card avg-order">
+        <div class="metric-content">
+          <div>
+            <p class="metric-label">Average Order Value</p>
+            <h3 class="metric-value">₱{averageOrderValue.toLocaleString()}</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Status -->
+      <div class="metric-card status">
+        <div class="metric-content">
+          <div>
+            <p class="metric-label">Order Status</p>
+            <div class="status-counts">
+              <span>Pending: {ordersByStatus.PENDING}</span>
+              <span>In Progress: {ordersByStatus.IN_PROGRESS}</span>
+              <span>Completed: {ordersByStatus.COMPLETED}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Daily Revenue Summary Chart -->
-    <div class="bg-white p-4 rounded-lg shadow lg:col-span-2">
-      <h2 class="text-xl font-semibold mb-4">Daily Revenue Summary</h2>
-      <div class="h-72">
-        <canvas id="dailyRevenueChart"></canvas>
+    <!-- Charts Grid -->
+    <div class="charts-grid">
+      <!-- Orders Timeline -->
+      <div class="chart-card">
+        <h3 class="chart-title">Orders Timeline</h3>
+        <canvas id="ordersChart"></canvas>
+      </div>
+
+      <!-- Revenue Distribution -->
+      <div class="chart-card">
+        <h3 class="chart-title">Revenue by Program</h3>
+        <canvas id="programRevenueChart"></canvas>
+      </div>
+
+      <!-- Employee Performance -->
+      <div class="chart-card">
+        <h3 class="chart-title">Employee Performance</h3>
+        <canvas id="performanceChart"></canvas>
+      </div>
+
+      <!-- Recent Orders -->
+      <div class="chart-card">
+        <h3 class="chart-title">Recent Orders</h3>
+        <div class="table-container">
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Student</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each recentOrders as order}
+                <tr>
+                  <td>#{order.id}</td>
+                  <td>{order.student_name}</td>
+                  <td>₱{order.amount.toLocaleString()}</td>
+                  <td>
+                    <span class="status-badge {order.status.toLowerCase()}">
+                      {order.status}
+                    </span>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Quick Action Buttons -->
-  <div class="flex flex-wrap gap-4 mt-6">
-    <button class="bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded">Create New Order</button>
-    <button class="bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded">Assign Orders</button>
-    <button class="bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded">Process Payment</button>
-    <button class="bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded">Generate Reports</button>
   </div>
 </div>
 
 <style>
-  /* Custom Styling */
-  h2 {
-    color: #FF6B35;
+  .dashboard-container {
+    @apply min-h-screen bg-gray-50 p-6;
   }
-  .bg-primary {
-    background-color: #FF6B35;
+
+  .dashboard-content {
+    @apply max-w-7xl mx-auto space-y-6;
   }
-  .hover\:bg-primary-dark:hover {
-    background-color: #E85D2F;
+
+  .dashboard-header {
+    @apply bg-white p-6 rounded-xl shadow-sm;
+  }
+
+  .header-content {
+    @apply flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4;
+  }
+
+  .dashboard-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+
+  .dashboard-subtitle {
+    @apply text-gray-500 mt-1;
+  }
+
+  .time-filters {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .time-filter-btn {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-in-out bg-gray-100 text-gray-600 hover:bg-blue-500 hover:text-white;
+  }
+
+  .time-filter-btn.active {
+    @apply bg-blue-500 text-white shadow-md;
+  }
+
+  .metrics-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+  }
+
+  .metric-card {
+    @apply bg-white p-6 rounded-xl shadow-sm border-l-4 hover:shadow-md transition-shadow;
+  }
+
+  .metric-card.orders { @apply border-blue-500; }
+  .metric-card.revenue { @apply border-green-500; }
+  .metric-card.avg-order { @apply border-purple-500; }
+  .metric-card.status { @apply border-yellow-500; }
+
+  .metric-content {
+    @apply flex items-center justify-between;
+  }
+
+  .metric-label {
+    @apply text-gray-500 text-sm font-medium;
+  }
+
+  .metric-value {
+    @apply text-3xl font-bold text-gray-900;
+  }
+
+  .status-counts {
+    @apply flex flex-col gap-1 text-sm;
+  }
+
+  .charts-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+  }
+
+  .chart-card {
+    @apply bg-white p-6 rounded-xl shadow-sm;
+  }
+
+  .chart-title {
+    @apply text-lg font-semibold mb-4;
+  }
+
+  .table-container {
+    @apply overflow-x-auto;
+  }
+
+  .orders-table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  .orders-table th {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+  }
+
+  .orders-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 text-xs font-medium rounded-full;
+  }
+
+  .status-badge.pending {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .status-badge.in_progress {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .status-badge.completed {
+    @apply bg-green-100 text-green-800;
   }
 </style>

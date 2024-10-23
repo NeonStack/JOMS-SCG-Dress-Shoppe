@@ -26,18 +26,18 @@
 <div
   class="min-h-screen bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center p-4"
 >
-  <div class="flex flex-row gap-16 items-center justify-center w-full max-w-6xl max-lg:flex-col max-lg:gap-5">
-    <div class="w-1/2 max-lg:w-full flex flex-col items-center">
+  <div class="flex flex-row gap-16 items-stretch max-lg:items-center justify-center w-full max-w-6xl max-lg:flex-col-reverse max-lg:gap-5">
+    <div class="w-1/2 max-lg:w-full max-w-md flex flex-col items-center bg-background p-10 rounded-2xl shadow-2xl">
       <img
         src="./SCGHorizontal.png"
         alt="SCG logo"
-        class="w-full max-w-md h-auto object-contain bg-background rounded-lg shadow-lg mb-8"
+        class="w-full max-w-md h-auto object-contain mb-8"
       />
-      <div class="bg-background rounded-lg p-6 shadow-lg w-full max-w-md">
-        <h2 class="text-xl font-bold text-foreground mb-4">Welcome to JOMS</h2>
+      <div class="w-full max-w-md">
+        <h2 class="text-xl font-bold text-foreground mb-4">Job Online Monitoring System</h2>
         <p class="text-secondary mb-2">This system is exclusively for SCG Dress Shoppe employees.</p>
-        <p class="text-secondary mb-2">If you're having trouble logging in, please contact your supervisor or the IT department.</p>
-        <p class="text-secondary text-sm mt-4">JOMS v1.0 - Job Order Management System</p>
+        <p class="text-secondary mb-2">If you're having trouble logging in, please contact the admin.</p>
+        <p class="text-primary text-sm mt-4">JOMS v1.0 - Job Order Management System</p>
       </div>
     </div>
     <div class="w-1/2 max-lg:w-full max-w-md">
@@ -45,7 +45,7 @@
         class="bg-background rounded-2xl shadow-2xl overflow-hidden"
       >
         <div class="p-8">
-          <h2 class="text-3xl font-bold text-foreground text-center mb-8">
+          <h2 class="text-3xl font-bold text-primary text-center mb-8">
             SIGN IN
           </h2>
 
@@ -100,13 +100,13 @@
                 {/if}
                 <button
                   type="button"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   on:click={togglePasswordVisibility}
                 >
                   {#if showPassword}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-accent"
+                      class="h-5 w-5 text-primary"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -120,7 +120,7 @@
                   {:else}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-accent"
+                      class="h-5 w-5 text-primary"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -143,16 +143,16 @@
                 type="checkbox"
                 id="remember-me"
                 bind:checked={rememberMe}
-                class="w-4 h-4 rounded border-input text-accent focus:ring-accent accent-accent"
+                class="w-4 h-4 rounded border-input text-primary accent-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent cursor-pointer"
               />
-              <label for="remember-me" class="ml-2 block text-sm text-secondary"
+              <label for="remember-me" class="ml-2 block text-sm text-secondary select-none cursor-pointer"
                 >Remember me</label
               >
             </div>
 
             <button
               type="submit"
-              class="w-full bg-accent text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
+              class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all select-none"
             >
               Sign in
             </button>

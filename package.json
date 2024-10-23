@@ -24,7 +24,9 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@supabase/supabase-js": "^2.45.6",
 		"chart.js": "^4.4.4",
+		"date-fns": "^4.1.0",
 		"lucide-react": "^0.447.0",
 		"recharts": "^2.12.7"
 	}

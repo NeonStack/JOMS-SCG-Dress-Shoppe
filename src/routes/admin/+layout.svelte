@@ -6,12 +6,12 @@
 
   let navigation = [
     { name: "Dashboard", href: "/admin/dashboard", icon: "🏠" },
-    { name: "Customer Information", href: "/admin/customers", icon: "👤" },
-    { name: "Job Orders", href: "/admin/orders", icon: "📝" },
-    { name: "Task Assignment", href: "/admin/tasks", icon: "🛠" },
-    { name: "Payments", href: "/admin/payments", icon: "💸" },
-    { name: "Analytics", href: "/admin/analytics", icon: "📊" },
-    { name: "Settings", href: "/admin/settings", icon: "⚙️" },
+    { name: "Student Courses", href: "/admin/course", icon: "👤" },
+    { name: "Measurement Types", href: "/admin/measurement", icon: "💸" },
+    { name: "Uniform Configuration", href: "/admin/uniform-configuration", icon: "📝" },
+    { name: "Students", href: "/admin/students", icon: "📊" },
+    { name: "Orders", href: "/admin/orders", icon: "📊" },
+    { name: "Account Management", href: "/admin/account-management", icon: "⚙️" },
   ];
 </script>
 
@@ -21,7 +21,7 @@
   <aside
     class="{showSidebar
       ? 'fixed inset-0 z-50'
-      : 'hidden'} lg:relative lg:block w-64 bg-primary dark:bg-primary-dark text-accent-foreground"
+      : 'hidden'} lg:relative lg:block w-64 bg-primary text-accent-foreground"
   >
     <div class="sticky top-0 h-screen overflow-y-auto">
       <div class="p-4 font-bold text-xl">Admin Panel</div>
@@ -31,9 +31,9 @@
             <li>
               <a
                 href={navItem.href}
-                class="block py-3 px-4 hover:bg-primary-dark {$page.url
+                class="block py-3 px-4 hover:bg-primary {$page.url
                   .pathname === navItem.href
-                  ? 'bg-primary-dark'
+                  ? 'bg-primary'
                   : ''}"
               >
                 {navItem.icon}
@@ -50,7 +50,7 @@
   <div class="flex-1 flex flex-col lg:relative">
     <!-- Mobile Menu Toggle -->
     <div
-      class="lg:hidden flex items-center justify-between bg-primary dark:bg-primary-dark text-accent-foreground p-4 w-full"
+      class="lg:hidden flex items-center justify-between bg-primary text-accent-foreground p-4 w-full"
     >
       <div class="font-bold text-xl">Admin Panel</div>
       <button on:click={() => (showSidebar = !showSidebar)}> ☰ </button>
