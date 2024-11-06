@@ -1,588 +1,464 @@
-<!-- +page.svelte -->
 <script>
-  import { onMount } from "svelte";
-  import { supabase } from "$lib/supabaseClient";
-
-  // State Management
-  let students = [];
-  let courses = [];
-  let measurements = [];
-  let isRegistering = false;
-  let isEditing = false;
-  let editingStudent = null;
-  let searchQuery = "";
-  let selectedCourse = "";
-  let selectedGender = "";
-  let filteredStudents = [];
-
-  // Form Data - Initialize with default values function
-  const getDefaultFormData = () => ({
-    first_name: "",
-    last_name: "",
-    course_id: "",
-    year_level: 1,
-    gender: "",
-    contact_number: "",
-    measurements: {},
-  });
-
-  let formData = getDefaultFormData();
-
-  // Filters
-  let filters = {
-    course: "",
-    yearLevel: "",
-    gender: "",
-  };
-
-  onMount(async () => {
-    await Promise.all([loadStudents(), loadCourses()]);
-  });
-
-  // Load students with their measurements
-  async function loadStudents() {
-    const { data, error } = await supabase
-      .from("students")
-      .select(`
-        *,
-        student_measurements (
-          measurement_type_id,
-          value,
-          measurement_types (
-            id,
-            name
-          )
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error loading students:", error);
-      return;
-    }
-
-    students = data;
-    updateFilteredStudents();
-  }
-
-  // Load available courses
-  async function loadCourses() {
-    const { data, error } = await supabase.from("courses").select("*");
-
-    if (error) {
-      console.error("Error loading courses:", error);
-      return;
-    }
-
-    courses = data;
-  }
-
-  // Load measurement types based on course and gender
-  async function loadMeasurementTypes() {
-    if (!selectedCourse || !selectedGender) {
-      measurements = [];
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("uniform_configs")
-      .select(
-        `
-          id,
-          wear_type,
-          config_required_measurements (
-            measurement_types (
-              id,
-              name
-            )
-          )
-        `
-      )
-      .eq("course_id", selectedCourse)
-      .eq("gender", selectedGender);
-
-    if (error) {
-      console.error("Error loading measurement types:", error);
-      return;
-    }
-
-    // Transform data to group by wear_type
-    measurements = data.reduce((acc, config) => {
-      if (!acc[config.wear_type]) acc[config.wear_type] = [];
-      config.config_required_measurements.forEach((m) => {
-        acc[config.wear_type].push({
-          id: m.measurement_types.id,
-          name: m.measurement_types.name,
-        });
-      });
-      return acc;
-    }, {});
-
-    // Initialize measurements if not editing
-    if (!isEditing) {
-      const newMeasurements = {};
-      Object.values(measurements)
-        .flat()
-        .forEach((m) => {
-          newMeasurements[m.id] = "";
-        });
-      formData.measurements = newMeasurements;
-    }
-  }
-
-  // Handle form submission with separated concerns
-  async function handleSubmit() {
-    try {
-      if (isEditing && editingStudent) {
-        await handleUpdate();
-      } else {
-        await handleCreate();
-      }
-      
-      await loadStudents();
-      resetForm();
-    } catch (error) {
-      console.error("Error saving student:", error);
-      alert("Failed to save student. Please try again.");
-    }
-  }
-
-  // Handle update operation
-  async function handleUpdate() {
-    // Update student info
-    const { error: studentError } = await supabase
-      .from("students")
-      .update({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        year_level: formData.year_level,
-        contact_number: formData.contact_number,
-      })
-      .eq("id", editingStudent.id);
-
-    if (studentError) throw studentError;
-
-    // Delete existing measurements
-    const { error: deleteError } = await supabase
-      .from("student_measurements")
-      .delete()
-      .eq("student_id", editingStudent.id);
-
-    if (deleteError) throw deleteError;
-
-    // Insert updated measurements
-    const measurementInserts = Object.entries(formData.measurements)
-      .filter(([_, value]) => value !== "")
-      .map(([id, value]) => ({
-        student_id: editingStudent.id,
-        measurement_type_id: id,
-        value: parseFloat(value),
-      }));
-
-    if (measurementInserts.length > 0) {
-      const { error: insertError } = await supabase
-        .from("student_measurements")
-        .insert(measurementInserts);
-
-      if (insertError) throw insertError;
-    }
-  }
-
-  // Handle create operation
-  async function handleCreate() {
-    const { data: newStudent, error: studentError } = await supabase
-      .from("students")
-      .insert({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        course_id: selectedCourse,
-        year_level: formData.year_level,
-        gender: selectedGender,
-        contact_number: formData.contact_number,
-      })
-      .select()
-      .single();
-
-    if (studentError) throw studentError;
-
-    // Insert measurements
-    const measurementInserts = Object.entries(formData.measurements)
-      .filter(([_, value]) => value !== "")
-      .map(([id, value]) => ({
-        student_id: newStudent.id,
-        measurement_type_id: id,
-        value: parseFloat(value),
-      }));
-
-    if (measurementInserts.length > 0) {
-      const { error: measurementError } = await supabase
-        .from("student_measurements")
-        .insert(measurementInserts);
-
-      if (measurementError) throw measurementError;
-    }
-  }
-
-  // Reset form completely
-  function resetForm() {
-    isRegistering = false;
-    isEditing = false;
-    editingStudent = null;
-    selectedCourse = "";
-    selectedGender = "";
-    formData = getDefaultFormData();
-    measurements = [];
-  }
-
-  // Start new registration with clean state
-  function startNewRegistration() {
-    resetForm();
-    isRegistering = true;
-  }
-
-  // Edit student with proper state management
-  function editStudent(student) {
-    isEditing = true;
-    editingStudent = student;
-    isRegistering = true;
+    import { enhance } from "$app/forms";
+    import { onMount } from "svelte";
     
-    // Set course and gender first (this will trigger loadMeasurementTypes)
-    selectedCourse = student.course_id;
-    selectedGender = student.gender;
+    export let data;
+    let students = [];
+    let courses = [];
+    let uniformConfigs = {};
+    let measurementTypes = {};
+    let error = null;
     
-    // Set the form data
-    formData = {
-      first_name: student.first_name,
-      last_name: student.last_name,
-      year_level: student.year_level,
-      contact_number: student.contact_number,
-      measurements: {},
-    };
-
-    // Set measurements after types are loaded
-    if (student.student_measurements) {
-      const measurements = {};
-      student.student_measurements.forEach((m) => {
-        measurements[m.measurement_type_id] = m.value;
-      });
-      formData.measurements = measurements;
-    }
-  }
-
-  // Delete student
-  async function deleteStudent(id) {
-    if (!confirm("Are you sure you want to delete this student?")) return;
-
-    const { error } = await supabase.from("students").delete().eq("id", id);
-
-    if (error) {
-      console.error("Error deleting student:", error);
-      alert("Failed to delete student");
-      return;
-    }
-
-    await loadStudents();
-  }
-
-  // Update filtered students
-  function updateFilteredStudents() {
-    filteredStudents = students.filter((student) => {
-      const nameMatch = searchQuery
-        ? (student.first_name + " " + student.last_name)
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-        : true;
-
-      const courseMatch = filters.course
-        ? student.course_id === filters.course
-        : true;
-
-      const yearMatch = filters.yearLevel
-        ? student.year_level === parseInt(filters.yearLevel)
-        : true;
-
-      const genderMatch = filters.gender
-        ? student.gender === filters.gender
-        : true;
-
-      return nameMatch && courseMatch && yearMatch && genderMatch;
+    onMount(() => {
+        try {
+            students = data.students || [];
+            courses = data.courses || [];
+            uniformConfigs = data.uniformConfigs || {};
+            measurementTypes = data.measurementTypes || {};
+        } catch (err) {
+            error = 'Error loading data. Please refresh the page.';
+            console.error('Error in component:', err);
+        }
     });
-  }
 
-  // Watch for changes in filters
-  $: {
-    searchQuery;
-    filters;
-    updateFilteredStudents();
-  }
-
-  // Watch for changes in course/gender selection
-  $: {
-    if (selectedCourse && selectedGender) {
-      loadMeasurementTypes();
+    // State for dynamic measurements
+    let selectedGender = '';
+    let selectedCourseId = '';
+    let requiredMeasurements = [];
+    
+    // Updated reactive statement for measurements
+    $: if (selectedGender && selectedCourseId) {
+        const configKey = `${selectedGender}_${selectedCourseId}`;
+        const configs = uniformConfigs[configKey] || [];
+        
+        console.log('Selected config key:', configKey); // Debug log
+        console.log('Found configs:', configs); // Debug log
+        
+        // Process required measurements by wear type
+        const upperMeasurements = configs
+            .filter(c => c.wear_type === 'upper')    // Changed from uniform_type
+            .flatMap(c => c.measurement_type_ids || []);
+            
+        const lowerMeasurements = configs
+            .filter(c => c.wear_type === 'lower')    // Changed from uniform_type
+            .flatMap(c => c.measurement_type_ids || []);
+            
+        // Combine all measurements but keep track of their types
+        requiredMeasurements = [
+            ...upperMeasurements.map(id => ({
+                ...measurementTypes[id],
+                wear_type: 'upper'    // Changed from uniform_type
+            })),
+            ...lowerMeasurements.map(id => ({
+                ...measurementTypes[id],
+                wear_type: 'lower'    // Changed from uniform_type
+            }))
+        ].filter(Boolean);
+        
+        console.log('Required measurements:', requiredMeasurements); // Debug log
+    } else {
+        requiredMeasurements = [];
     }
-  }
+    
+    // Sorting logic
+    let sortField = 'created_at';
+    let sortDirection = 'desc';
+    
+    function sort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDirection = 'asc';
+        }
+        
+        students = students.sort((a, b) => {
+            let comparison = 0;
+            if (field === 'course') {
+                comparison = a.course?.course_code.localeCompare(b.course?.course_code) || 0;
+            } else {
+                comparison = a[field] < b[field] ? -1 : a[field] > b[field] ? 1 : 0;
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
+        students = [...students]; // Trigger reactivity
+    }
+    
+    // Modal state
+    let showModal = false;
+    let modalMode = 'create';
+    let editingStudent = {};
+    
+    function openCreateModal() {
+        modalMode = 'create';
+        editingStudent = {};
+        showModal = true;
+    }
+    
+    function openEditModal(student) {
+        modalMode = 'edit';
+        editingStudent = { ...student };
+        selectedGender = student.gender;
+        // Convert course_id to string when setting selectedCourseId
+        selectedCourseId = student.course_id?.toString() || '';
+        showModal = true;
+    }
+    
+    function resetForm() {
+        editingStudent = {};
+        selectedGender = '';
+        selectedCourseId = '';
+        showModal = false;
+    }
+    
+    // Search functionality
+    let searchQuery = '';
+    $: filteredStudents = students.filter(student => 
+        student.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.course?.course_code?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 </script>
 
-<div class="container mx-auto p-4">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Student Management</h1>
-    <button
-      class="btn-primary"
-      on:click={() => (isRegistering = !isRegistering) || resetForm()}
-    >
-      {isRegistering ? "Cancel" : "Register New Student"}
-    </button>
-  </div>
-
-  {#if isRegistering}
-    <form on:submit|preventDefault={handleSubmit} class="space-y-6">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="form-group">
-          <label for="firstName">First Name</label>
-          <input
-            type="text"
-            id="firstName"
-            bind:value={formData.first_name}
-            required
-            class="input"
-          />
+{#if error}
+    <div class="p-4 bg-red-100 text-red-700 rounded">
+        {error}
+    </div>
+{:else}
+    <div class="p-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-foreground">Student Management</h1>
         </div>
 
-        <div class="form-group">
-          <label for="lastName">Last Name</label>
-          <input
-            type="text"
-            id="lastName"
-            bind:value={formData.last_name}
-            required
-            class="input"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="course">Course</label>
-          <select
-            id="course"
-            bind:value={selectedCourse}
-            required
-            disabled={isEditing}
-            class="input"
-          >
-            <option value="">Select Course</option>
-            {#each courses as course}
-              <option value={course.id}>{course.name}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="yearLevel">Year Level</label>
-          <select
-            id="yearLevel"
-            bind:value={formData.year_level}
-            required
-            class="input"
-          >
-            {#each [1, 2, 3, 4] as year}
-              <option value={year}>{year}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Gender</label>
-          <div class="flex gap-4">
-            {#each ["MALE", "FEMALE"] as gender}
-              <label class="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="gender"
-                  value={gender}
-                  bind:group={selectedGender}
-                  disabled={isEditing}
-                  required
-                />
-                <span class="ml-2">{gender}</span>
-              </label>
-            {/each}
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="contact">Contact Number</label>
-          <input
-            type="tel"
-            id="contact"
-            bind:value={formData.contact_number}
-            required
-            pattern="[0-9-]+"
-            class="input"
-          />
-        </div>
-      </div>
-
-      {#if Object.keys(measurements).length > 0}
-        <div class="mt-6">
-          <h2 class="text-xl font-semibold mb-4">Measurements</h2>
-          {#each Object.entries(measurements) as [wearType, measurementList]}
-            <div class="mb-6">
-              <h3 class="text-lg font-medium mb-2">{wearType}</h3>
-              <div class="grid grid-cols-3 gap-4">
-                {#each measurementList as measurement}
-                  <div class="form-group">
-                    <label for={measurement.id}>{measurement.name}</label>
+        <!-- Main content card -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-semibold">Students List</h2>
+                <div class="flex gap-4">
                     <input
-                      type="number"
-                      id={measurement.id}
-                      bind:value={formData.measurements[measurement.id]}
-                      required
-                      min="0"
-                      step="0.1"
-                      class="input"
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="Search students..."
+                        class="border rounded p-2"
                     />
-                  </div>
-                {/each}
-              </div>
+                    <button
+                        class="bg-primary text-white px-4 py-2 rounded-lg"
+                        on:click={openCreateModal}
+                    >
+                        Add Student
+                    </button>
+                </div>
             </div>
-          {/each}
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-muted">
+                            <th 
+                                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                                on:click={() => sort('first_name')}
+                            >
+                                First Name
+                                {#if sortField === 'first_name'}
+                                    <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                {/if}
+                            </th>
+                            <th 
+                                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                                on:click={() => sort('last_name')}
+                            >
+                                Last Name
+                                {#if sortField === 'last_name'}
+                                    <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                {/if}
+                            </th>
+                            <th 
+                                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                                on:click={() => sort('course')}
+                            >
+                                Course
+                                {#if sortField === 'course'}
+                                    <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                {/if}
+                            </th>
+                            <th 
+                                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                                on:click={() => sort('gender')}
+                            >
+                                Gender
+                                {#if sortField === 'gender'}
+                                    <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                {/if}
+                            </th>
+                            <th class="p-2 text-left">Contact Number</th>
+                            <th class="p-2 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each filteredStudents as student}
+                            <tr class="border-b hover:bg-muted">
+                                <td class="p-2">{student.first_name}</td>
+                                <td class="p-2">{student.last_name}</td>
+                                <td class="p-2">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                        {student.course?.course_code}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    <span class="px-2 py-1 rounded-full text-sm
+                                        {student.gender === 'male' ? 'bg-green-100 text-green-800' : 'bg-pink-100 text-pink-800'}">
+                                        {student.gender}
+                                    </span>
+                                </td>
+                                <td class="p-2">{student.contact_number || '-'}</td>
+                                <td class="p-2 text-right">
+                                    <button
+                                        class="text-blue-600 hover:text-blue-800 mr-2"
+                                        on:click={() => openEditModal(student)}
+                                    >
+                                        Edit
+                                    </button>
+                                    <form
+                                        method="POST"
+                                        action="?/delete"
+                                        use:enhance={() => {
+                                            return async ({ result }) => {
+                                                if (result.type === 'success') {
+                                                    await invalidate('app:students');
+                                                }
+                                            };
+                                        }}
+                                        class="inline"
+                                    >
+                                        <input type="hidden" name="id" value={student.id} />
+                                        <button type="submit" class="text-red-600 hover:text-red-800">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         </div>
-      {/if}
-
-      <div class="flex justify-end gap-4">
-        <button type="button" class="btn-secondary" on:click={resetForm}>
-          Cancel
-        </button>
-        <button type="submit" class="btn-primary">
-          {isEditing ? "Update" : "Register"} Student
-        </button>
-      </div>
-    </form>
-  {:else}
-    <div class="mb-6 space-y-4">
-      <div class="flex gap-4">
-        <input
-          type="search"
-          placeholder="Search students..."
-          bind:value={searchQuery}
-          class="input flex-1"
-        />
-
-        <select bind:value={filters.course} class="input w-48">
-          <option value="">All Courses</option>
-          {#each courses as course}
-            <option value={course.id}>{course.name}</option>
-          {/each}
-        </select>
-
-        <select bind:value={filters.yearLevel} class="input w-36">
-          <option value="">All Years</option>
-          {#each [1, 2, 3, 4] as year}
-            <option value={year}>Year {year}</option>
-          {/each}
-        </select>
-
-        <select bind:value={filters.gender} class="input w-36">
-          <option value="">All Genders</option>
-          {#each ["MALE", "FEMALE"] as gender}
-            <option value={gender}>{gender}</option>
-          {/each}
-        </select>
-      </div>
     </div>
+{/if}
 
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Course</th>
-            <th>Year</th>
-            <th>Gender</th>
-            <th>Contact</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filteredStudents as student (student.id)}
-            <tr>
-              <td>{student.first_name} {student.last_name}</td>
-              <td>{courses.find((c) => c.id === student.course_id)?.name}</td>
-              <td>{student.year_level}</td>
-              <td>{student.gender}</td>
-              <td>{student.contact_number}</td>
-              <td>
-                <button
-                  class="btn-secondary mr-2"
-                  on:click={() => editStudent(student)}
+{#if showModal}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto py-4">
+        <div class="bg-white rounded-lg w-full max-w-3xl mx-4 my-8">
+            <!-- Modal Header -->
+            <div class="border-b px-6 py-4 sticky top-0 bg-white rounded-t-lg">
+                <h2 class="text-xl font-bold">
+                    {modalMode === 'create' ? 'Add New Student' : 'Edit Student'}
+                </h2>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <form
+                    id="studentForm"
+                    method="POST"
+                    action="?/{modalMode}"
+                    use:enhance={({ form, data, action, cancel }) => {
+                        return async ({ result, update }) => {
+                            if (result.type === 'success') {
+                                showModal = false;
+                                window.location.reload();
+                            } else if (result.type === 'error') {
+                                console.error('Form submission error:', result);
+                                // Optionally show error message to user
+                            }
+                        };
+                    }}
+                    class="space-y-4"
                 >
-                  Edit
-                </button>
-                <button
-                  class="btn-danger"
-                  on:click={() => deleteStudent(student.id)}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+                    {#if modalMode === 'edit'}
+                        <input type="hidden" name="id" value={editingStudent.id} />
+                    {/if}
+                    
+                    <!-- Two Column Layout for Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">First Name</label>
+                            <input
+                                type="text"
+                                name="first_name"
+                                value={editingStudent.first_name || ''}
+                                class="mt-1 w-full p-2 border rounded"
+                                required
+                            />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Last Name</label>
+                            <input
+                                type="text"
+                                name="last_name"
+                                value={editingStudent.last_name || ''}
+                                class="mt-1 w-full p-2 border rounded"
+                                required
+                            />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Gender</label>
+                            <select
+                                name="gender"
+                                bind:value={selectedGender}
+                                class="mt-1 w-full p-2 border rounded"
+                                required
+                            >
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Course</label>
+                            <select
+                                name="course_id"
+                                bind:value={selectedCourseId}
+                                class="mt-1 w-full p-2 border rounded"
+                                required
+                            >
+                                <option value="">Select Course</option>
+                                {#each courses as course}
+                                    <!-- Convert course.id to string for comparison -->
+                                    <option value={course.id.toString()}>
+                                        {course.course_code} - {course.description}
+                                    </option>
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Contact Number</label>
+                            <input
+                                type="text"
+                                name="contact_number"
+                                value={editingStudent.contact_number || ''}
+                                class="mt-1 w-full p-2 border rounded"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Address</label>
+                            <textarea
+                                name="address"
+                                value={editingStudent.address || ''}
+                                class="mt-1 w-full p-2 border rounded"
+                                rows="2"
+                            ></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Measurements Section -->
+                    {#if requiredMeasurements.length > 0}
+                        <div class="border-t pt-6 mt-6">
+                            <h3 class="font-bold text-xl mb-6">Required Measurements</h3>
+                            
+                            <!-- Upper Wear Measurements -->
+                            {#if requiredMeasurements.some(m => m.wear_type === 'upper')}    <!-- Changed from uniform_type -->
+                                <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                                    <h4 class="font-semibold text-lg mb-4 text-primary">Upper Wear Measurements</h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {#each requiredMeasurements.filter(m => m.wear_type === 'upper') as measurement}    <!-- Changed from uniform_type -->
+                                            <div class="measurement-input-group">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                    {measurement.name}
+                                                </label>
+                                                <div class="relative">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        name="measurement_{measurement.id}"
+                                                        value={editingStudent?.measurements?.[measurement.id] || ''}
+                                                        class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                                        placeholder="Enter measurement"
+                                                        required
+                                                    />
+                                                    <span class="absolute right-3 top-3 text-gray-500 text-sm">cm</span>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+
+                            <!-- Lower Wear Measurements -->
+                            {#if requiredMeasurements.some(m => m.wear_type === 'lower')}    <!-- Changed from uniform_type -->
+                                <div class="bg-gray-50 p-6 rounded-lg">
+                                    <h4 class="font-semibold text-lg mb-4 text-primary">Lower Wear Measurements</h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {#each requiredMeasurements.filter(m => m.wear_type === 'lower') as measurement}    <!-- Changed from uniform_type -->
+                                            <div class="measurement-input-group">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                    {measurement.name}
+                                                </label>
+                                                <div class="relative">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        name="measurement_{measurement.id}"
+                                                        value={editingStudent?.measurements?.[measurement.id] || ''}
+                                                        class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                                        placeholder="Enter measurement"
+                                                        required
+                                                    />
+                                                    <span class="absolute right-3 top-3 text-gray-500 text-sm">cm</span>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+                </form>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="border-t px-6 py-4 sticky bottom-0 bg-white rounded-b-lg">
+                <div class="flex justify-end gap-2">
+                    <button
+                        type="button"
+                        class="px-4 py-2 border rounded hover:bg-gray-100"
+                        on:click={resetForm}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        form="studentForm"
+                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                    >
+                        {modalMode === 'create' ? 'Create' : 'Update'}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  {/if}
-</div>
+{/if}
 
 <style>
-  .input {
-    @apply w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary;
-  }
+    .measurement-input-group input {
+        padding-right: 3rem; /* Make room for the cm label */
+    }
 
-  .input-search {
-    @apply input min-w-[300px];
-  }
+    .measurement-input-group input::-webkit-outer-spin-button,
+    .measurement-input-group input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 
-  .input-select {
-    @apply input bg-white;
-  }
-
-  .btn-primary {
-    @apply px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary;
-  }
-
-  .btn-secondary {
-    @apply px-4 py-2 bg-secondary text-white rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-secondary;
-  }
-
-  .btn-danger {
-    @apply px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600;
-  }
-
-  .btn-sm {
-    @apply px-2 py-1 text-sm;
-  }
-
-  .form-group {
-    @apply space-y-1;
-  }
-
-  .form-group label {
-    @apply text-sm font-medium;
-  }
-
-  table {
-    @apply min-w-full divide-y divide-gray-200;
-  }
-
-  th {
-    @apply px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
-  }
-
-  td {
-    @apply px-6 py-4 whitespace-nowrap text-sm;
-  }
-
-  tr:nth-child(even) {
-    @apply bg-gray-50;
-  }
+    .measurement-input-group input[type=number] {
+        -moz-appearance: textfield;
+    }
 </style>
+

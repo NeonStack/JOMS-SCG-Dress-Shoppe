@@ -1,699 +1,520 @@
 <script>
-  import { onMount } from "svelte";
-  import { supabase } from "$lib/supabaseClient";
-  import { fade } from "svelte/transition";
+    import { enhance } from '$app/forms';
+    import { format } from 'date-fns';
+    import { invalidate } from '$app/navigation';
+    
+    export let data;
+    let showModal = false;
+    let showCreateModal = false;
+    let searchTerm = '';
+    let selectedStudent = null;
+    let selectedUniformType = 'upper';
+    let selectedDueDate = '';
+    let selectedOrders = [];
+    let selectedEmployee = null;
+    let dateRange = { start: '', end: '' };
+    let sortField = 'due_date';
+    let sortDirection = 'asc';
+    let activeTab = 'pending'; // Add this for tab management
+    let selectAll = false; // Add new state for select all
+    let filteredResults = null; // Add new state for filtered orders
 
-  // State management
-  let currentStep = 1;
-  let showDetailsModal = false;
-  let selectedOrder = null;
-  let showDeleteModal = false;
-  let orderToDelete = null;
-  let students = [];
-  let employees = [];
-  let courses = [];
-  let orders = [];
-  let selectedStudent = null;
-  let selectedWearType = "";
-  let quantity = 1;
-  let selectedEmployee = null;
-  let dueDate = "";
-  let specialInstructions = "";
-  let basePrice = 0;
-  let totalAmount = 0;
-  let showCreateModal = false;
-  let searchQuery = "";
-  let filteredStudents = [];
-  let uniformConfigs = [];
+    $: filteredStudents = data.students.filter(student => 
+        `${student.first_name} ${student.last_name} ${student.course?.course_code}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
 
-  // Filters
-  let statusFilter = [];
-  let dateRangeStart = "";
-  let dateRangeEnd = "";
-  let courseFilter = "";
-  let employeeFilter = "";
+    $: totalAmount = calculateTotalAmount(selectedStudent, selectedUniformType);
 
-  // Load initial data
-  onMount(async () => {
-    await Promise.all([
-      fetchStudents(),
-      fetchEmployees(),
-      fetchCourses(),
-      fetchOrders(),
-      fetchUniformConfigs(),
-    ]);
-  });
+    $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+        const direction = sortDirection === 'asc' ? 1 : -1;
+        return aVal > bVal ? direction : -direction;
+    });
 
-  async function fetchStudents() {
-    const { data, error } = await supabase.from("students").select(`
-          *,
-          courses:course_id (name)
-        `);
-    if (error) console.error("Error fetching students:", error);
-    else students = data;
-    filteredStudents = students;
-  }
+    // Add these computed properties for filtering orders by status
+    $: pendingOrders = sortedOrders.filter(order => order.status === 'pending');
+    $: inProgressOrders = sortedOrders.filter(order => order.status === 'in progress');
+    $: completedOrders = sortedOrders.filter(order => order.status === 'completed');
 
-  async function fetchEmployees() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("role", "employee");
-    if (error) console.error("Error fetching employees:", error);
-    else employees = data;
-  }
+    function calculateTotalAmount(student, uniformType) {
+        if (!student || !uniformType) return 0;
+        
+        const configs = data.uniformConfigs.filter(
+            c => c.course_id === student.course_id && c.gender === student.gender
+        );
+        
+        if (!configs.length) return 0;
 
-  async function fetchCourses() {
-    const { data, error } = await supabase.from("courses").select("*");
-    if (error) console.error("Error fetching courses:", error);
-    else courses = data;
-  }
-
-  async function fetchOrders() {
-    const { data, error } = await supabase.from("orders").select(`
-          *,
-          students:student_id (*),
-          uniform_configs:uniform_config_id (*),
-          profiles:assigned_to (*)
-        `);
-    if (error) console.error("Error fetching orders:", error);
-    else orders = data;
-  }
-
-  async function fetchUniformConfigs() {
-    const { data, error } = await supabase.from("uniform_configs").select("*");
-    if (error) console.error("Error fetching uniform configs:", error);
-    else uniformConfigs = data;
-  }
-
-  // Reactive statements
-  $: {
-    if (searchQuery) {
-      filteredStudents = students.filter(
-        (student) =>
-          `${student.first_name} ${student.last_name}`
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          student.courses?.name
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-      );
-    } else {
-      filteredStudents = students;
-    }
-  }
-
-  $: {
-    if (selectedStudent && selectedWearType && quantity) {
-      const config = uniformConfigs.find(
-        (c) =>
-          c.course_id === selectedStudent.course_id &&
-          c.gender === selectedStudent.gender &&
-          (c.wear_type === selectedWearType || selectedWearType === "FULL")
-      );
-
-      if (config) {
-        if (selectedWearType === "FULL") {
-          const upperConfig = uniformConfigs.find(
-            (c) =>
-              c.course_id === selectedStudent.course_id &&
-              c.gender === selectedStudent.gender &&
-              c.wear_type === "UPPER"
-          );
-          const lowerConfig = uniformConfigs.find(
-            (c) =>
-              c.course_id === selectedStudent.course_id &&
-              c.gender === selectedStudent.gender &&
-              c.wear_type === "LOWER"
-          );
-          basePrice =
-            (upperConfig?.base_price || 0) + (lowerConfig?.base_price || 0);
+        if (uniformType === 'both') {
+            const upperConfig = configs.find(c => c.wear_type === 'upper');
+            const lowerConfig = configs.find(c => c.wear_type === 'lower');
+            return (upperConfig?.base_price || 0) + (lowerConfig?.base_price || 0);
         } else {
-          basePrice = config.base_price;
+            const config = configs.find(c => c.wear_type === uniformType);
+            return config?.base_price || 0;
         }
-        totalAmount = basePrice * quantity;
-      }
-    }
-  }
-
-  // Helper functions
-  function nextStep() {
-    if (currentStep < 3) currentStep++;
-  }
-
-  function prevStep() {
-    if (currentStep > 1) currentStep--;
-  }
-
-  async function createOrder() {
-    if (
-      !selectedStudent ||
-      !selectedWearType ||
-      !selectedEmployee ||
-      !dueDate
-    ) {
-      alert("Please fill in all required fields");
-      return;
     }
 
-    const orderData = {
-      student_id: selectedStudent.id,
-      uniform_config_id: uniformConfigs.find(
-        (c) =>
-          c.course_id === selectedStudent.course_id &&
-          c.gender === selectedStudent.gender &&
-          c.wear_type === selectedWearType
-      )?.id,
-      quantity,
-      total_amount: totalAmount,
-      assigned_to: selectedEmployee.id,
-      due_date: dueDate,
-      special_instructions: specialInstructions,
-      status: "PENDING",
-      payment_status: "NO PAYMENT",
+    function toggleSort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDirection = 'asc';
+        }
+    }
+
+    function selectStudent(student) {
+        selectedStudent = student;
+        showModal = false;
+    }
+
+    function resetForm() {
+        selectedStudent = null;
+        selectedUniformType = 'upper';
+        selectedDueDate = '';
+        showCreateModal = false;
+        showModal = false; // Also close the student search modal
+    }
+
+    // Modify the toggleOrderSelection to handle individual selections
+    function toggleOrderSelection(orderId) {
+        selectedOrders = selectedOrders.includes(orderId)
+            ? selectedOrders.filter(id => id !== orderId)
+            : [...selectedOrders, orderId];
+        // Update selectAll state
+        selectAll = selectedOrders.length === pendingOrders.length;
+    }
+
+    // Add new function to handle select all
+    function toggleSelectAll() {
+        selectAll = !selectAll;
+        selectedOrders = selectAll ? pendingOrders.map(order => order.id) : [];
+    }
+
+    // Add function to handle successful assignment
+    function handleAssignmentSuccess() {
+        selectedOrders = [];
+        selectAll = false;
+        selectedEmployee = null;
+    }
+
+    // Add this function for tab switching
+    function switchTab(tab) {
+        activeTab = tab;
+        selectedOrders = []; // Clear selections when switching tabs
+    }
+
+    // Add function to handle filter reset
+    function resetFilter() {
+        dateRange.start = '';
+        dateRange.end = '';
+        filteredResults = null;
+    }
+
+    // Update the enhance function in the create order form
+    const handleCreateOrder = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                resetForm();
+                await invalidate('app:orders'); // Reload the data
+            }
+        };
     };
 
-    const { error } = await supabase.from("orders").insert(orderData);
+    // Update the enhance function in the assign orders form
+    const handleAssignOrders = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                handleAssignmentSuccess();
+                await invalidate('app:orders'); // Reload the data
+            }
+        };
+    };
 
-    if (error) {
-      console.error("Error creating order:", error);
-      alert("Error creating order");
-    } else {
-      alert("Order created successfully");
-      resetForm();
-      await fetchOrders();
+    // Update the enhance function in the filter orders form
+    const handleFilterOrders = () => {
+        return async ({ result }) => {
+            if (result.type === 'success' && result.data.filteredOrders) {
+                filteredResults = result.data.filteredOrders;
+                await invalidate('app:orders'); // Reload the data
+            }
+        };
+    };
+
+    // Add this function for consistent sort icons
+    function getSortIcon(field) {
+        if (sortField !== field) return '↕';
+        return sortDirection === 'asc' ? '↑' : '↓';
     }
-  }
-
-  function resetForm() {
-    currentStep = 1;
-    selectedStudent = null;
-    selectedWearType = "";
-    quantity = 1;
-    selectedEmployee = null;
-    dueDate = "";
-    specialInstructions = "";
-    showCreateModal = false;
-  }
-
-  async function viewOrderDetails(order) {
-    selectedOrder = order;
-    // Fetch additional details if needed
-    const { data: measurements } = await supabase
-      .from("student_measurements")
-      .select("*, measurement_types(name)")
-      .eq("student_id", order.student_id);
-
-    selectedOrder = { ...order, measurements };
-    showDetailsModal = true;
-  }
-
-  // Filter functions
-  function applyFilters() {
-    // Implementation of filter logic here
-  }
-
-  //delete order func
-  async function deleteOrder(order) {
-    const { error } = await supabase.from("orders").delete().eq("id", order.id);
-
-    if (error) {
-      alert("Error deleting order: " + error.message);
-    } else {
-      await fetchOrders(); // Refresh the orders list
-      showDeleteModal = false;
-      orderToDelete = null;
-      alert("Order deleted successfully");
-    }
-  }
-
-  $: availableWearTypes =
-    selectedStudent && selectedStudent.course_id && selectedStudent.gender
-      ? uniformConfigs
-          .filter(
-            (c) =>
-              c.course_id === selectedStudent.course_id &&
-              c.gender === selectedStudent.gender
-          )
-          .map((c) => c.wear_type)
-      : [];
 </script>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="flex justify-between items-center mb-8">
-    <h1 class="text-2xl font-bold text-foreground">Order Processing</h1>
-    <button class="btn-primary" on:click={() => (showCreateModal = true)}>
-      Create New Order
-    </button>
-  </div>
-
-  <!-- Filters -->
-  <div class="bg-white p-4 rounded-lg shadow mb-8">
-    <h2 class="text-lg font-semibold mb-4">Filters</h2>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div class="filter-group">
-        <label>Status</label>
-        <select bind:value={statusFilter} multiple class="input-field">
-          <option value="PENDING">Pending</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="COMPLETED">Completed</option>
-        </select>
-      </div>
-      <!-- Add other filters here -->
-    </div>
-  </div>
-
-  <!-- Orders Table -->
-  <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full">
-      <thead>
-        <tr class="bg-muted">
-          <th class="table-header">Order ID</th>
-          <th class="table-header">Student</th>
-          <th class="table-header">Type</th>
-          <th class="table-header">Status</th>
-          <th class="table-header">Due Date</th>
-          <th class="table-header">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each orders as order}
-          <tr class="border-b border-border">
-            <td class="table-cell">{order.id.slice(0, 8)}</td>
-            <td class="table-cell">
-              {order.students?.first_name}
-              {order.students?.last_name}
-            </td>
-            <td class="table-cell">{order.uniform_configs?.wear_type}</td>
-            <td class="table-cell">
-              <span class="status-badge status-{order.status.toLowerCase()}">
-                {order.status}
-              </span>
-            </td>
-            <td class="table-cell">
-              {new Date(order.due_date).toLocaleDateString()}
-            </td>
-            <td class="table-cell">
-              <div class="flex gap-2">
-                <button
-                  class="btn-secondary"
-                  on:click={() => viewOrderDetails(order)}
-                >
-                  View Details
-                </button>
-                {#if order.status === "PENDING"}
-                  <button
-                    class="btn-danger"
-                    on:click={() => {
-                      orderToDelete = order;
-                      showDeleteModal = true;
-                    }}
-                  >
-                    Delete
-                  </button>
-                {/if}
-              </div>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Create Order Modal -->
-  {#if showCreateModal}
-    <div class="modal-backdrop" transition:fade>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="text-xl font-bold">Create New Order</h2>
-          <button class="btn-icon" on:click={resetForm}>&times;</button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Step 1: Student Selection -->
-          {#if currentStep === 1}
-            <div class="step-content">
-              <h3 class="step-title">Select Student</h3>
-              <input
+<!-- Student Search Modal -->
+{#if showModal}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[51]">
+        <div class="bg-white p-6 rounded-lg w-1/2 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-semibold">Select Student</h2>
+                <button on:click={() => showModal = false} class="text-gray-500">&times;</button>
+            </div>
+            
+            <input
                 type="text"
-                placeholder="Search students..."
-                bind:value={searchQuery}
-                class="input-field"
-              />
-              <div class="student-list">
+                bind:value={searchTerm}
+                placeholder="Search student..."
+                class="w-full p-2 border rounded mb-4"
+            >
+
+            <div class="divide-y">
                 {#each filteredStudents as student}
-                  <button
-                    class="student-item"
-                    class:selected={selectedStudent?.id === student.id}
-                    on:click={() => (selectedStudent = student)}
-                  >
-                    <div class="student-info">
-                      <span class="font-semibold">
-                        {student.first_name}
-                        {student.last_name}
-                      </span>
-                      <span class="text-sm text-secondary">
-                        {student.courses?.name} - Year {student.year_level}
-                      </span>
+                    <div 
+                        class="p-2 hover:bg-muted cursor-pointer"
+                        on:click={() => selectStudent(student)}
+                    >
+                        <div class="font-semibold">{student.first_name} {student.last_name}</div>
+                        <div class="text-sm text-gray-600">{student.course?.course_code}</div>
                     </div>
-                  </button>
                 {/each}
-              </div>
             </div>
-          {/if}
-
-          <!-- Step 2: Order Details -->
-          {#if currentStep === 2}
-            <div class="step-content">
-              <h3 class="step-title">Order Details</h3>
-              <div class="form-group">
-                <label>Wear Type</label>
-                <select bind:value={selectedWearType} class="input-field">
-                  <option value="">Select type</option>
-                  {#if availableWearTypes.includes("UPPER")}
-                    <option value="UPPER">Upper</option>
-                  {/if}
-                  {#if availableWearTypes.includes("LOWER")}
-                    <option value="LOWER">Lower</option>
-                  {/if}
-                  {#if availableWearTypes.includes("UPPER") && availableWearTypes.includes("LOWER")}
-                    <option value="FULL">Full Uniform</option>
-                  {/if}
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Quantity</label>
-                <input
-                  type="number"
-                  min="1"
-                  bind:value={quantity}
-                  class="input-field"
-                />
-              </div>
-              <div class="price-summary">
-                <div class="flex justify-between">
-                  <span>Base Price:</span>
-                  <span>₱{basePrice.toFixed(2)}</span>
-                </div>
-                <div class="flex justify-between font-bold">
-                  <span>Total Amount:</span>
-                  <span>₱{totalAmount.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          {/if}
-
-          <!-- Step 3: Assignment -->
-          {#if currentStep === 3}
-            <div class="step-content">
-              <h3 class="step-title">Assignment Details</h3>
-              <div class="form-group">
-                <label>Assign to Employee</label>
-                <select bind:value={selectedEmployee} class="input-field">
-                  <option value="">Select employee</option>
-                  {#each employees as employee}
-                    <option value={employee}>
-                      {employee.first_name}
-                      {employee.last_name}
-                    </option>
-                  {/each}
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Due Date</label>
-                <input type="date" bind:value={dueDate} class="input-field" />
-              </div>
-              <div class="form-group">
-                <label>Special Instructions</label>
-                <textarea
-                  bind:value={specialInstructions}
-                  class="input-field"
-                  rows="3"
-                ></textarea>
-              </div>
-            </div>
-          {/if}
         </div>
-
-        <div class="modal-footer">
-          {#if currentStep > 1}
-            <button class="btn-secondary" on:click={prevStep}>
-              Previous
-            </button>
-          {/if}
-
-          {#if currentStep < 3}
-            <button
-              class="btn-primary"
-              on:click={nextStep}
-              disabled={!selectedStudent && currentStep === 1}
-            >
-              Next
-            </button>
-          {:else}
-            <button
-              class="btn-primary"
-              on:click={createOrder}
-              disabled={!selectedEmployee || !dueDate}
-            >
-              Create Order
-            </button>
-          {/if}
-        </div>
-      </div>
     </div>
-  {/if}
+{/if}
 
-  {#if showDetailsModal && selectedOrder}
-    <div class="modal-backdrop" transition:fade>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="text-xl font-bold">Order Details</h2>
-          <button
-            class="btn-icon"
-            on:click={() => {
-              showDetailsModal = false;
-              selectedOrder = null;
-            }}
-          >
-            &times;
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="space-y-4">
-            <!-- Student Information -->
-            <div class="detail-section">
-              <h3 class="text-lg font-semibold">Student Information</h3>
-              <p>
-                Name: {selectedOrder.students?.first_name}
-                {selectedOrder.students?.last_name}
-              </p>
-              <p>Course: {selectedOrder.students?.courses?.name}</p>
-              <p>Year Level: {selectedOrder.students?.year_level}</p>
+<!-- Create Order Modal -->
+{#if showCreateModal}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-1/2">
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-semibold">Create New Order</h2>
+                <button on:click={resetForm} class="text-gray-500">&times;</button>
             </div>
 
-            <!-- Order Information -->
-            <div class="detail-section">
-              <h3 class="text-lg font-semibold">Order Information</h3>
-              <p>Type: {selectedOrder.uniform_configs?.wear_type}</p>
-              <p>Quantity: {selectedOrder.quantity}</p>
-              <p>Total Amount: ₱{selectedOrder.total_amount}</p>
-              <p>
-                Status: <span
-                  class="status-badge status-{selectedOrder.status.toLowerCase()}"
-                  >{selectedOrder.status}</span
+            <form 
+                method="POST" 
+                action="?/createOrder" 
+                use:enhance={handleCreateOrder}
+            >
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-2">Student</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text"
+                                readonly
+                                value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : ''}
+                                class="w-full p-2 border rounded bg-gray-50"
+                            >
+                            <button 
+                                type="button"
+                                on:click={() => showModal = true}
+                                class="bg-secondary px-4 py-2 rounded text-white"
+                            >
+                                Search
+                            </button>
+                        </div>
+                        <input type="hidden" name="studentId" value={selectedStudent?.id}>
+                    </div>
+
+                    <div>
+                        <label class="block mb-2">Uniform Type</label>
+                        <select 
+                            name="uniformType" 
+                            bind:value={selectedUniformType}
+                            class="w-full p-2 border rounded"
+                            required
+                        >
+                            <option value="upper">Upper Wear</option>
+                            <option value="lower">Lower Wear</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block mb-2">Due Date</label>
+                        <input 
+                            type="date" 
+                            name="dueDate"
+                            bind:value={selectedDueDate}
+                            class="w-full p-2 border rounded"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block mb-2">Total Amount</label>
+                        <input 
+                            type="number" 
+                            name="totalAmount"
+                            value={totalAmount}
+                            class="w-full p-2 border rounded bg-gray-50"
+                            readonly
+                        >
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-2">
+                    <button 
+                        type="button"
+                        on:click={resetForm}
+                        class="px-4 py-2 border rounded"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        class="bg-primary text-white px-4 py-2 rounded"
+                    >
+                        Create Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+{/if}
+
+<!-- Main content -->
+<div class="p-6">
+    <div class="flex justify-between mb-6">
+        <h1 class="text-2xl font-bold text-foreground">Order Management</h1>
+        <button 
+            class="bg-primary text-white px-4 py-2 rounded-lg"
+            on:click={() => showCreateModal = true}
+        >
+            Create New Order
+        </button>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <!-- Add tab navigation -->
+        <div class="flex gap-4 mb-6 border-b">
+            <button 
+                class="px-4 py-2 {activeTab === 'pending' ? 'border-b-2 border-primary font-semibold' : ''}"
+                on:click={() => switchTab('pending')}
+            >
+                Pending Orders ({pendingOrders.length})
+            </button>
+            <button 
+                class="px-4 py-2 {activeTab === 'in_progress' ? 'border-b-2 border-primary font-semibold' : ''}"
+                on:click={() => switchTab('in_progress')}
+            >
+                In Progress ({inProgressOrders.length})
+            </button>
+            <button 
+                class="px-4 py-2 {activeTab === 'completed' ? 'border-b-2 border-primary font-semibold' : ''}"
+                on:click={() => switchTab('completed')}
+            >
+                Completed ({completedOrders.length})
+            </button>
+        </div>
+
+        <!-- Replace the employee assignment form with this improved version -->
+        {#if activeTab === 'pending'}
+            <div class="flex items-center justify-between mb-4 bg-muted p-4 rounded-lg">
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2">
+                        <input 
+                            type="checkbox" 
+                            checked={selectAll}
+                            on:change={toggleSelectAll}
+                            class="w-4 h-4"
+                        >
+                        <span>Select All Orders</span>
+                    </label>
+                    {#if selectedOrders.length > 0}
+                        <span class="text-sm text-gray-600">
+                            {selectedOrders.length} order{selectedOrders.length > 1 ? 's' : ''}
+                        </span>
+                    {/if}
+                </div>
+                
+                {#if selectedOrders.length > 0}
+                    <form 
+                        method="POST" 
+                        action="?/assignOrders" 
+                        use:enhance={handleAssignOrders}
+                        class="flex gap-4 items-center"
+                    >
+                        <select 
+                            name="employeeId" 
+                            bind:value={selectedEmployee}
+                            class="p-2 border rounded min-w-[200px]"
+                            required
+                        >
+                            <option value="">Assign to employee...</option>
+                            {#each data.employees as employee}
+                                <option value={employee.id}>
+                                    {employee.first_name} {employee.last_name}
+                                </option>
+                            {/each}
+                        </select>
+                        <input type="hidden" name="orderIds" value={selectedOrders.join(',')}>
+                        <button 
+                            type="submit"
+                            class="bg-accent text-white px-4 py-2 rounded hover:bg-accent-hover transition-colors"
+                            disabled={!selectedEmployee}
+                        >
+                            Assign Orders
+                        </button>
+                    </form>
+                {/if}
+            </div>
+        {/if}
+
+        <div class="flex justify-between mb-4">
+            <h2 class="text-xl font-semibold">Orders List</h2>
+            
+            <form 
+                method="POST" 
+                action="?/filterOrders" 
+                use:enhance={handleFilterOrders} 
+                class="flex gap-4"
+            >
+                <input 
+                    type="date" 
+                    name="startDate"
+                    bind:value={dateRange.start}
+                    class="border rounded p-2"
                 >
-              </p>
-              <p>
-                Due Date: {new Date(
-                  selectedOrder.due_date
-                ).toLocaleDateString()}
-              </p>
-            </div>
+                <input 
+                    type="date" 
+                    name="endDate"
+                    bind:value={dateRange.end}
+                    class="border rounded p-2"
+                >
+                <button 
+                    type="submit"
+                    class="bg-secondary text-white px-4 py-2 rounded"
+                    disabled={!dateRange.start || !dateRange.end}
+                >
+                    Filter
+                </button>
+                {#if filteredResults}
+                    <button 
+                        type="button"
+                        class="px-4 py-2 border rounded text-gray-600"
+                        on:click={resetFilter}
+                    >
+                        Clear Filter
+                    </button>
+                {/if}
+            </form>
+        </div>
 
-            <!-- Measurements -->
-            {#if selectedOrder.measurements?.length}
-              <div class="detail-section">
-                <h3 class="text-lg font-semibold">Measurements</h3>
-                <div class="grid grid-cols-2 gap-2">
-                  {#each selectedOrder.measurements as measurement}
-                    <p>
-                      {measurement.measurement_types?.name}: {measurement.value}
-                    </p>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-
-            <!-- Special Instructions -->
-            {#if selectedOrder.special_instructions}
-              <div class="detail-section">
-                <h3 class="text-lg font-semibold">Special Instructions</h3>
-                <p>{selectedOrder.special_instructions}</p>
-              </div>
-            {/if}
-          </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-muted">
+                        {#if activeTab === 'pending'}
+                            <th class="p-2 w-12">Select</th>
+                        {/if}
+                        {#each ['id', 'student', 'uniform_type', 'due_date', 'total_amount', 'status'] as field}
+                            <th 
+                                class="p-2 cursor-pointer hover:bg-gray-200"
+                                on:click={() => toggleSort(field)}
+                            >
+                                {field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}
+                                <span class="ml-1">{getSortIcon(field)}</span>
+                            </th>
+                        {/each}
+                        <th class="p-2">Assigned To</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#if activeTab === 'pending'}
+                        {#each pendingOrders as order}
+                            <tr class="border-b hover:bg-muted">
+                                <td class="p-2">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedOrders.includes(order.id)}
+                                        on:change={() => toggleOrderSelection(order.id)}
+                                        class="w-4 h-4"
+                                    >
+                                </td>
+                                <td class="p-2">{order.id}</td>
+                                <td class="p-2">
+                                    {order.student?.first_name} {order.student?.last_name}
+                                </td>
+                                <td class="p-2">{order.uniform_type}</td>
+                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                <td class="p-2">₱{order.total_amount}</td>
+                                <td class="p-2">
+                                    <span class={`px-2 py-1 rounded-full text-sm
+                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                          'bg-yellow-100 text-yellow-800'}`}>
+                                        {order.status}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    {#if order.employee}
+                                        {order.employee.first_name} {order.employee.last_name}
+                                    {:else}
+                                        <span class="text-gray-400">Unassigned</span>
+                                    {/if}
+                                </td>
+                            </tr>
+                        {/each}
+                    {:else if activeTab === 'in_progress'}
+                        {#each inProgressOrders as order}
+                            <tr class="border-b hover:bg-muted">
+                                <td class="p-2">{order.id}</td>
+                                <td class="p-2">
+                                    {order.student?.first_name} {order.student?.last_name}
+                                </td>
+                                <td class="p-2">{order.uniform_type}</td>
+                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                <td class="p-2">₱{order.total_amount}</td>
+                                <td class="p-2">
+                                    <span class={`px-2 py-1 rounded-full text-sm
+                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                          'bg-yellow-100 text-yellow-800'}`}>
+                                        {order.status}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    {#if order.employee}
+                                        {order.employee.first_name} {order.employee.last_name}
+                                    {:else}
+                                        <span class="text-gray-400">Unassigned</span>
+                                    {/if}
+                                </td>
+                            </tr>
+                        {/each}
+                    {:else}
+                        {#each completedOrders as order}
+                            <tr class="border-b hover:bg-muted">
+                                <td class="p-2">{order.id}</td>
+                                <td class="p-2">
+                                    {order.student?.first_name} {order.student?.last_name}
+                                </td>
+                                <td class="p-2">{order.uniform_type}</td>
+                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                <td class="p-2">₱{order.total_amount}</td>
+                                <td class="p-2">
+                                    <span class={`px-2 py-1 rounded-full text-sm
+                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                          'bg-yellow-100 text-yellow-800'}`}>
+                                        {order.status}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    {#if order.employee}
+                                        {order.employee.first_name} {order.employee.last_name}
+                                    {:else}
+                                        <span class="text-gray-400">Unassigned</span>
+                                    {/if}
+                                </td>
+                            </tr>
+                        {/each}
+                    {/if}
+                </tbody>
+            </table>
         </div>
-      </div>
     </div>
-  {/if}
-  {#if showDeleteModal && orderToDelete}
-    <div class="modal-backdrop" transition:fade>
-      <div class="modal-content max-w-md">
-        <div class="modal-header">
-          <h2 class="text-xl font-bold">Confirm Deletion</h2>
-          <button
-            class="btn-icon"
-            on:click={() => {
-              showDeleteModal = false;
-              orderToDelete = null;
-            }}
-          >
-            &times;
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-4">Are you sure you want to delete this order?</p>
-          <p class="text-sm text-secondary mb-4">
-            This action cannot be undone.
-          </p>
-          <div class="student-info bg-muted p-3 rounded-lg mb-4">
-            <p>
-              <strong>Student:</strong>
-              {orderToDelete.students?.first_name}
-              {orderToDelete.students?.last_name}
-            </p>
-            <p>
-              <strong>Type:</strong>
-              {orderToDelete.uniform_configs?.wear_type}
-            </p>
-            <p><strong>Amount:</strong> ₱{orderToDelete.total_amount}</p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button
-            class="btn-secondary"
-            on:click={() => {
-              showDeleteModal = false;
-              orderToDelete = null;
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            class="btn-danger"
-            on:click={() => deleteOrder(orderToDelete)}
-          >
-            Delete Order
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
 </div>
-
-<style>
-  .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors;
-  }
-
-  .btn-secondary {
-    @apply bg-secondary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity;
-  }
-
-  .btn-icon {
-    @apply text-2xl text-secondary hover:text-primary transition-colors;
-  }
-
-  .input-field {
-    @apply w-full border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary bg-input;
-  }
-
-  .modal-backdrop {
-    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
-  }
-
-  .modal-content {
-    @apply bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4;
-  }
-
-  .modal-header {
-    @apply flex justify-between items-center p-4 border-b border-border;
-  }
-
-  .modal-body {
-    @apply p-4;
-  }
-
-  .modal-footer {
-    @apply flex justify-end gap-4 p-4 border-t border-border;
-  }
-
-  .step-content {
-    @apply space-y-4;
-  }
-
-  .step-title {
-    @apply text-lg font-semibold mb-4;
-  }
-
-  .form-group {
-    @apply space-y-2;
-  }
-
-  .student-list {
-    @apply space-y-2 max-h-64 overflow-y-auto;
-  }
-
-  .student-item {
-    @apply w-full p-3 rounded-lg hover:bg-muted transition-colors text-left;
-  }
-
-  .student-item.selected {
-    @apply bg-muted border-primary border;
-  }
-
-  .table-header {
-    @apply px-4 py-3 text-left font-semibold;
-  }
-
-  .table-cell {
-    @apply px-4 py-3;
-  }
-
-  .status-badge {
-    @apply px-2 py-1 rounded-full text-sm font-medium;
-  }
-
-  .status-pending {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-
-  .status-in_progress {
-    @apply bg-blue-100 text-blue-800;
-  }
-
-  .status-completed {
-    @apply bg-green-100 text-green-800;
-  }
-
-  .filter-group {
-    @apply flex flex-col gap-2;
-  }
-
-  .price-summary {
-    @apply mt-4 p-4 bg-muted rounded-lg space-y-2;
-  }
-
-  .detail-section {
-    @apply bg-muted p-4 rounded-lg;
-  }
-
-  .btn-danger {
-    @apply bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors;
-  }
-
-  .student-info {
-    @apply space-y-1;
-  }
-</style>

@@ -1,5 +1,7 @@
 <script>
   import { onMount } from "svelte";
+  import { enhance } from '$app/forms';
+  
   let username = "";
   let password = "";
   let showPassword = false;
@@ -10,17 +12,19 @@
     showPassword = !showPassword;
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    // Add your login logic here
-    console.log({ username, password, rememberMe });
-    // Simulate login error (remove this in actual implementation)
-    loginError = "Invalid username or password. Please try again.";
-  }
-
-  onMount(() => {
-    // Any initialization logic can go here
-  });
+  const handleEnhance = () => {
+    return async ({ result }) => {
+        if (result.type === 'success' || result.type === 'redirect') {
+            // Handle both success and redirect
+            window.location.href = result.location || '/';
+            return;
+        }
+        
+        if (result.type === 'failure') {
+            loginError = result.data?.error || 'Failed to sign in';
+        }
+    };
+  };
 </script>
 
 <div
@@ -55,7 +59,12 @@
             </div>
           {/if}
 
-          <form class="space-y-6" on:submit={handleSubmit}>
+          <form 
+            class="space-y-6" 
+            method="POST"
+            action="?/signin"
+            use:enhance={handleEnhance}
+          >
             <div>
               <label
                 for="username"
@@ -65,6 +74,7 @@
               <input
                 type="text"
                 id="username"
+                name="username"
                 bind:value={username}
                 class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
                 placeholder="Enter your username"
@@ -83,6 +93,7 @@
                   <input
                     type="text"
                     id="password"
+                    name="password"
                     bind:value={password}
                     class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
                     placeholder="Enter your password"
@@ -92,6 +103,7 @@
                   <input
                     type="password"
                     id="password"
+                    name="password"
                     bind:value={password}
                     class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
                     placeholder="Enter your password"
@@ -142,6 +154,7 @@
               <input
                 type="checkbox"
                 id="remember-me"
+                name="remember-me"
                 bind:checked={rememberMe}
                 class="w-4 h-4 rounded border-input text-primary accent-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent cursor-pointer"
               />

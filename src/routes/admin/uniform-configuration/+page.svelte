@@ -1,630 +1,367 @@
 <script>
-  import { onMount } from "svelte";
-  import { supabase } from "$lib/supabaseClient";
+    import { enhance } from '$app/forms';
+    import { invalidate } from '$app/navigation';
+    import { flip } from 'svelte/animate';
 
-  // State management
-  let configs = [];
-  let courses = [];
-  let measurementTypes = [];
-  let loading = true;
-  let error = null;
+    export let data;
 
-  // Form state
-  let showCreateModal = false;
-  let editingConfig = null;
-  let formData = {
-    courseId: "",
-    gender: "MALE",
-    wearType: "UPPER",
-    basePrice: "",
-    selectedMeasurements: [],
-  };
+    let configs = data.configs || [];
+    let courses = data.courses || [];
+    let measurementTypes = data.measurementTypes || [];
+    let selectedConfig = null;
+    let showForm = false;
+    let isLoading = false;
+    let showErrorModal = false;
+    let errorMessage = '';
+    let searchTerm = '';
 
-  // Filter state
-  let filters = {
-    courses: [],
-    genders: [],
-    wearTypes: [],
-    priceMin: "",
-    priceMax: "",
-    dateStart: "",
-    dateEnd: "",
-    search: "",
-  };
+    // Sorting logic
+    let sortField = 'created_at';
+    let sortDirection = 'desc';
 
-  function clearFilters() {
-    filters = {
-      courses: [],
-      genders: [],
-      wearTypes: [],
-      priceMin: "",
-      priceMax: "",
-      dateStart: "",
-      dateEnd: "",
-      search: "",
-    };
-  }
-
-  // Sort state
-  let sortField = "created_at";
-  let sortDirection = "desc";
-
-  // Fetch data
-  async function fetchData() {
-    try {
-      loading = true;
-
-      // Fetch courses
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select("*");
-      if (coursesError) throw coursesError;
-      courses = coursesData;
-
-      // Fetch measurement types
-      const { data: measurementsData, error: measurementsError } =
-        await supabase.from("measurement_types").select("*");
-      if (measurementsError) throw measurementsError;
-      measurementTypes = measurementsData;
-
-      // Fetch configurations with joins
-      const { data: configsData, error: configsError } = await supabase.from(
-        "uniform_configs"
-      ).select(`
-            *,
-            courses:course_id(name),
-            config_required_measurements(
-              measurement_type_id
-            )
-          `);
-      if (configsError) throw configsError;
-      configs = configsData;
-    } catch (e) {
-      error = e.message;
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Apply filters and sorting
-  $: filteredConfigs = configs
-    .filter((config) => {
-      const matchesCourses =
-        filters.courses.length === 0 ||
-        filters.courses.includes(config.course_id);
-      const matchesGender =
-        filters.genders.length === 0 || filters.genders.includes(config.gender);
-      const matchesWearType =
-        filters.wearTypes.length === 0 ||
-        filters.wearTypes.includes(config.wear_type);
-      const matchesPrice =
-        (!filters.priceMin || config.base_price >= filters.priceMin) &&
-        (!filters.priceMax || config.base_price <= filters.priceMax);
-      const matchesDate =
-        (!filters.dateStart ||
-          new Date(config.created_at) >= new Date(filters.dateStart)) &&
-        (!filters.dateEnd ||
-          new Date(config.created_at) <= new Date(filters.dateEnd));
-      const matchesSearch =
-        !filters.search ||
-        config.id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        config.courses.name
-          .toLowerCase()
-          .includes(filters.search.toLowerCase());
-
-      return (
-        matchesCourses &&
-        matchesGender &&
-        matchesWearType &&
-        matchesPrice &&
-        matchesDate &&
-        matchesSearch
-      );
-    })
-    .sort((a, b) => {
-      const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortField === "required_measurements_count") {
-        return (
-          direction *
-          (a.config_required_measurements.length -
-            b.config_required_measurements.length)
+    $: filteredConfigs = configs
+        ?.filter(c => 
+            c.courses?.course_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.gender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.wear_type?.toLowerCase().includes(searchTerm.toLowerCase())
         );
-      }
-      return direction * (a[sortField] < b[sortField] ? -1 : 1);
-    });
 
-  // Form submission
-  async function handleSubmit() {
-    error = null;
-    try {
-      const configData = {
-        course_id: formData.courseId,
-        gender: formData.gender,
-        wear_type: formData.wearType,
-        base_price: parseFloat(formData.basePrice),
-      };
-
-      let configId;
-
-      if (editingConfig) {
-        const { error: updateError } = await supabase
-          .from("uniform_configs")
-          .update(configData)
-          .eq("id", editingConfig.id);
-        if (updateError) throw updateError;
-        configId = editingConfig.id;
-      } else {
-        const { data, error: insertError } = await supabase
-          .from("uniform_configs")
-          .insert(configData)
-          .select()
-          .single();
-        if (insertError) throw insertError;
-        configId = data.id;
-      }
-
-      // Update measurements
-      if (editingConfig) {
-        await supabase
-          .from("config_required_measurements")
-          .delete()
-          .eq("uniform_config_id", configId);
-      }
-
-      const measurementData = formData.selectedMeasurements.map(
-        (measurementId) => ({
-          uniform_config_id: configId,
-          measurement_type_id: measurementId,
-        })
-      );
-
-      const { error: measurementError } = await supabase
-        .from("config_required_measurements")
-        .insert(measurementData);
-      if (measurementError) throw measurementError;
-
-      await fetchData();
-      resetForm();
-    } catch (e) {
-      error = e.message;
+    function toggleSort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDirection = 'asc';
+        }
+        
+        configs = configs.sort((a, b) => {
+            let aVal = field === 'course' ? a.courses?.course_code : a[field];
+            let bVal = field === 'course' ? b.courses?.course_code : b[field];
+            
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+            
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
     }
-  }
 
-  function resetForm() {
-    formData = {
-      courseId: "",
-      gender: "MALE",
-      wearType: "UPPER",
-      basePrice: "",
-      selectedMeasurements: [],
-    };
-    editingConfig = null;
-    showCreateModal = false;
-    error = null;
-  }
-
-  function editConfig(config) {
-    editingConfig = config;
-    formData = {
-      courseId: config.course_id,
-      gender: config.gender,
-      wearType: config.wear_type,
-      basePrice: config.base_price.toString(),
-      selectedMeasurements: config.config_required_measurements.map(
-        (m) => m.measurement_type_id
-      ),
-    };
-    showCreateModal = true;
-  }
-
-  async function deleteConfig(id) {
-    if (confirm("Are you sure you want to delete this configuration?")) {
-      const { error: deleteError } = await supabase
-        .from("uniform_configs")
-        .delete()
-        .eq("id", id);
-      if (deleteError) {
-        error = deleteError.message;
-      } else {
-        await fetchData();
-      }
+    function getSortIcon(field) {
+        if (sortField !== field) return '↕';
+        return sortDirection === 'asc' ? '↑' : '↓';
     }
-  }
 
-  onMount(fetchData);
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    function resetForm() {
+        selectedConfig = null;
+        showForm = false;
+        isLoading = false;
+    }
+
+    function showError(message) {
+        errorMessage = message;
+        showErrorModal = true;
+        isLoading = false;
+    }
+
+    const handleSubmit = () => {
+        isLoading = true;
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                resetForm();
+                await invalidate('app:configs');
+                window.location.reload(); // Force reload to ensure fresh data
+            } else if (result.type === 'error') {
+                showError(result.data?.error || 'Operation failed');
+            }
+            isLoading = false;
+        };
+    };
+
+    const handleDelete = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                await invalidate('app:configs');
+                window.location.reload(); // Force reload after deletion
+            } else if (result.type === 'error') {
+                showError(result.data?.error || 'Delete operation failed');
+            }
+        };
+    };
 </script>
 
 <div class="p-6">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-foreground">
-      Uniform Configuration Management
-    </h1>
-    <button
-      class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded"
-      on:click={() => (showCreateModal = true)}
-    >
-      Create New Configuration
-    </button>
-  </div>
-
-  <!-- Filters -->
-  <div class="bg-white p-4 rounded-lg shadow mb-6">
-    <h2 class="text-lg font-semibold mb-4">Filters</h2>
-    <button class="btn-primary" on:click={clearFilters}>Clear Filters</button>
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label for="courseFilter" class="block text-sm font-medium mb-1"
-          >Courses</label
+    <!-- Header Section -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-foreground">Uniform Configurations</h1>
+        <button
+            on:click={() => {
+                selectedConfig = null;
+                showForm = true;
+            }}
+            class="bg-primary text-white px-4 py-2 rounded-lg"
+            disabled={isLoading}
         >
-        <select
-          id="courseFilter"
-          name="courseFilter"
-          class="w-full border-border rounded p-2"
-          multiple
-          bind:value={filters.courses}
-        >
-          {#each courses as course}
-            <option value={course.id}>{course.name}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div>
-        <label for="genderFilter" class="block text-sm font-medium mb-1"
-          >Gender</label
-        >
-        <select
-          id="genderFilter"
-          name="genderFilter"
-          class="w-full border-border rounded p-2"
-          multiple
-          bind:value={filters.genders}
-        >
-          <option value="MALE">Male</option>
-          <option value="FEMALE">Female</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="wearTypeFilter" class="block text-sm font-medium mb-1"
-          >Wear Type</label
-        >
-        <select
-          id="wearTypeFilter"
-          name="wearTypeFilter"
-          class="w-full border-border rounded p-2"
-          multiple
-          bind:value={filters.wearTypes}
-        >
-          <option value="UPPER">Upper</option>
-          <option value="LOWER">Lower</option>
-        </select>
-      </div>
-
-      <div class="border-2 border-black">
-        <div class="mb-10">
-          <label for="priceMin" class="block text-sm font-medium mb-1"
-            >Min Price</label
-          >
-          <input
-            type="number"
-            id="priceMin"
-            name="priceMin"
-            class="w-full border-border rounded p-2"
-            bind:value={filters.priceMin}
-          />
-        </div>
-
-        <div>
-          <label for="priceMax" class="block text-sm font-medium mb-1"
-            >Max Price</label
-          >
-          <input
-            type="number"
-            id="priceMax"
-            name="priceMax"
-            class="w-full border-border rounded p-2"
-            bind:value={filters.priceMax}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label for="search" class="block text-sm font-medium mb-1">Search</label
-        >
-        <input
-          type="text"
-          id="search"
-          name="search"
-          class="w-full border-border rounded p-2"
-          placeholder="Search by ID or course name..."
-          bind:value={filters.search}
-        />
-      </div>
+            Add New Configuration
+        </button>
     </div>
-  </div>
 
-  <!-- Table -->
-  {#if loading}
-    <div class="text-center py-8">Loading...</div>
-  {:else if error}
-    <div class="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>
-  {:else}
-    <div class="bg-white rounded-lg shadow overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="bg-muted">
-            <th class="p-4 text-left">
-              <button
-                class="font-semibold"
-                on:click={() => {
-                  if (sortField === "id") {
-                    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                  } else {
-                    sortField = "id";
-                    sortDirection = "asc";
-                  }
-                }}
-              >
-                Config ID
-              </button>
-            </th>
-            <th class="p-4 text-left">
-              <button
-                class="font-semibold"
-                on:click={() => {
-                  if (sortField === "courses.name") {
-                    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                  } else {
-                    sortField = "courses.name";
-                    sortDirection = "asc";
-                  }
-                }}
-              >
-                Course
-              </button>
-            </th>
-            <th class="p-4 text-left">Gender</th>
-            <th class="p-4 text-left">Wear Type</th>
-            <th class="p-4 text-left">
-              <button
-                class="font-semibold"
-                on:click={() => {
-                  if (sortField === "base_price") {
-                    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                  } else {
-                    sortField = "base_price";
-                    sortDirection = "asc";
-                  }
-                }}
-              >
-                Base Price
-              </button>
-            </th>
-            <th class="p-4 text-left">
-              <button
-                class="font-semibold"
-                on:click={() => {
-                  if (sortField === "required_measurements_count") {
-                    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-                  } else {
-                    sortField = "required_measurements_count";
-                    sortDirection = "asc";
-                  }
-                }}
-              >
-                Required Measurements
-              </button>
-            </th>
-            <th class="p-4 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filteredConfigs as config}
-            <tr class="border-t border-border">
-              <td class="p-4">{config.id}</td>
-              <td class="p-4">{config.courses.name}</td>
-              <td class="p-4">{config.gender}</td>
-              <td class="p-4">{config.wear_type}</td>
-              <td class="p-4">₱{config.base_price.toFixed(2)}</td>
-              <td class="p-4">{config.config_required_measurements.length}</td>
-              <td class="p-4">
-                <div class="flex gap-2">
-                  <button
-                    class="text-primary hover:text-primary-dark"
-                    on:click={() => editConfig(config)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    class="text-red-600 hover:text-red-800"
-                    on:click={() => deleteConfig(config.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
-</div>
-
-<!-- Create/Edit Modal -->
-{#if showCreateModal}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-  >
-    <div class="bg-white rounded-lg p-6 max-w-2xl w-full overflow-y-visible">
-      <h2 class="text-xl font-bold mb-4">
-        {editingConfig ? "Edit Configuration" : "Create New Configuration"}
-      </h2>
-
-      <form on:submit|preventDefault={handleSubmit}>
-        <div class="space-y-4">
-          <div>
-            <label for="course" class="block text-sm font-medium mb-1"
-              >Course</label
-            >
-            <select
-              id="course"
-              name="course"
-              class="w-full border-border rounded p-2"
-              bind:value={formData.courseId}
-              required
-            >
-              <option value="">Select a course</option>
-              {#each courses as course}
-                <option value={course.id}>{course.name}</option>
-              {/each}
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1" for="gender"
-              >Gender</label
-            >
-            <div class="flex gap-4">
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="gender"
-                  value="MALE"
-                  bind:group={formData.gender}
-                  class="mr-2"
-                />
-                Male
-              </label>
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="gender"
-                  value="FEMALE"
-                  bind:group={formData.gender}
-                  class="mr-2"
-                />
-                Female
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1" for="wearType"
-              >Wear Type</label
-            >
-            <div class="flex gap-4">
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="wearType"
-                  value="UPPER"
-                  bind:group={formData.wearType}
-                  class="mr-2"
-                />
-                Upper
-              </label>
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="wearType"
-                  value="LOWER"
-                  bind:group={formData.wearType}
-                  class="mr-2"
-                />
-                Lower
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label for="basePrice" class="block text-sm font-medium mb-1"
-              >Base Price</label
-            >
+    <!-- Main content card -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex justify-between mb-4">
+            <h2 class="text-xl font-semibold">Configurations List</h2>
             <input
-              type="number"
-              id="basePrice"
-              name="basePrice"
-              min="0.01"
-              step="0.01"
-              class="w-full border-border rounded p-2"
-              bind:value={formData.basePrice}
-              required
+                type="text"
+                placeholder="Search configurations..."
+                bind:value={searchTerm}
+                class="border rounded p-2"
             />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium mb-1" for="measurements"
-              >Required Measurements</label
-            >
-            <div
-              class="space-y-2 max-h-48 overflow-y-auto border border-border rounded p-2"
-            >
-              {#each measurementTypes as measurement}
-                <label class="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="measurements"
-                    value={measurement.id}
-                    bind:group={formData.selectedMeasurements}
-                    class="mr-2"
-                  />
-                  {measurement.name}
-                </label>
-              {/each}
-            </div>
-          </div>
         </div>
 
-        {#if error}
-          <div class="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>
-        {/if}
-
-        <div class="flex justify-end gap-4 mt-6">
-          <button
-            type="button"
-            class="px-4 py-2 text-secondary hover:text-foreground"
-            on:click={resetForm}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded"
-          >
-            {editingConfig ? "Update" : "Create"}
-          </button>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-muted">
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('course')}
+                        >
+                            Course {getSortIcon('course')}
+                        </th>
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('gender')}
+                        >
+                            Gender {getSortIcon('gender')}
+                        </th>
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('base_price')}
+                        >
+                            Base Price {getSortIcon('base_price')}
+                        </th>
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('wear_type')}
+                        >
+                            Wear Type {getSortIcon('wear_type')}
+                        </th>
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('created_at')}
+                        >
+                            Created At {getSortIcon('created_at')}
+                        </th>
+                        <th class="p-2 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each filteredConfigs as config (config.id)}
+                        <tr class="border-b hover:bg-muted">
+                            <td class="p-2">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                    {config.courses?.course_code || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="p-2 capitalize">
+                                <span class="px-2 py-1 rounded-full text-sm
+                                    {config.gender === 'male' ? 'bg-green-100 text-green-800' : 
+                                    config.gender === 'female' ? 'bg-pink-100 text-pink-800' : 
+                                    'bg-purple-100 text-purple-800'}">
+                                    {config.gender}
+                                </span>
+                            </td>
+                            <td class="p-2">₱{config.base_price.toFixed(2)}</td>
+                            <td class="p-2">
+                                <span class="px-2 py-1 rounded-full text-sm
+                                    {config.wear_type === 'upper' ? 'bg-orange-100 text-orange-800' : 
+                                    'bg-indigo-100 text-indigo-800'}">
+                                    {config.wear_type}
+                                </span>
+                            </td>
+                            <td class="p-2">{formatDate(config.created_at)}</td>
+                            <td class="p-2 text-right">
+                                <button
+                                    on:click={() => {
+                                        selectedConfig = config;
+                                        showForm = true;
+                                    }}
+                                    class="text-blue-600 hover:text-blue-800 mr-2"
+                                >
+                                    Edit
+                                </button>
+                                <form
+                                    method="POST"
+                                    action="?/delete"
+                                    use:enhance={handleDelete}
+                                    class="inline"
+                                    on:submit|preventDefault={async (e) => {
+                                        if (!confirm('Are you sure you want to delete this configuration?')) return;
+                                        await e.target.submit();
+                                    }}
+                                >
+                                    <input type="hidden" name="id" value={config.id} />
+                                    <button type="submit" class="text-red-600 hover:text-red-800">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
         </div>
-      </form>
     </div>
-  </div>
-{/if}
 
-<style>
-  /* Apply common styles using @apply */
-  .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded hover:bg-primary-dark;
-  }
+    <!-- Configuration Form Modal -->
+    {#if showForm}
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg w-full max-w-lg">
+                <h2 class="text-xl font-bold mb-4">
+                    {selectedConfig ? 'Edit Configuration' : 'New Configuration'}
+                </h2>
+                <form
+                    method="POST"
+                    action={selectedConfig ? '?/update' : '?/create'}
+                    use:enhance={handleSubmit}
+                    class="space-y-4"
+                >
+                    {#if selectedConfig}
+                        <input type="hidden" name="id" value={selectedConfig.id} />
+                    {/if}
 
-  option {
-    @apply border-b-border border-b-2 p-2;
-  }
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="courseId">Course</label>
+                        <select
+                            name="courseId"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                            required
+                        >
+                            <option value="">Select Course</option>
+                            {#each courses as course}
+                                <option 
+                                    value={course.id}
+                                    selected={selectedConfig?.course_id === course.id}
+                                >
+                                    {course.course_code}
+                                </option>
+                            {/each}
+                        </select>
+                    </div>
 
-  input,
-  select {
-    @apply w-full border-2 rounded p-2 shadow-lg;
-  }
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="gender">Gender</label>
+                        <select
+                            name="gender"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                            required
+                        >
+                            <option value="">Select Gender</option>
+                            <option value="male" selected={selectedConfig?.gender === 'male'}>Male</option>
+                            <option value="female" selected={selectedConfig?.gender === 'female'}>Female</option>
+                            <option value="unisex" selected={selectedConfig?.gender === 'unisex'}>Unisex</option>
+                        </select>
+                    </div>
 
-  label {
-    @apply block text-sm font-medium mb-1;
-  }
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="basePrice">Base Price</label>
+                        <input
+                            type="number"
+                            name="basePrice"
+                            step="0.01"
+                            value={selectedConfig?.base_price || ''}
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                            required
+                        />
+                    </div>
 
-  th {
-    @apply p-4 text-left font-semibold;
-  }
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="additionalCostPerCm">Additional Cost per cm</label>
+                        <input
+                            type="number"
+                            name="additionalCostPerCm"
+                            step="0.01"
+                            value={selectedConfig?.additional_cost_per_cm || '0'}
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                        />
+                    </div>
 
-  td {
-    @apply p-4;
-  }
-</style>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="wearType">Wear Type</label>
+                        <select
+                            name="wearType"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                            required
+                        >
+                            <option value="">Select Wear Type</option>
+                            <option value="upper" selected={selectedConfig?.wear_type === 'upper'}>Upper</option>
+                            <option value="lower" selected={selectedConfig?.wear_type === 'lower'}>Lower</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="measurementTypes">Required Measurements</label>
+                        <div class="mt-2 space-y-2">
+                            {#each measurementTypes as measurementType}
+                                <label class="inline-flex items-center mr-4">
+                                    <input
+                                        type="checkbox"
+                                        name="measurementTypes"
+                                        value={measurementType.id}
+                                        checked={selectedConfig?.measurement_type_ids?.includes(measurementType.id)}
+                                        class="rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span class="ml-2">{measurementType.name}</span>
+                                </label>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            on:click={resetForm}
+                            class="px-4 py-2 text-secondary"
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 'Saving...' : (selectedConfig ? 'Update' : 'Create')}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Error Modal -->
+    {#if showErrorModal}
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h2 class="text-xl font-bold mb-4 text-red-600">Error</h2>
+                <p class="mb-4">{errorMessage}</p>
+                <div class="flex justify-end">
+                    <button 
+                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                        on:click={() => showErrorModal = false}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
+</div>
