@@ -1,6 +1,3 @@
-can you modify my file on page.server.js and page.svelte ... when i chose a course and gender... it should automatically pop out the required measurements which are on th uniform configuration... it should pop out the upper and lower measurements... 
-
-
 navigation... 
 i am creating joms (website) for a tailoring business... it will have superadmin, admin, and employee.
 
