@@ -589,76 +589,43 @@
     </div>
 {/if}
 
-<!-- Update the Payment Modal with better layout -->
+<!-- Add Payment Modal -->
 {#if orderToPayment}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-[500px]">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold">Record Payment</h2>
-                <button 
-                    class="text-gray-500 hover:text-gray-700"
-                    on:click={() => { orderToPayment = null; paymentAmount = ''; }}
-                >
-                    &times;
-                </button>
-            </div>
-
-            <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-600">Order ID:</span>
-                        <p class="font-medium">#{orderToPayment.id}</p>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Student:</span>
-                        <p class="font-medium">{orderToPayment.student?.first_name} {orderToPayment.student?.last_name}</p>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Total Amount:</span>
-                        <p class="font-medium">₱{orderToPayment.total_amount}</p>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Amount Paid:</span>
-                        <p class="font-medium">₱{orderToPayment.amount_paid}</p>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Balance:</span>
-                        <p class="font-medium text-primary">₱{orderToPayment.balance}</p>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Status:</span>
-                        <p class="font-medium capitalize">{orderToPayment.payment_status}</p>
-                    </div>
-                </div>
+        <div class="bg-white p-6 rounded-lg w-[400px]">
+            <h2 class="text-xl font-bold mb-4">Record Payment</h2>
+            <div class="mb-4">
+                <p class="text-sm text-gray-600">Order #{orderToPayment.id}</p>
+                <p class="font-medium">Student: {orderToPayment.student?.first_name} {orderToPayment.student?.last_name}</p>
+                <p class="text-sm">Total Amount: ₱{orderToPayment.total_amount}</p>
+                <p class="text-sm">Amount Paid: ₱{orderToPayment.amount_paid}</p>
+                <p class="text-sm">Balance: ₱{orderToPayment.balance}</p>
             </div>
             
             <form
                 method="POST"
                 action="?/updatePayment"
                 use:enhance={handlePayment}
-                class="space-y-6"
+                class="space-y-4"
             >
                 <input type="hidden" name="orderId" value={orderToPayment.id}>
                 <div>
-                    <label class="block text-sm font-medium mb-2">Payment Amount</label>
+                    <label class="block text-sm font-medium mb-1">Payment Amount</label>
                     <input 
                         type="number"
                         name="amountPaid"
                         bind:value={paymentAmount}
                         step="0.01"
                         class="w-full p-2 border rounded"
-                        placeholder="Enter amount"
+                        placeholder="Enter amount (can be negative)"
                         required
                     >
-                    <p class="text-sm text-gray-500 mt-1">
-                        Enter negative amount to record a refund
-                    </p>
                 </div>
                 <div class="flex justify-end gap-3">
                     <button
                         type="button"
                         class="px-4 py-2 border rounded hover:bg-gray-50"
-                        on:click={() => { orderToPayment = null; paymentAmount = ''; }}
+                        on:click={() => orderToPayment = null}
                     >
                         Cancel
                     </button>
@@ -778,198 +745,258 @@
             </div>
         {/if}
 
-        <!-- For Pending Orders Table -->
-        {#if activeTab === 'pending'}
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-muted">
-                        <th class="w-12">Select</th>
-                        <th>Order ID</th>
-                        <th>Student</th>
-                        <th>Uniform Type</th>
-                        <th>Created At</th>
-                        <th>Due Date</th>
-                        <th>Total Amount</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each pendingOrders.filter(order => 
-                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-                    ) as order}
-                        <tr class="border-b hover:bg-muted">
-                            <td class="p-2">
-                                <input type="checkbox" 
-                                    checked={selectedOrders.includes(order.id)}
-                                    on:change={() => toggleOrderSelection(order.id)}
-                                    class="w-4 h-4"
-                                >
-                            </td>
-                            <td class="p-2">{order.id}</td>
-                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
-                            <td class="p-2">{order.uniform_type}</td>
-                            <td class="p-2">{format(new Date(order.created_at), 'MMM d, yyyy h:mm a')}</td>
-                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                            <td class="p-2">₱{order.total_amount}</td>
-                            <td class="p-2">
-                                <div class="flex gap-2">
-                                    <button class="text-blue-600 hover:text-blue-800"
-                                        on:click={() => handleEditClick(order)}>
-                                        Edit
+        {#if activeTab === 'payments'}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-muted">
+                            <th class="p-2">Order ID</th>
+                            <th class="p-2">Student</th>
+                            <th class="p-2">Order Status</th>
+                            <th class="p-2">Total Amount</th>
+                            <th class="p-2">Amount Paid</th>
+                            <th class="p-2">Balance</th>
+                            <th class="p-2">Last Payment</th>
+                            <th class="p-2">Payment Status</th>
+                            <th class="p-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each sortedOrders.filter(order => 
+                            order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                        ) as order}
+                            <tr class="border-b hover:bg-muted">
+                                <td class="p-2">{order.id}</td>
+                                <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+                                <td class="p-2">
+                                    <span class={`px-2 py-1 rounded-full text-sm
+                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                          'bg-yellow-100 text-yellow-800'}`}>
+                                        {order.status}
+                                    </span>
+                                </td>
+                                <td class="p-2">₱{order.total_amount}</td>
+                                <td class="p-2">₱{order.amount_paid}</td>
+                                <td class="p-2">₱{order.balance}</td>
+                                <td class="p-2">{formatPaymentDate(order.payment_date)}</td>
+                                <td class="p-2">
+                                    <span class={`px-2 py-1 rounded-full text-sm
+                                        ${order.payment_status === 'fully paid' ? 'bg-green-100 text-green-800' : 
+                                          order.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' : 
+                                          'bg-red-100 text-red-800'}`}>
+                                        {displayPaymentStatus(order)}
+                                    </span>
+                                </td>
+                                <td class="p-2">
+                                    <button
+                                        class="text-blue-600 hover:text-blue-800"
+                                        on:click={() => orderToPayment = order}
+                                    >
+                                        Record Payment
                                     </button>
-                                    <button class="text-red-600 hover:text-red-800"
-                                        on:click={() => orderToDelete = order}>
-                                        Delete
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        {:else}
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-semibold">Orders List</h2>
+                
+                <form 
+                    method="POST" 
+                    action="?/filterOrders" 
+                    use:enhance={handleFilterOrders} 
+                    class="flex gap-4"
+                >
+                    <input 
+                        type="date" 
+                        name="startDate"
+                        bind:value={dateRange.start}
+                        class="border rounded p-2"
+                    >
+                    <input 
+                        type="date" 
+                        name="endDate"
+                        bind:value={dateRange.end}
+                        class="border rounded p-2"
+                    >
+                    <button 
+                        type="submit"
+                        class="bg-secondary text-white px-4 py-2 rounded"
+                        disabled={!dateRange.start || !dateRange.end}
+                    >
+                        Filter
+                    </button>
+                    {#if filteredResults}
+                        <button 
+                            type="button"
+                            class="px-4 py-2 border rounded text-gray-600"
+                            on:click={resetFilter}
+                        >
+                            Clear Filter
+                        </button>
+                    {/if}
+                </form>
+            </div>
 
-        <!-- For In Progress Orders Table -->
-        {:else if activeTab === 'in_progress'}
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-muted">
-                        <th>Order ID</th>
-                        <th>Student</th>
-                        <th>Uniform Type</th>
-                        <th>Due Date</th>
-                        <th>Total Amount</th>
-                        <th>Assigned To</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each inProgressOrders.filter(order => 
-                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-                    ) as order}
-                        <tr class="border-b hover:bg-muted">
-                            <td class="p-2">{order.id}</td>
-                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
-                            <td class="p-2">{order.uniform_type}</td>
-                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                            <td class="p-2">₱{order.total_amount}</td>
-                            <td class="p-2">{order.employee?.first_name} {order.employee?.last_name}</td>
-                            <td class="p-2">
-                                <span class="px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                                    {order.status}
-                                </span>
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
-
-        <!-- For Completed Orders Table -->
-        {:else if activeTab === 'completed'}
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-muted">
-                        <th>Order ID</th>
-                        <th>Student</th>
-                        <th>Uniform Type</th>
-                        <th>Due Date</th>
-                        <th>Total Amount</th>
-                        <th>Assigned To</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each completedOrders.filter(order => 
-                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-                    ) as order}
-                        <tr class="border-b hover:bg-muted">
-                            <td class="p-2">{order.id}</td>
-                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
-                            <td class="p-2">{order.uniform_type}</td>
-                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                            <td class="p-2">₱{order.total_amount}</td>
-                            <td class="p-2">{order.employee?.first_name} {order.employee?.last_name}</td>
-                            <td class="p-2">
-                                <span class="px-2 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                                    {order.status}
-                                </span>
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
-
-        <!-- For Payments Table -->
-        {:else if activeTab === 'payments'}
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-muted">
-                        <th>Order ID</th>
-                        <th>Student</th>
-                        <th>Order Status</th>
-                        <th>Total Amount</th>
-                        <th>Amount Paid</th>
-                        <th>Balance</th>
-                        <th>Last Payment</th>
-                        <th>Payment Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each sortedOrders.filter(order => 
-                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-                    ) as order}
-                        <tr class="border-b hover:bg-muted">
-                            <td class="p-2">{order.id}</td>
-                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
-                            <td class="p-2">
-                                <span class={`px-2 py-1 rounded-full text-sm
-                                    ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                      order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
-                                      'bg-yellow-100 text-yellow-800'}`}>
-                                    {order.status}
-                                </span>
-                            </td>
-                            <td class="p-2">₱{order.total_amount}</td>
-                            <td class="p-2">₱{order.amount_paid}</td>
-                            <td class="p-2">₱{order.balance}</td>
-                            <td class="p-2">{formatPaymentDate(order.payment_date)}</td>
-                            <td class="p-2">
-                                <span class={`px-2 py-1 rounded-full text-sm
-                                    ${order.payment_status === 'fully paid' ? 'bg-green-100 text-green-800' : 
-                                      order.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' : 
-                                      'bg-red-100 text-red-800'}`}>
-                                    {displayPaymentStatus(order)}
-                                </span>
-                            </td>
-                            <td class="p-2">
-                                <button
-                                    class="text-blue-600 hover:text-blue-800"
-                                    on:click={() => orderToPayment = order}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-muted">
+                            {#if activeTab === 'pending'}
+                                <th class="p-2 w-12">Select</th>
+                            {/if}
+                            {#each ['id', 'student', 'uniform_type', 'created_at', 'due_date', 'total_amount', 'status'] as field}
+                                <th 
+                                    class="p-2 cursor-pointer hover:bg-gray-200"
+                                    on:click={() => toggleSort(field)}
                                 >
-                                    Record Payment
-                                </button>
-                            </td>
+                                    {field === 'created_at' ? 'Ordered At' : 
+                                     field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}
+                                    <span class="ml-1">{getSortIcon(field)}</span>
+                                </th>
+                            {/each}
+                            {#if activeTab !== 'pending' && activeTab !== 'payments'}
+                                <th class="p-2">Assigned To</th>
+                            {/if}
+                            {#if activeTab === 'payments'}
+                                <th class="p-2">Assigned To</th>
+                                <th class="p-2">Payment Status</th>
+                                <th class="p-2">Balance</th>
+                            {/if}
+                            <th class="p-2">Actions</th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#if activeTab === 'pending'}
+                            {#each pendingOrders.filter(order => 
+                                order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                            ) as order}
+                                <tr class="border-b hover:bg-muted">
+                                    <td class="p-2">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedOrders.includes(order.id)}
+                                            on:change={() => toggleOrderSelection(order.id)}
+                                            class="w-4 h-4"
+                                        >
+                                    </td>
+                                    <td class="p-2">{order.id}</td>
+                                    <td class="p-2">
+                                        {order.student?.first_name} {order.student?.last_name}
+                                    </td>
+                                    <td class="p-2">{order.uniform_type}</td>
+                                    <td class="p-2">{format(new Date(order.created_at), 'MMM d, yyyy h:mm a')}</td>
+                                    <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                    <td class="p-2">₱{order.total_amount}</td>
+                                    <td class="p-2">
+                                        <span class={`px-2 py-1 rounded-full text-sm
+                                            ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                              order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                              'bg-yellow-100 text-yellow-800'}`}>
+                                            {order.status}
+                                        </span>
+                                    </td>
+                                    <td class="p-2">
+                                        <div class="flex gap-2">
+                                            <button
+                                                class="text-blue-600 hover:text-blue-800"
+                                                on:click={() => handleEditClick(order)}
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                class="text-red-600 hover:text-red-800"
+                                                on:click={() => orderToDelete = order}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/each}
+                        {:else if activeTab === 'in_progress'}
+                            {#each inProgressOrders.filter(order => 
+                                order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                            ) as order}
+                                <tr class="border-b hover:bg-muted">
+                                    <td class="p-2">{order.id}</td>
+                                    <td class="p-2">
+                                        {order.student?.first_name} {order.student?.last_name}
+                                    </td>
+                                    <td class="p-2">{order.uniform_type}</td>
+                                    <td class="p-2">{format(new Date(order.created_at), 'MMM d, yyyy h:mm a')}</td>
+                                    <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                    <td class="p-2">₱{order.total_amount}</td>
+                                    <td class="p-2">
+                                        <span class={`px-2 py-1 rounded-full text-sm
+                                            ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                              order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                              'bg-yellow-100 text-yellow-800'}`}>
+                                            {order.status}
+                                        </span>
+                                    </td>
+                                    <td class="p-2">
+                                        {#if order.employee}
+                                            {order.employee.first_name} {order.employee.last_name}
+                                        {:else}
+                                            <span class="text-gray-400">Unassigned</span>
+                                        {/if}
+                                    </td>
+                                    <td class="p-2">
+                                        <div class="flex gap-2">
+                                            <!-- Any additional actions if needed -->
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/each}
+                        {:else if activeTab === 'completed'}
+                            {#each completedOrders.filter(order => 
+                                order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                            ) as order}
+                                <tr class="border-b hover:bg-muted">
+                                    <td class="p-2">{order.id}</td>
+                                    <td class="p-2">
+                                        {order.student?.first_name} {order.student?.last_name}
+                                    </td>
+                                    <td class="p-2">{order.uniform_type}</td>
+                                    <td class="p-2">{format(new Date(order.created_at), 'MMM d, yyyy h:mm a')}</td>
+                                    <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                                    <td class="p-2">₱{order.total_amount}</td>
+                                    <td class="p-2">
+                                        <span class={`px-2 py-1 rounded-full text-sm
+                                            ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                              order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                              'bg-yellow-100 text-yellow-800'}`}>
+                                            {order.status}
+                                        </span>
+                                    </td>
+                                    <td class="p-2">
+                                        {#if order.employee}
+                                            {order.employee.first_name} {order.employee.last_name}
+                                        {:else}
+                                            <span class="text-gray-400">Unassigned</span>
+                                        {/if}
+                                    </td>
+                                    <td class="p-2">
+                                        <div class="flex gap-2">
+                                            <!-- Any additional actions if needed -->
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/each}
+                        {/if}
+                    </tbody>
+                </table>
+            </div>
         {/if}
     </div>
-</div>
-
-<!-- Update all table headers to align left -->
-<style>
-    /* Add this style block at the bottom of your file */
-    :global(th) {
-        @apply text-left !important;
-    }
-    
-    :global(th, td) {
-        @apply px-4 py-2;
-    }
-</style>
+</div> 
 
