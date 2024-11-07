@@ -1,9 +1,5 @@
-can you modify my file on page.server.js and page.svelte ... when i chose a course and gender... it should automatically pop out the required measurements which are on th uniform configuration... it should pop out the upper and lower measurements... 
-
-
 navigation... 
-i am creating joms (website) for a tailoring business... it will have superadmin, admin, and employee.
-
+it will have superadmin, admin, and employee.
 
 i am planning these navigations, but each should have like displaying the data like date created as well as sorting when i click the label or custom dropdown filter well maybe except for no table like dashboard but only if there are not?... and add, edit, delete
 
@@ -20,8 +16,6 @@ i am planning these navigations, but each should have like displaying the data l
 6. account management, so in account management, we have superadmin, admin, and employee.... superadmin can create admin and employee... admin can only create employee accounts... now, everything shoould have infos like first name, last name, what else? position/role... age, address? and something like that the important stuff
 
 7. now in order management... if student want to buy, we can just select students who are registered to the student management.. then the admin can just select what students want, is it upper, lower, or both wear... which has calculations as well as due dates... then confirm or submit... now on the same navigation/page... the orders can be sorted be right? the main sorting are the due dates which has a range... like due dates from nov 1, 2024 to nov 21, 2024.. i can select all that and assign in to the and existing employee.....
-
-now can you refine all of this like make the structure clearer.. then make as well for the navigations of employee.. admin is fine as it is just the same with superadmin except it can only create employee account instead of another admin
 
 
 ---
