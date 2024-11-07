@@ -36,22 +36,30 @@
         
         // Process required measurements by wear type
         const upperMeasurements = configs
-            .filter(c => c.wear_type === 'upper')    // Changed from uniform_type
-            .flatMap(c => c.measurement_type_ids || []);
+            .filter(c => c.wear_type === 'upper')
+            .flatMap(c => (c.measurement_specs || []).map(spec => ({
+                id: spec.measurement_type_id,
+                base_cm: spec.base_cm
+            })));
             
         const lowerMeasurements = configs
-            .filter(c => c.wear_type === 'lower')    // Changed from uniform_type
-            .flatMap(c => c.measurement_type_ids || []);
+            .filter(c => c.wear_type === 'lower')
+            .flatMap(c => (c.measurement_specs || []).map(spec => ({
+                id: spec.measurement_type_id,
+                base_cm: spec.base_cm
+            })));
             
-        // Combine all measurements but keep track of their types
+        // Combine all measurements with their types and specs
         requiredMeasurements = [
-            ...upperMeasurements.map(id => ({
-                ...measurementTypes[id],
-                wear_type: 'upper'    // Changed from uniform_type
+            ...upperMeasurements.map(spec => ({
+                ...measurementTypes[spec.id],
+                ...spec,
+                wear_type: 'upper'
             })),
-            ...lowerMeasurements.map(id => ({
-                ...measurementTypes[id],
-                wear_type: 'lower'    // Changed from uniform_type
+            ...lowerMeasurements.map(spec => ({
+                ...measurementTypes[spec.id],
+                ...spec,
+                wear_type: 'lower'
             }))
         ].filter(Boolean);
         
@@ -118,6 +126,36 @@
         student.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.course?.course_code?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Add these near your other state variables
+    let showDeleteModal = false;
+    let studentToDelete = null;
+    let deleteError = null;
+    
+    function openDeleteModal(student) {
+        studentToDelete = student;
+        deleteError = null; // Reset error when opening modal
+        showDeleteModal = true;
+    }
+    
+    function resetDeleteModal() {
+        studentToDelete = null;
+        deleteError = null;
+        showDeleteModal = false;
+    }
+    
+    function handleDelete() {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                students = students.filter(s => s.id !== studentToDelete.id);
+                resetDeleteModal();
+            } else {
+                // Access the error message from the result data
+                deleteError = result.data?.error || "An error occurred while deleting the student.";
+                console.log('Delete error:', result); // Debug log
+            }
+        };
+    }
 </script>
 
 {#if error}
@@ -219,23 +257,12 @@
                                     >
                                         Edit
                                     </button>
-                                    <form
-                                        method="POST"
-                                        action="?/delete"
-                                        use:enhance={() => {
-                                            return async ({ result }) => {
-                                                if (result.type === 'success') {
-                                                    await invalidate('app:students');
-                                                }
-                                            };
-                                        }}
-                                        class="inline"
+                                    <button
+                                        class="text-red-600 hover:text-red-800"
+                                        on:click={() => openDeleteModal(student)}
                                     >
-                                        <input type="hidden" name="id" value={student.id} />
-                                        <button type="submit" class="text-red-600 hover:text-red-800">
-                                            Delete
-                                        </button>
-                                    </form>
+                                        Delete
+                                    </button>
                                 </td>
                             </tr>
                         {/each}
@@ -364,11 +391,11 @@
                             <h3 class="font-bold text-xl mb-6">Required Measurements</h3>
                             
                             <!-- Upper Wear Measurements -->
-                            {#if requiredMeasurements.some(m => m.wear_type === 'upper')}    <!-- Changed from uniform_type -->
+                            {#if requiredMeasurements.some(m => m.wear_type === 'upper')}
                                 <div class="bg-gray-50 p-6 rounded-lg mb-6">
                                     <h4 class="font-semibold text-lg mb-4 text-primary">Upper Wear Measurements</h4>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {#each requiredMeasurements.filter(m => m.wear_type === 'upper') as measurement}    <!-- Changed from uniform_type -->
+                                        {#each requiredMeasurements.filter(m => m.wear_type === 'upper') as measurement}
                                             <div class="measurement-input-group">
                                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                                     {measurement.name}
@@ -380,7 +407,7 @@
                                                         name="measurement_{measurement.id}"
                                                         value={editingStudent?.measurements?.[measurement.id] || ''}
                                                         class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                                                        placeholder="Enter measurement"
+                                                        placeholder="Base: {measurement.base_cm}cm"
                                                         required
                                                     />
                                                     <span class="absolute right-3 top-3 text-gray-500 text-sm">cm</span>
@@ -392,11 +419,11 @@
                             {/if}
 
                             <!-- Lower Wear Measurements -->
-                            {#if requiredMeasurements.some(m => m.wear_type === 'lower')}    <!-- Changed from uniform_type -->
+                            {#if requiredMeasurements.some(m => m.wear_type === 'lower')}
                                 <div class="bg-gray-50 p-6 rounded-lg">
                                     <h4 class="font-semibold text-lg mb-4 text-primary">Lower Wear Measurements</h4>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {#each requiredMeasurements.filter(m => m.wear_type === 'lower') as measurement}    <!-- Changed from uniform_type -->
+                                        {#each requiredMeasurements.filter(m => m.wear_type === 'lower') as measurement}
                                             <div class="measurement-input-group">
                                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                                     {measurement.name}
@@ -408,7 +435,7 @@
                                                         name="measurement_{measurement.id}"
                                                         value={editingStudent?.measurements?.[measurement.id] || ''}
                                                         class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                                                        placeholder="Enter measurement"
+                                                        placeholder="Base: {measurement.base_cm}cm"
                                                         required
                                                     />
                                                     <span class="absolute right-3 top-3 text-gray-500 text-sm">cm</span>
@@ -441,6 +468,51 @@
                         {modalMode === 'create' ? 'Create' : 'Update'}
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showDeleteModal}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4 text-red-600">Confirm Delete</h2>
+            <p class="mb-4">
+                Are you sure you want to delete student: 
+                <span class="font-semibold">
+                    {studentToDelete?.first_name} {studentToDelete?.last_name}
+                </span>?
+            </p>
+            
+            {#if deleteError}
+                <div class="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200">
+                    {deleteError}
+                </div>
+            {/if}
+            
+            <div class="flex justify-end gap-2">
+                <button 
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    on:click={resetDeleteModal}
+                >
+                    {deleteError ? 'Close' : 'Cancel'}
+                </button>
+                {#if !deleteError}
+                    <form
+                        method="POST"
+                        action="?/delete"
+                        use:enhance={handleDelete}
+                        class="inline"
+                    >
+                        <input type="hidden" name="id" value={studentToDelete?.id} />
+                        <button 
+                            type="submit" 
+                            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                            Delete
+                        </button>
+                    </form>
+                {/if}
             </div>
         </div>
     </div>

@@ -11,7 +11,7 @@ export const load = async ({ locals }) => {
                 gender,
                 wear_type,
                 base_price,
-                additional_cost_per_cm,
+                measurement_specs,
                 created_at,
                 courses:course_id(id, course_code)
             `)
@@ -54,35 +54,34 @@ export const actions = {
             const courseId = formData.get('courseId');
             const wearType = formData.get('wearType');
             const basePrice = parseFloat(formData.get('basePrice'));
-            const additionalCostPerCm = parseFloat(formData.get('additionalCostPerCm') || '0');
-            const measurementTypeIds = formData.getAll('measurementTypes').map(Number);
+            
+            // Get selected measurement types and their specifications
+            const selectedMeasurements = formData.getAll('selectedMeasurements');
+            const measurement_specs = selectedMeasurements.map(typeId => ({
+                measurement_type_id: parseInt(typeId),
+                base_cm: parseFloat(formData.get(`baseCm_${typeId}`) || '0'),
+                additional_cost_per_cm: parseFloat(formData.get(`costPerCm_${typeId}`) || '0')
+            }));
 
-            // Validate required fields
-            if (!gender || !courseId || !wearType || !basePrice || measurementTypeIds.length === 0) {
+            if (!gender || !courseId || !wearType || !basePrice || measurement_specs.length === 0) {
                 throw error(400, 'Missing required fields');
             }
 
-            // Insert new configuration
             const { data, error: insertError } = await supabase
                 .from('uniform_configuration')
                 .insert({
                     gender,
                     course_id: courseId,
                     wear_type: wearType,
-                    measurement_type_ids: measurementTypeIds,
-                    base_price: basePrice,
-                    additional_cost_per_cm: additionalCostPerCm
+                    measurement_specs,
+                    base_price: basePrice
                 })
                 .select()
                 .single();
 
             if (insertError) throw insertError;
 
-            return {
-                success: true,
-                message: 'Uniform configuration created successfully',
-                config: data
-            };
+            return { success: true, config: data };
         } catch (err) {
             console.error('Error:', err);
             throw error(500, err.message);
@@ -97,10 +96,16 @@ export const actions = {
             const courseId = formData.get('courseId');
             const wearType = formData.get('wearType');
             const basePrice = parseFloat(formData.get('basePrice'));
-            const additionalCostPerCm = parseFloat(formData.get('additionalCostPerCm') || '0');
-            const measurementTypeIds = formData.getAll('measurementTypes').map(Number);
 
-            if (!id || !gender || !courseId || !wearType || !basePrice || measurementTypeIds.length === 0) {
+            // Get selected measurement types and their specifications
+            const selectedMeasurements = formData.getAll('selectedMeasurements');
+            const measurement_specs = selectedMeasurements.map(typeId => ({
+                measurement_type_id: parseInt(typeId),
+                base_cm: parseFloat(formData.get(`baseCm_${typeId}`) || '0'),
+                additional_cost_per_cm: parseFloat(formData.get(`costPerCm_${typeId}`) || '0')
+            }));
+
+            if (!id || !gender || !courseId || !wearType || !basePrice || measurement_specs.length === 0) {
                 throw error(400, 'Missing required fields');
             }
 
@@ -110,9 +115,8 @@ export const actions = {
                     gender,
                     course_id: courseId,
                     wear_type: wearType,
-                    measurement_type_ids: measurementTypeIds,
-                    base_price: basePrice,
-                    additional_cost_per_cm: additionalCostPerCm
+                    measurement_specs,
+                    base_price: basePrice
                 })
                 .eq('id', id)
                 .select()
@@ -120,11 +124,7 @@ export const actions = {
 
             if (updateError) throw updateError;
 
-            return {
-                success: true,
-                message: 'Uniform configuration updated successfully',
-                config: data
-            };
+            return { success: true, config: data };
         } catch (err) {
             console.error('Error:', err);
             throw error(500, err.message);

@@ -24,10 +24,9 @@ export const load = async ({ locals }) => {
                 id,
                 gender,
                 course_id,
-                measurement_type_ids,
+                measurement_specs,
                 wear_type,
-                base_price,
-                additional_cost_per_cm
+                base_price
             `);
 
         if (configError) throw configError;
@@ -42,9 +41,8 @@ export const load = async ({ locals }) => {
             configsByGenderAndCourse[key].push({
                 ...config,
                 wear_type: config.wear_type,
-                measurement_type_ids: config.measurement_type_ids || [],
-                base_price: config.base_price || 0,
-                additional_cost_per_cm: config.additional_cost_per_cm || 0
+                measurement_specs: config.measurement_specs || [], // Changed from measurement_type_ids
+                base_price: config.base_price || 0
             });
         });
 
@@ -154,44 +152,41 @@ export const actions = {
         }
     },
 
-    update: async ({ request }) => {
+    edit: async ({ request }) => {
         const formData = await request.formData();
         const id = formData.get('id');
         const first_name = formData.get('first_name');
         const last_name = formData.get('last_name');
         const gender = formData.get('gender')?.toLowerCase();
-        const course_id = formData.get('course_id');
+        const course_id = parseInt(formData.get('course_id'));
         const contact_number = formData.get('contact_number');
         const address = formData.get('address');
 
         if (!id || !first_name || !last_name || !gender || !course_id) {
             return fail(400, {
-                error: 'Required fields are missing',
-                values: { id, first_name, last_name, gender, course_id, contact_number, address }
+                error: 'Required fields are missing'
             });
         }
 
         try {
-            // Get uniform configuration for pricing and measurements
-            const { data: configs } = await supabase
+            // Get uniform configuration for the student's course and gender
+            const { data: configs, error: configError } = await supabase
                 .from('uniform_configuration')
-                .select('*')
+                .select('measurement_specs')
                 .match({ gender, course_id });
 
-            // Collect and validate measurements
+            if (configError) throw configError;
+
+            // Collect measurements from form data
             const measurements = {};
-            for (const config of configs) {
-                for (const measurementId of config.measurement_type_ids) {
-                    const value = parseFloat(formData.get(`measurement_${measurementId}`));
-                    if (!value || isNaN(value)) {
-                        return fail(400, {
-                            error: `Missing or invalid measurement for ID ${measurementId}`
-                        });
-                    }
-                    measurements[measurementId] = value;
+            for (const [key, value] of formData.entries()) {
+                if (key.startsWith('measurement_')) {
+                    const measurementId = parseInt(key.replace('measurement_', ''));
+                    measurements[measurementId] = parseFloat(value);
                 }
             }
 
+            // Update student record
             const { error: updateError } = await supabase
                 .from('students')
                 .update({
@@ -199,9 +194,9 @@ export const actions = {
                     last_name,
                     gender,
                     course_id,
-                    contact_number,
-                    address,
-                    measurements: JSON.stringify(measurements) // Convert to JSONB format
+                    contact_number: contact_number || null,
+                    address: address || null,
+                    measurements // This will be automatically converted to JSONB
                 })
                 .eq('id', id);
 
@@ -209,10 +204,9 @@ export const actions = {
 
             return { success: true };
         } catch (err) {
-            console.error('Error:', err);
+            console.error('Update error:', err);
             return fail(500, {
-                error: 'Failed to update student',
-                values: { id, first_name, last_name, gender, course_id, contact_number, address }
+                error: 'Failed to update student'
             });
         }
     },
@@ -222,7 +216,9 @@ export const actions = {
         const id = formData.get('id');
 
         if (!id) {
-            return fail(400, { error: 'Student ID is required' });
+            return fail(400, { 
+                error: 'Student ID is required'
+            });
         }
 
         try {
@@ -231,12 +227,28 @@ export const actions = {
                 .delete()
                 .eq('id', id);
 
-            if (deleteError) throw deleteError;
+            if (deleteError) {
+                console.log('Delete error:', deleteError); // Debug log
+                
+                if (deleteError.code === '23503') {
+                    return fail(400, { 
+                        error: 'This student cannot be deleted because they have existing orders in the system.'
+                    });
+                }
+                
+                return fail(500, { 
+                    error: deleteError.message || 'Failed to delete student'
+                });
+            }
 
-            return { success: true };
+            return {
+                success: true
+            };
         } catch (err) {
-            console.error('Error:', err);
-            return fail(500, { error: 'Failed to delete student' });
+            console.log('Catch error:', err); // Debug log
+            return fail(500, { 
+                error: err.message || 'Failed to delete student'
+            });
         }
     }
 };

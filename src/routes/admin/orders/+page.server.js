@@ -30,6 +30,7 @@ export const load = async ({ locals }) => {
             wear_type,
             course_id,
             base_price,
+            measurement_specs,
             course:courses(*)
         `);
 
@@ -40,7 +41,10 @@ export const load = async ({ locals }) => {
         .from('orders')
         .select(`
             *,
-            student:students(*),
+            student:students(
+                *,
+                course:courses(*)
+            ),
             employee:profiles(first_name, last_name)
         `)
         .order('due_date', { ascending: true });
@@ -70,6 +74,7 @@ export const actions = {
             });
         }
 
+        // Create the order
         const { error: insertError } = await supabase
             .from('orders')
             .insert({
@@ -151,5 +156,153 @@ export const actions = {
             success: true,
             filteredOrders: orders || []
         };
+    },
+
+    deleteOrder: async ({ request }) => {
+        const formData = await request.formData();
+        const orderId = formData.get('orderId');
+
+        if (!orderId) {
+            return fail(400, {
+                error: 'Order ID is required'
+            });
+        }
+
+        // First check if order is pending
+        const { data: order, error: checkError } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .single();
+
+        if (checkError || !order) {
+            return fail(500, {
+                error: 'Failed to check order status'
+            });
+        }
+
+        if (order.status !== 'pending') {
+            return fail(400, {
+                error: 'Only pending orders can be deleted'
+            });
+        }
+
+        // Delete the order
+        const { error: deleteError } = await supabase
+            .from('orders')
+            .delete()
+            .eq('id', orderId);
+
+        if (deleteError) {
+            return fail(500, {
+                error: 'Failed to delete order'
+            });
+        }
+
+        return { success: true };
+    },
+
+    editOrder: async ({ request }) => {
+        const formData = await request.formData();
+        const orderId = formData.get('orderId');
+        const studentId = formData.get('studentId');
+        const uniformType = formData.get('uniformType');
+        const dueDate = formData.get('dueDate');
+        const totalAmount = formData.get('totalAmount');
+
+        // Validation
+        if (!orderId || !studentId || !uniformType || !dueDate || !totalAmount) {
+            return fail(400, {
+                error: 'All fields are required'
+            });
+        }
+
+        // Check if order exists and is pending
+        const { data: existingOrder, error: checkError } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .single();
+
+        if (checkError || !existingOrder) {
+            return fail(404, {
+                error: 'Order not found'
+            });
+        }
+
+        if (existingOrder.status !== 'pending') {
+            return fail(400, {
+                error: 'Only pending orders can be edited'
+            });
+        }
+
+        // Update the order
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                student_id: studentId,
+                uniform_type: uniformType,
+                due_date: dueDate,
+                total_amount: totalAmount,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+
+        if (updateError) {
+            return fail(500, {
+                error: 'Failed to update order'
+            });
+        }
+
+        return { success: true };
+    },
+
+    updatePayment: async ({ request }) => {
+        const formData = await request.formData();
+        const orderId = formData.get('orderId');
+        const amountPaid = parseFloat(formData.get('amountPaid'));
+
+        if (!orderId || !amountPaid) {
+            return fail(400, {
+                error: 'Order ID and amount are required'
+            });
+        }
+
+        // Get current order details
+        const { data: order, error: fetchError } = await supabase
+            .from('orders')
+            .select('total_amount, amount_paid')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError) {
+            return fail(500, {
+                error: 'Failed to fetch order details'
+            });
+        }
+
+        const newAmountPaid = order.amount_paid + amountPaid;
+        const paymentStatus = 
+            newAmountPaid === 0 ? 'not paid' :
+            newAmountPaid >= order.total_amount ? 'fully paid' : 'partial';
+
+        // Update the order with new payment details
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                amount_paid: newAmountPaid,
+                payment_date: new Date().toISOString(),
+                payment_status: paymentStatus,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+
+        if (updateError) {
+            return fail(500, {
+                error: 'Failed to update payment'
+            });
+        }
+
+        return { success: true };
     }
 };

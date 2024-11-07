@@ -18,6 +18,11 @@
     let activeTab = 'pending'; // Add this for tab management
     let selectAll = false; // Add new state for select all
     let filteredResults = null; // Add new state for filtered orders
+    let orderToDelete = null; // Add this state for delete confirmation
+    let isEditing = false;
+    let orderToEdit = null;
+    let orderToPayment = null;
+    let paymentAmount = '';
 
     $: filteredStudents = data.students.filter(student => 
         `${student.first_name} ${student.last_name} ${student.course?.course_code}`
@@ -39,6 +44,24 @@
     $: inProgressOrders = sortedOrders.filter(order => order.status === 'in progress');
     $: completedOrders = sortedOrders.filter(order => order.status === 'completed');
 
+    // Add this computed property
+    $: availableUniformTypes = selectedStudent ? getAvailableUniformTypes(selectedStudent, data.uniformConfigs) : [];
+
+    // Add this computed property for price breakdown
+    $: priceBreakdown = getPriceBreakdown(selectedStudent, selectedUniformType, data.uniformConfigs);
+
+    // Add this computed property
+    $: displayPaymentStatus = (order) => {
+        if (order.amount_paid === 0) return 'Not Paid';
+        if (order.amount_paid >= order.total_amount) return 'Fully Paid';
+        return 'Partial';
+    };
+
+    // Add this helper function for payment date formatting
+    $: formatPaymentDate = (date) => {
+        return date ? format(new Date(date), 'MMM d, yyyy') : 'No payment';
+    };
+
     function calculateTotalAmount(student, uniformType) {
         if (!student || !uniformType) return 0;
         
@@ -48,14 +71,99 @@
         
         if (!configs.length) return 0;
 
+        let totalAmount = 0;
+
         if (uniformType === 'both') {
             const upperConfig = configs.find(c => c.wear_type === 'upper');
             const lowerConfig = configs.find(c => c.wear_type === 'lower');
-            return (upperConfig?.base_price || 0) + (lowerConfig?.base_price || 0);
+            
+            if (upperConfig) {
+                totalAmount += calculatePriceForConfig(upperConfig, student.measurements);
+            }
+            if (lowerConfig) {
+                totalAmount += calculatePriceForConfig(lowerConfig, student.measurements);
+            }
         } else {
             const config = configs.find(c => c.wear_type === uniformType);
-            return config?.base_price || 0;
+            if (config) {
+                totalAmount = calculatePriceForConfig(config, student.measurements);
+            }
         }
+
+        return totalAmount;
+    }
+
+    function calculatePriceForConfig(config, measurements) {
+        let price = config.base_price;
+        
+        // Add additional costs based on measurements
+        if (config.measurement_specs && measurements) {
+            config.measurement_specs.forEach(spec => {
+                const studentMeasurement = measurements[spec.measurement_type_id];
+                if (studentMeasurement && studentMeasurement > spec.base_cm) {
+                    const exceededCm = Math.ceil(studentMeasurement - spec.base_cm);
+                    const additionalCost = exceededCm * spec.additional_cost_per_cm;
+                    price += additionalCost;
+                }
+            });
+        }
+        
+        return price;
+    }
+
+    // Add this function to get price breakdown
+    function getPriceBreakdown(student, uniformType, configs) {
+        if (!student || !uniformType) return [];
+        
+        const breakdown = [];
+        const studentConfigs = configs.filter(
+            c => c.course_id === student.course_id && c.gender === student.gender
+        );
+
+        if (uniformType === 'both') {
+            const upperConfig = studentConfigs.find(c => c.wear_type === 'upper');
+            const lowerConfig = studentConfigs.find(c => c.wear_type === 'lower');
+            
+            if (upperConfig) {
+                breakdown.push(...getConfigBreakdown(upperConfig, student.measurements, 'Upper Wear'));
+            }
+            if (lowerConfig) {
+                breakdown.push(...getConfigBreakdown(lowerConfig, student.measurements, 'Lower Wear'));
+            }
+        } else {
+            const config = studentConfigs.find(c => c.wear_type === uniformType);
+            if (config) {
+                breakdown.push(...getConfigBreakdown(config, student.measurements, 
+                    uniformType === 'upper' ? 'Upper Wear' : 'Lower Wear'));
+            }
+        }
+        
+        return breakdown;
+    }
+
+    function getConfigBreakdown(config, measurements, wearType) {
+        const breakdown = [{
+            description: `${wearType} Base Price`,
+            amount: config.base_price
+        }];
+        
+        if (config.measurement_specs && measurements) {
+            config.measurement_specs.forEach(spec => {
+                const studentMeasurement = measurements[spec.measurement_type_id];
+                if (studentMeasurement && studentMeasurement > spec.base_cm) {
+                    const exceededCm = Math.ceil(studentMeasurement - spec.base_cm);
+                    const additionalCost = exceededCm * spec.additional_cost_per_cm;
+                    if (additionalCost > 0) {
+                        breakdown.push({
+                            description: `Additional cost for exceeding ${spec.base_cm}cm by ${exceededCm}cm (₱${spec.additional_cost_per_cm}/cm)`,
+                            amount: additionalCost
+                        });
+                    }
+                }
+            });
+        }
+        
+        return breakdown;
     }
 
     function toggleSort(field) {
@@ -78,6 +186,8 @@
         selectedDueDate = '';
         showCreateModal = false;
         showModal = false; // Also close the student search modal
+        isEditing = false;
+        orderToEdit = null;
     }
 
     // Modify the toggleOrderSelection to handle individual selections
@@ -120,7 +230,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 resetForm();
-                await invalidate('app:orders'); // Reload the data
+                window.location.reload(); // Force reload after successful creation
             }
         };
     };
@@ -130,7 +240,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 handleAssignmentSuccess();
-                await invalidate('app:orders'); // Reload the data
+                window.location.reload(); // Force page reload instead of just invalidating
             }
         };
     };
@@ -150,124 +260,413 @@
         if (sortField !== field) return '↕';
         return sortDirection === 'asc' ? '↑' : '↓';
     }
+
+    // Add this function
+    function getAvailableUniformTypes(student, configs) {
+        const studentConfigs = configs.filter(
+            c => c.course_id === student.course_id && c.gender === student.gender
+        );
+        
+        const types = [];
+        const hasUpper = studentConfigs.some(c => c.wear_type === 'upper');
+        const hasLower = studentConfigs.some(c => c.wear_type === 'lower');
+        
+        if (hasUpper) types.push('upper');
+        if (hasLower) types.push('lower');
+        if (hasUpper && hasLower) types.push('both');
+        
+        // Set default selected type if current selection is not available
+        if (!types.includes(selectedUniformType)) {
+            selectedUniformType = types[0] || '';
+        }
+        
+        return types;
+    }
+
+    $: selectedUniformConfig = selectedStudent && selectedUniformType ? 
+        data.uniformConfigs.find(
+            c => c.course_id === selectedStudent.course_id && 
+            c.gender === selectedStudent.gender && 
+            c.wear_type === selectedUniformType
+        ) : null;
+
+    // Modify this function
+    const handleDeleteOrder = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                orderToDelete = null; // Close modal
+                window.location.reload(); // Force page reload
+            }
+        };
+    };
+
+    // Add this function to handle edit button click
+    function handleEditClick(order) {
+        isEditing = true;
+        orderToEdit = order;
+        // Find the complete student data including course from the students array
+        selectedStudent = data.students.find(s => s.id === order.student.id);
+        selectedUniformType = order.uniform_type;
+        selectedDueDate = order.due_date;
+        showCreateModal = true;
+    }
+
+    // Add this for edit form submission
+    const handleEditOrder = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                resetForm();
+                window.location.reload();
+            }
+        };
+    };
+
+    const handlePayment = () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                orderToPayment = null;
+                paymentAmount = '';
+                window.location.reload();
+            }
+        };
+    };
 </script>
 
 <!-- Student Search Modal -->
 {#if showModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[51]">
-        <div class="bg-white p-6 rounded-lg w-1/2 max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between mb-4">
-                <h2 class="text-xl font-semibold">Select Student</h2>
-                <button on:click={() => showModal = false} class="text-gray-500">&times;</button>
+        <div class="bg-white p-6 rounded-lg w-[500px] max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Search Student</h2>
+                <button 
+                    class="text-gray-500 hover:text-gray-700"
+                    on:click={() => showModal = false}
+                >
+                    &times;
+                </button>
             </div>
             
-            <input
-                type="text"
-                bind:value={searchTerm}
-                placeholder="Search student..."
-                class="w-full p-2 border rounded mb-4"
-            >
-
-            <div class="divide-y">
-                {#each filteredStudents as student}
-                    <div 
-                        class="p-2 hover:bg-muted cursor-pointer"
-                        on:click={() => selectStudent(student)}
+            <!-- Search input -->
+            <div class="mb-4">
+                <div class="relative">
+                    <input 
+                        type="text"
+                        bind:value={searchTerm}
+                        placeholder="Search by name or course..."
+                        class="w-full p-2 pr-8 border rounded"
                     >
-                        <div class="font-semibold">{student.first_name} {student.last_name}</div>
-                        <div class="text-sm text-gray-600">{student.course?.course_code}</div>
+                </div>
+            </div>
+
+            <!-- Results list -->
+            <div class="flex-1 overflow-y-auto">
+                {#if filteredStudents.length === 0}
+                    <p class="text-center text-gray-500 py-4">No students found</p>
+                {:else}
+                    <div class="divide-y">
+                        {#each filteredStudents as student}
+                            <div 
+                                class="p-3 hover:bg-gray-50 cursor-pointer flex items-center space-x-4"
+                                on:click={() => selectStudent(student)}
+                            >
+                                <div class="flex-1">
+                                    <div class="font-semibold">
+                                        {student.first_name} {student.last_name}
+                                    </div>
+                                    <div class="text-sm text-gray-600">
+                                        <span class="inline-block bg-gray-100 px-2 py-0.5 rounded">
+                                            {student.course?.course_code}
+                                        </span>
+                                        <span class="ml-2 capitalize">{student.gender}</span>
+                                    </div>
+                                </div>
+                                <div class="text-gray-400">→</div>
+                            </div>
+                        {/each}
                     </div>
-                {/each}
+                {/if}
+            </div>
+
+            <div class="mt-4 pt-4 border-t text-sm text-gray-500">
+                {filteredStudents.length} student{filteredStudents.length > 1 ? 's' : ''} found
             </div>
         </div>
     </div>
 {/if}
 
-<!-- Create Order Modal -->
+<!-- Replace the Create/Edit Order Modal section -->
 {#if showCreateModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-1/2">
-            <div class="flex justify-between mb-4">
-                <h2 class="text-xl font-semibold">Create New Order</h2>
-                <button on:click={resetForm} class="text-gray-500">&times;</button>
+        <div class="bg-white p-6 rounded-lg w-[80%] max-w-5xl">
+            <div class="flex justify-between mb-6">
+                <h2 class="text-2xl font-bold">{isEditing ? 'Edit Order' : 'Create New Order'}</h2>
+                <button on:click={resetForm} class="text-gray-500 text-xl">&times;</button>
             </div>
 
             <form 
                 method="POST" 
-                action="?/createOrder" 
-                use:enhance={handleCreateOrder}
+                action={isEditing ? "?/editOrder" : "?/createOrder"}
+                use:enhance={isEditing ? handleEditOrder : handleCreateOrder}
+                class="space-y-4"
             >
-                <div class="space-y-4">
-                    <div>
-                        <label class="block mb-2">Student</label>
-                        <div class="flex gap-2">
-                            <input 
-                                type="text"
-                                readonly
-                                value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : ''}
-                                class="w-full p-2 border rounded bg-gray-50"
-                            >
-                            <button 
-                                type="button"
-                                on:click={() => showModal = true}
-                                class="bg-secondary px-4 py-2 rounded text-white"
-                            >
-                                Search
-                            </button>
+                {#if isEditing}
+                    <input type="hidden" name="orderId" value={orderToEdit.id}>
+                {/if}
+                
+                <!-- Rest of the form remains the same -->
+                <div class="grid grid-cols-2 gap-8">
+                    <!-- Left Column - Order Details -->
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-primary">Order Information</h3>
+                            <div class="space-y-4">
+                                <!-- Student Selection -->
+                                <div>
+                                    <label class="block mb-2 font-medium">Student *</label>
+                                    <div class="flex gap-2">
+                                        <input 
+                                            type="text"
+                                            readonly
+                                            required
+                                            value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : ''}
+                                            class="w-full p-2 border rounded bg-gray-50"
+                                            placeholder="Select a student..."
+                                        >
+                                        <button 
+                                            type="button"
+                                            on:click={() => showModal = true}
+                                            class="bg-secondary px-4 py-2 rounded text-white flex-shrink-0"
+                                        >
+                                            Search
+                                        </button>
+                                    </div>
+                                    <input type="hidden" name="studentId" value={selectedStudent?.id} required>
+                                </div>
+
+                                <!-- Uniform Type -->
+                                <div>
+                                    <label class="block mb-2 font-medium">Uniform Type *</label>
+                                    <select 
+                                        name="uniformType" 
+                                        bind:value={selectedUniformType}
+                                        class="w-full p-2 border rounded"
+                                        required
+                                    >
+                                        <option value="">Select uniform type</option>
+                                        {#each availableUniformTypes as type}
+                                            <option value={type}>
+                                                {type === 'upper' ? 'Upper Wear' : 
+                                                 type === 'lower' ? 'Lower Wear' : 'Both'}
+                                            </option>
+                                        {/each}
+                                    </select>
+                                </div>
+
+                                <!-- Due Date -->
+                                <div>
+                                    <label class="block mb-2 font-medium">Due Date *</label>
+                                    <input 
+                                        type="date" 
+                                        name="dueDate"
+                                        bind:value={selectedDueDate}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        class="w-full p-2 border rounded"
+                                        required
+                                    >
+                                </div>
+                            </div>
                         </div>
-                        <input type="hidden" name="studentId" value={selectedStudent?.id}>
+
+                        {#if selectedStudent}
+                            <div class="bg-gray-50 p-6 rounded-lg">
+                                <h3 class="text-lg font-semibold mb-4 text-primary">Student Details</h3>
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span class="text-gray-600">Course:</span>
+                                        <p class="font-medium">{selectedStudent.course?.course_code}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-600">Gender:</span>
+                                        <p class="font-medium capitalize">{selectedStudent.gender}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
                     </div>
 
-                    <div>
-                        <label class="block mb-2">Uniform Type</label>
-                        <select 
-                            name="uniformType" 
-                            bind:value={selectedUniformType}
-                            class="w-full p-2 border rounded"
-                            required
-                        >
-                            <option value="upper">Upper Wear</option>
-                            <option value="lower">Lower Wear</option>
-                            <option value="both">Both</option>
-                        </select>
-                    </div>
+                    <!-- Right Column - Price Breakdown -->
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4 text-primary">Price Breakdown</h3>
+                        
+                        {#if priceBreakdown.length > 0}
+                            <div class="space-y-4">
+                                <div class="divide-y">
+                                    {#each priceBreakdown as item}
+                                        <div class="py-3 flex justify-between items-center">
+                                            <span class="text-gray-600">{item.description}</span>
+                                            <span class="font-medium">₱{item.amount}</span>
+                                        </div>
+                                    {/each}
+                                </div>
+                                
+                                <div class="border-t-2 border-primary pt-4 mt-4">
+                                    <div class="flex justify-between items-center text-lg font-bold">
+                                        <span>Total Amount</span>
+                                        <span class="text-primary">₱{totalAmount}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {:else}
+                            <p class="text-gray-500 text-center py-8">
+                                Select a student and uniform type to see the price breakdown
+                            </p>
+                        {/if}
 
-                    <div>
-                        <label class="block mb-2">Due Date</label>
                         <input 
-                            type="date" 
-                            name="dueDate"
-                            bind:value={selectedDueDate}
-                            class="w-full p-2 border rounded"
-                            required
-                        >
-                    </div>
-
-                    <div>
-                        <label class="block mb-2">Total Amount</label>
-                        <input 
-                            type="number" 
+                            type="hidden" 
                             name="totalAmount"
                             value={totalAmount}
-                            class="w-full p-2 border rounded bg-gray-50"
-                            readonly
+                        >
+                        <input 
+                            type="hidden" 
+                            name="uniformConfigId" 
+                            value={selectedUniformConfig?.id}
                         >
                     </div>
                 </div>
 
-                <div class="mt-6 flex justify-end gap-2">
-                    <button 
+                <!-- Footer with buttons -->
+                <div class="border-t pt-6 mt-6 flex justify-end gap-3">
+                    <button
                         type="button"
+                        class="px-6 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
                         on:click={resetForm}
-                        class="px-4 py-2 border rounded"
                     >
                         Cancel
                     </button>
-                    <button 
+                    <button
                         type="submit"
-                        class="bg-primary text-white px-4 py-2 rounded"
+                        class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                        disabled={!selectedStudent || !selectedUniformType || !selectedDueDate}
                     >
-                        Create Order
+                        {isEditing ? 'Save Changes' : 'Create Order'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+{/if}
+
+<!-- Add Delete Confirmation Modal -->
+{#if orderToDelete}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-[400px]">
+            <h2 class="text-xl font-bold mb-4">Delete Order</h2>
+            <p class="mb-6 text-gray-600">Are you sure you want to delete this order? This action cannot be undone.</p>
+            
+            <form
+                method="POST"
+                action="?/deleteOrder"
+                use:enhance={handleDeleteOrder}
+                class="flex justify-end gap-3"
+            >
+                <input type="hidden" name="orderId" value={orderToDelete.id}>
+                <button
+                    type="button"
+                    class="px-4 py-2 border rounded hover:bg-gray-50"
+                    on:click={() => orderToDelete = null}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+{/if}
+
+<!-- Update the Payment Modal with better layout -->
+{#if orderToPayment}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-[500px]">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Record Payment</h2>
+                <button 
+                    class="text-gray-500 hover:text-gray-700"
+                    on:click={() => { orderToPayment = null; paymentAmount = ''; }}
+                >
+                    &times;
+                </button>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Order ID:</span>
+                        <p class="font-medium">#{orderToPayment.id}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Student:</span>
+                        <p class="font-medium">{orderToPayment.student?.first_name} {orderToPayment.student?.last_name}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Total Amount:</span>
+                        <p class="font-medium">₱{orderToPayment.total_amount}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Amount Paid:</span>
+                        <p class="font-medium">₱{orderToPayment.amount_paid}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Balance:</span>
+                        <p class="font-medium text-primary">₱{orderToPayment.balance}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Status:</span>
+                        <p class="font-medium capitalize">{orderToPayment.payment_status}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <form
+                method="POST"
+                action="?/updatePayment"
+                use:enhance={handlePayment}
+                class="space-y-6"
+            >
+                <input type="hidden" name="orderId" value={orderToPayment.id}>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Payment Amount</label>
+                    <input 
+                        type="number"
+                        name="amountPaid"
+                        bind:value={paymentAmount}
+                        step="0.01"
+                        class="w-full p-2 border rounded"
+                        placeholder="Enter amount"
+                        required
+                    >
+                    <p class="text-sm text-gray-500 mt-1">
+                        Enter negative amount to record a refund
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        class="px-4 py-2 border rounded hover:bg-gray-50"
+                        on:click={() => { orderToPayment = null; paymentAmount = ''; }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                    >
+                        Record Payment
                     </button>
                 </div>
             </form>
@@ -288,7 +687,17 @@
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-md">
-        <!-- Add tab navigation -->
+        <!-- Add this before tab navigation for global search -->
+        <div class="mb-4">
+            <input 
+                type="text"
+                bind:value={searchTerm}
+                placeholder="Search orders by student name..."
+                class="w-full p-2 border rounded"
+            >
+        </div>
+
+        <!-- Update tab navigation -->
         <div class="flex gap-4 mb-6 border-b">
             <button 
                 class="px-4 py-2 {activeTab === 'pending' ? 'border-b-2 border-primary font-semibold' : ''}"
@@ -307,6 +716,12 @@
                 on:click={() => switchTab('completed')}
             >
                 Completed ({completedOrders.length})
+            </button>
+            <button 
+                class="px-4 py-2 {activeTab === 'payments' ? 'border-b-2 border-primary font-semibold' : ''}"
+                on:click={() => switchTab('payments')}
+            >
+                Payments ({data.orders.length})
             </button>
         </div>
 
@@ -363,158 +778,198 @@
             </div>
         {/if}
 
-        <div class="flex justify-between mb-4">
-            <h2 class="text-xl font-semibold">Orders List</h2>
-            
-            <form 
-                method="POST" 
-                action="?/filterOrders" 
-                use:enhance={handleFilterOrders} 
-                class="flex gap-4"
-            >
-                <input 
-                    type="date" 
-                    name="startDate"
-                    bind:value={dateRange.start}
-                    class="border rounded p-2"
-                >
-                <input 
-                    type="date" 
-                    name="endDate"
-                    bind:value={dateRange.end}
-                    class="border rounded p-2"
-                >
-                <button 
-                    type="submit"
-                    class="bg-secondary text-white px-4 py-2 rounded"
-                    disabled={!dateRange.start || !dateRange.end}
-                >
-                    Filter
-                </button>
-                {#if filteredResults}
-                    <button 
-                        type="button"
-                        class="px-4 py-2 border rounded text-gray-600"
-                        on:click={resetFilter}
-                    >
-                        Clear Filter
-                    </button>
-                {/if}
-            </form>
-        </div>
-
-        <div class="overflow-x-auto">
+        <!-- For Pending Orders Table -->
+        {#if activeTab === 'pending'}
             <table class="w-full">
                 <thead>
                     <tr class="bg-muted">
-                        {#if activeTab === 'pending'}
-                            <th class="p-2 w-12">Select</th>
-                        {/if}
-                        {#each ['id', 'student', 'uniform_type', 'due_date', 'total_amount', 'status'] as field}
-                            <th 
-                                class="p-2 cursor-pointer hover:bg-gray-200"
-                                on:click={() => toggleSort(field)}
-                            >
-                                {field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}
-                                <span class="ml-1">{getSortIcon(field)}</span>
-                            </th>
-                        {/each}
-                        <th class="p-2">Assigned To</th>
+                        <th class="w-12">Select</th>
+                        <th>Order ID</th>
+                        <th>Student</th>
+                        <th>Uniform Type</th>
+                        <th>Created At</th>
+                        <th>Due Date</th>
+                        <th>Total Amount</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {#if activeTab === 'pending'}
-                        {#each pendingOrders as order}
-                            <tr class="border-b hover:bg-muted">
-                                <td class="p-2">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={selectedOrders.includes(order.id)}
-                                        on:change={() => toggleOrderSelection(order.id)}
-                                        class="w-4 h-4"
-                                    >
-                                </td>
-                                <td class="p-2">{order.id}</td>
-                                <td class="p-2">
-                                    {order.student?.first_name} {order.student?.last_name}
-                                </td>
-                                <td class="p-2">{order.uniform_type}</td>
-                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                                <td class="p-2">₱{order.total_amount}</td>
-                                <td class="p-2">
-                                    <span class={`px-2 py-1 rounded-full text-sm
-                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
-                                          'bg-yellow-100 text-yellow-800'}`}>
-                                        {order.status}
-                                    </span>
-                                </td>
-                                <td class="p-2">
-                                    {#if order.employee}
-                                        {order.employee.first_name} {order.employee.last_name}
-                                    {:else}
-                                        <span class="text-gray-400">Unassigned</span>
-                                    {/if}
-                                </td>
-                            </tr>
-                        {/each}
-                    {:else if activeTab === 'in_progress'}
-                        {#each inProgressOrders as order}
-                            <tr class="border-b hover:bg-muted">
-                                <td class="p-2">{order.id}</td>
-                                <td class="p-2">
-                                    {order.student?.first_name} {order.student?.last_name}
-                                </td>
-                                <td class="p-2">{order.uniform_type}</td>
-                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                                <td class="p-2">₱{order.total_amount}</td>
-                                <td class="p-2">
-                                    <span class={`px-2 py-1 rounded-full text-sm
-                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
-                                          'bg-yellow-100 text-yellow-800'}`}>
-                                        {order.status}
-                                    </span>
-                                </td>
-                                <td class="p-2">
-                                    {#if order.employee}
-                                        {order.employee.first_name} {order.employee.last_name}
-                                    {:else}
-                                        <span class="text-gray-400">Unassigned</span>
-                                    {/if}
-                                </td>
-                            </tr>
-                        {/each}
-                    {:else}
-                        {#each completedOrders as order}
-                            <tr class="border-b hover:bg-muted">
-                                <td class="p-2">{order.id}</td>
-                                <td class="p-2">
-                                    {order.student?.first_name} {order.student?.last_name}
-                                </td>
-                                <td class="p-2">{order.uniform_type}</td>
-                                <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
-                                <td class="p-2">₱{order.total_amount}</td>
-                                <td class="p-2">
-                                    <span class={`px-2 py-1 rounded-full text-sm
-                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                          order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
-                                          'bg-yellow-100 text-yellow-800'}`}>
-                                        {order.status}
-                                    </span>
-                                </td>
-                                <td class="p-2">
-                                    {#if order.employee}
-                                        {order.employee.first_name} {order.employee.last_name}
-                                    {:else}
-                                        <span class="text-gray-400">Unassigned</span>
-                                    {/if}
-                                </td>
-                            </tr>
-                        {/each}
-                    {/if}
+                    {#each pendingOrders.filter(order => 
+                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ) as order}
+                        <tr class="border-b hover:bg-muted">
+                            <td class="p-2">
+                                <input type="checkbox" 
+                                    checked={selectedOrders.includes(order.id)}
+                                    on:change={() => toggleOrderSelection(order.id)}
+                                    class="w-4 h-4"
+                                >
+                            </td>
+                            <td class="p-2">{order.id}</td>
+                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+                            <td class="p-2">{order.uniform_type}</td>
+                            <td class="p-2">{format(new Date(order.created_at), 'MMM d, yyyy h:mm a')}</td>
+                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                            <td class="p-2">₱{order.total_amount}</td>
+                            <td class="p-2">
+                                <div class="flex gap-2">
+                                    <button class="text-blue-600 hover:text-blue-800"
+                                        on:click={() => handleEditClick(order)}>
+                                        Edit
+                                    </button>
+                                    <button class="text-red-600 hover:text-red-800"
+                                        on:click={() => orderToDelete = order}>
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {/each}
                 </tbody>
             </table>
-        </div>
+
+        <!-- For In Progress Orders Table -->
+        {:else if activeTab === 'in_progress'}
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-muted">
+                        <th>Order ID</th>
+                        <th>Student</th>
+                        <th>Uniform Type</th>
+                        <th>Due Date</th>
+                        <th>Total Amount</th>
+                        <th>Assigned To</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each inProgressOrders.filter(order => 
+                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ) as order}
+                        <tr class="border-b hover:bg-muted">
+                            <td class="p-2">{order.id}</td>
+                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+                            <td class="p-2">{order.uniform_type}</td>
+                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                            <td class="p-2">₱{order.total_amount}</td>
+                            <td class="p-2">{order.employee?.first_name} {order.employee?.last_name}</td>
+                            <td class="p-2">
+                                <span class="px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                                    {order.status}
+                                </span>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+
+        <!-- For Completed Orders Table -->
+        {:else if activeTab === 'completed'}
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-muted">
+                        <th>Order ID</th>
+                        <th>Student</th>
+                        <th>Uniform Type</th>
+                        <th>Due Date</th>
+                        <th>Total Amount</th>
+                        <th>Assigned To</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each completedOrders.filter(order => 
+                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ) as order}
+                        <tr class="border-b hover:bg-muted">
+                            <td class="p-2">{order.id}</td>
+                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+                            <td class="p-2">{order.uniform_type}</td>
+                            <td class="p-2">{format(new Date(order.due_date), 'MMM d, yyyy')}</td>
+                            <td class="p-2">₱{order.total_amount}</td>
+                            <td class="p-2">{order.employee?.first_name} {order.employee?.last_name}</td>
+                            <td class="p-2">
+                                <span class="px-2 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                                    {order.status}
+                                </span>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+
+        <!-- For Payments Table -->
+        {:else if activeTab === 'payments'}
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-muted">
+                        <th>Order ID</th>
+                        <th>Student</th>
+                        <th>Order Status</th>
+                        <th>Total Amount</th>
+                        <th>Amount Paid</th>
+                        <th>Balance</th>
+                        <th>Last Payment</th>
+                        <th>Payment Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each sortedOrders.filter(order => 
+                        order.student?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.student?.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ) as order}
+                        <tr class="border-b hover:bg-muted">
+                            <td class="p-2">{order.id}</td>
+                            <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+                            <td class="p-2">
+                                <span class={`px-2 py-1 rounded-full text-sm
+                                    ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                      order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                                      'bg-yellow-100 text-yellow-800'}`}>
+                                    {order.status}
+                                </span>
+                            </td>
+                            <td class="p-2">₱{order.total_amount}</td>
+                            <td class="p-2">₱{order.amount_paid}</td>
+                            <td class="p-2">₱{order.balance}</td>
+                            <td class="p-2">{formatPaymentDate(order.payment_date)}</td>
+                            <td class="p-2">
+                                <span class={`px-2 py-1 rounded-full text-sm
+                                    ${order.payment_status === 'fully paid' ? 'bg-green-100 text-green-800' : 
+                                      order.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' : 
+                                      'bg-red-100 text-red-800'}`}>
+                                    {displayPaymentStatus(order)}
+                                </span>
+                            </td>
+                            <td class="p-2">
+                                <button
+                                    class="text-blue-600 hover:text-blue-800"
+                                    on:click={() => orderToPayment = order}
+                                >
+                                    Record Payment
+                                </button>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+        {/if}
     </div>
 </div>
+
+<!-- Update all table headers to align left -->
+<style>
+    /* Add this style block at the bottom of your file */
+    :global(th) {
+        @apply text-left !important;
+    }
+    
+    :global(th, td) {
+        @apply px-4 py-2;
+    }
+</style>
+
