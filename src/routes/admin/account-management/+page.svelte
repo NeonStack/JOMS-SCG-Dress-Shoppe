@@ -32,6 +32,8 @@
     confirmPassword: "",
     role: "employee",
     position: "",
+    contactNumber: "",
+    address: "",
   };
 
   // Error states
@@ -60,7 +62,13 @@
     address: "",
     position: "",
     role: "",
+    username: "",
+    password: "",
+    confirmPassword: "",
   };
+
+  // Add 'editErrors' object for validation
+  let editErrors = {};
 
   function openEditModal(account) {
     editForm = {
@@ -71,16 +79,42 @@
       address: account.address || "",
       position: account.position || "",
       role: account.role,
+      username: account.email.split('@')[0], // Extract username from email
+      password: "",
+      confirmPassword: "",
     };
     editingAccount = account;
     showEditModal = true;
   }
 
   async function handleEditSubmit() {
+    // Reset errors
+    editErrors = {};
+
+    // Validate form fields
+    if (!editForm.firstName) {
+      editErrors.firstName = 'First name is required';
+    }
+    if (!editForm.lastName) {
+      editErrors.lastName = 'Last name is required';
+    }
+    if (editForm.password && editForm.password !== editForm.confirmPassword) {
+      editErrors.password = 'Passwords do not match';
+    }
+
+    // If there are validation errors, stop submission
+    if (Object.keys(editErrors).length > 0) {
+      return;
+    }
+
     const formData = new FormData();
     Object.entries(editForm).forEach(([key, value]) => {
       formData.append(key, value);
     });
+
+    if (editForm.password && editForm.password === editForm.confirmPassword) {
+      formData.append('password', editForm.password);
+    }
 
     const result = await fetch("?/updateAccount", {
       method: "POST",
@@ -96,53 +130,48 @@
 
   async function createAccount() {
     if (!validateForm()) return;
-
+    
+    loading = true;
     try {
       // Create email by appending domain
       const email = `${newAccount.username.toLowerCase()}${EMAIL_DOMAIN}`;
 
-      // Check if username already exists
-      const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const usernameExists = existingUsers?.some(
-        (user) => user.email.toLowerCase() === email.toLowerCase()
-      );
+      // Create form data
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('password', newAccount.password);
+      formData.append('firstName', newAccount.firstName);
+      formData.append('lastName', newAccount.lastName);
+      formData.append('role', newAccount.role);
+      formData.append('position', newAccount.position);
+      formData.append('contactNumber', newAccount.contactNumber);
+      formData.append('address', newAccount.address);
 
-      if (usernameExists) {
-        errors.username = "Username already exists";
-        return;
+      const response = await fetch('?/createAccount', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
       }
 
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email,
-        password: newAccount.password,
-        options: {
-          data: {
-            first_name: newAccount.firstName,
-            last_name: newAccount.lastName,
-            role: newAccount.role,
-          },
-        },
-      });
-
-      if (authError) throw authError;
-
-      // Create profile
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: authData.user.id,
-        first_name: newAccount.firstName,
-        last_name: newAccount.lastName,
-        role: newAccount.role,
-      });
-
-      if (profileError) throw profileError;
-
       showCreateModal = false;
-      await fetchAccounts();
-      resetForm();
+      toastMessage = 'Account created successfully';
+      toastType = 'success';
+      showToast = true;
+      setTimeout(() => (showToast = false), 3000);
+      window.location.reload(); // Refresh to show new account
     } catch (error) {
-      console.error("Error creating account:", error);
-      errors.submit = error.message;
+      console.error('Error creating account:', error);
+      toastMessage = error.message || 'Failed to create account';
+      toastType = 'error';
+      showToast = true;
+      setTimeout(() => (showToast = false), 3000);
+    } finally {
+      loading = false;
     }
   }
 
@@ -331,7 +360,7 @@
             >
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
                 <path
-                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 010-1.414z"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414z"
                 />
               </svg>
             </button>
@@ -826,6 +855,27 @@
                         required
                       />
                     </div>
+
+                    <div>
+                      <label for="contactNumber" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                      <input
+                        type="text"
+                        id="contactNumber"
+                        bind:value={newAccount.contactNumber}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="+639898938291"
+                      />
+                    </div>
+
+                    <div>
+                      <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <textarea
+                        id="address"
+                        bind:value={newAccount.address}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        rows="3"
+                      ></textarea>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -909,28 +959,37 @@
         </div>
 
         <!-- Footer -->
-        <div
-          class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white"
-        >
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white">
           <button
             type="button"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             on:click={() => (showCreateModal = false)}
+            disabled={loading}
           >
             Cancel
           </button>
           <button
-            type="submit"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            type="button"
+            on:click={createAccount}
+            disabled={loading}
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary flex items-center space-x-2"
           >
-            Create Account
+            {#if loading}
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Creating...</span>
+            {:else}
+              <span>Create Account</span>
+            {/if}
           </button>
         </div>
       </div>
     </div>
   {/if}
 
-  <!-- Edit Modal with similar layout -->
+  <!-- Edit Modal -->
   {#if showEditModal}
     <div
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -988,8 +1047,11 @@
                           type="text"
                           id="edit-firstName"
                           bind:value={editForm.firstName}
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.firstName ? 'border-error' : ''}"
                         />
+                        {#if editErrors.firstName}
+                          <p class="mt-1 text-sm text-error">{editErrors.firstName}</p>
+                        {/if}
                       </div>
                       <div>
                         <label
@@ -1001,9 +1063,38 @@
                           type="text"
                           id="edit-lastName"
                           bind:value={editForm.lastName}
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.lastName ? 'border-error' : ''}"
                         />
+                        {#if editErrors.lastName}
+                          <p class="mt-1 text-sm text-error">{editErrors.lastName}</p>
+                        {/if}
                       </div>
+                    </div>
+
+                    <div>
+                      <label
+                        for="edit-role"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Account Role</label
+                      >
+                      {#if data.userRole === "superadmin"}
+                        <select
+                          id="edit-role"
+                          bind:value={editForm.role}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                        >
+                          <option value="employee">Tailor</option>
+                          <option value="admin">Administrator</option>
+                        </select>
+                      {:else}
+                        <input
+                          type="text"
+                          value="Tailor"
+                          disabled
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                        />
+                        <input type="hidden" bind:value={editForm.role} />
+                      {/if}
                     </div>
 
                     <div>
@@ -1018,51 +1109,21 @@
                         bind:value={editForm.position}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter position"
-                        required
                       />
                     </div>
 
-                    {#if data.userRole === "superadmin"}
-                      <div>
-                        <label
-                          for="edit-role"
-                          class="block text-sm font-medium text-gray-700 mb-1"
-                          >Account Role</label
-                        >
-                        <select
-                          id="edit-role"
-                          bind:value={editForm.role}
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-                        >
-                          <option value="employee">Tailor</option>
-                          <option value="admin">Administrator</option>
-                          <option value="superadmin">Super Administrator</option
-                          >
-                        </select>
-                      </div>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Contact Information -->
-              <div class="space-y-6">
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
-                    Contact Information
-                  </h4>
-                  <div class="space-y-4">
                     <div>
                       <label
-                        for="edit-contact"
+                        for="edit-contactNumber"
                         class="block text-sm font-medium text-gray-700 mb-1"
                         >Contact Number</label
                       >
                       <input
                         type="text"
-                        id="edit-contact"
+                        id="edit-contactNumber"
                         bind:value={editForm.contactNumber}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="+639..."
                       />
                     </div>
 
@@ -1078,6 +1139,59 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         rows="3"
                       ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Account Credentials -->
+              <div class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
+                    Account Credentials
+                  </h4>
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        for="edit-username"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Username</label
+                      >
+                      <div class="relative">
+                        <input
+                          type="text"
+                          id="edit-username"
+                          bind:value={editForm.username}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                          disabled
+                        />
+                        <span
+                          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
+                          >{EMAIL_DOMAIN}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label for="edit-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                      <input
+                        type="password"
+                        id="edit-password"
+                        bind:value={editForm.password}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
+                      />
+                      {#if editErrors.password}
+                        <p class="mt-1 text-sm text-error">{editErrors.password}</p>
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label for="edit-confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        id="edit-confirmPassword"
+                        bind:value={editForm.confirmPassword}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
                     </div>
                   </div>
                 </div>
