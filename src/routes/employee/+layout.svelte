@@ -47,16 +47,31 @@
               <button
                 on:click={() => handleNavigation(navItem.href)}
                 disabled={isNavigating}
-                class="w-full text-left block py-3 px-4 hover:bg-primary 
-                {$page.url.pathname === navItem.href ? 'bg-primary' : ''}
-                {isNavigating ? 'opacity-50 cursor-not-allowed' : ''}"
+                class="w-full text-left block py-3 px-4 
+                  relative overflow-hidden
+                  transition-all duration-200 ease-in-out
+                  hover:bg-primary-dark hover:pl-6
+                  {$page.url.pathname === navItem.href ? 'bg-primary-dark pl-6' : ''}
+                  {isNavigating ? 'opacity-50 cursor-not-allowed' : ''}"
               >
-                {#if isNavigating && $page.url.pathname === navItem.href}
-                  ⌛
-                {:else}
-                  {navItem.icon}
+                <div class="flex items-center gap-3">
+                  <span class="transition-transform duration-200 
+                    {$page.url.pathname === navItem.href ? 'scale-110' : ''}
+                    {isNavigating && $page.url.pathname === navItem.href ? 'animate-spin' : ''}">
+                    {#if isNavigating && $page.url.pathname === navItem.href}
+                      ⌛
+                    {:else}
+                      {navItem.icon}
+                    {/if}
+                  </span>
+                  <span class="transition-colors duration-200">
+                    {navItem.name}
+                  </span>
+                </div>
+                
+                {#if $page.url.pathname === navItem.href}
+                  <div class="absolute left-0 top-0 w-1 h-full bg-accent animate-slideDown"/>
                 {/if}
-                {navItem.name}
               </button>
             </li>
           {/each}
@@ -90,5 +105,31 @@
 
   button:disabled {
     cursor: not-allowed;
+  }
+
+  @keyframes slideDown {
+    from {
+      height: 0%;
+    }
+    to {
+      height: 100%;
+    }
+  }
+
+  .animate-slideDown {
+    animation: slideDown 0.3s ease-out forwards;
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
