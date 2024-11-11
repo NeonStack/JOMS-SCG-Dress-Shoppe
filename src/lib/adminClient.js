@@ -14,5 +14,14 @@ export const adminClient = createClient(
       persistSession: true,
       detectSessionInUrl: false,
     },
+    global: {
+      // Increase timeout for serverless
+      fetch: (url, options) => {
+        return fetch(url, {
+          ...options,
+          timeout: 20000, // 20 seconds
+        });
+      },
+    },
   }
 );
