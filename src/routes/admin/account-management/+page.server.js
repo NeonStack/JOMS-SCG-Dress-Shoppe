@@ -2,10 +2,6 @@ import { error } from '@sveltejs/kit';
 import { adminClient } from '$lib/adminClient';
 
 export const load = async ({ locals }) => {
-  if (!locals.session) {
-    throw error(401, 'Unauthorized');
-  }
-
   try {
     // Get all profile data with position info
     const { data: accounts, error: profileError } = await adminClient
@@ -84,8 +80,15 @@ export const actions = {
   updateAccount: async ({ request }) => {
     const formData = await request.formData();
     const userData = Object.fromEntries(formData);
+    const password = formData.get('password');
 
     try {
+      // Update password if provided
+      if (password) {
+        await adminClient.auth.admin.updateUserById(userData.id, { password });
+      }
+
+      // Update profile information
       await adminClient.from('profiles').update({
         first_name: userData.firstName,
         last_name: userData.lastName,
@@ -98,6 +101,54 @@ export const actions = {
       return { success: true };
     } catch (err) {
       return { error: 'Failed to update account' };
+    }
+  },
+
+  createAccount: async ({ request }) => {
+    const formData = await request.formData();
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const firstName = formData.get('firstName');
+    const lastName = formData.get('lastName');
+    const role = formData.get('role');
+    const position = formData.get('position');
+    const contactNumber = formData.get('contactNumber');
+    const address = formData.get('address');
+
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName,
+          role: role
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Create profile
+      const { error: profileError } = await adminClient
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          role: role,
+          position: position,
+          contact_number: contactNumber,
+          address: address
+        });
+
+      if (profileError) throw profileError;
+
+      return { success: true };
+    } catch (err) {
+      console.error('Server error creating account:', err);
+      return { error: err.message };
     }
   }
 };
