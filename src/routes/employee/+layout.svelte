@@ -1,5 +1,6 @@
 <script>
   import { page } from "$app/stores";
+  import { goto } from "$app/navigation";
 
   // Managing the sidebar visibility for mobile devices
   let showSidebar = false;
@@ -27,16 +28,16 @@
         <ul>
           {#each navigation as navItem}
             <li>
-              <a
-                href={navItem.href}
-                class="block py-3 px-4 hover:bg-primary {$page.url
+              <button
+                on:click={() => goto(navItem.href)}
+                class="w-full text-left block py-3 px-4 hover:bg-primary {$page.url
                   .pathname === navItem.href
                   ? 'bg-primary'
                   : ''}"
               >
                 {navItem.icon}
                 {navItem.name}
-              </a>
+              </button>
             </li>
           {/each}
         </ul>
