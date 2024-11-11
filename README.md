@@ -1,3 +1,10 @@
+fix the Remember me
+
+
+sort by in orders of employee (especiall courses...)
+profile settings emp
+dashboard emp
+
 navigation... 
 it will have superadmin, admin, and employee.
 

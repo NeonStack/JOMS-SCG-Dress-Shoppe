@@ -110,19 +110,18 @@
 
     // Initialize selected measurements when editing
     $: if (selectedConfig) {
-        selectedMeasurements = new Set(
-            selectedConfig.measurement_specs?.map(spec => spec.measurement_type_id) || []
-        );
+        // Convert measurement_specs array to Set of measurement_type_ids
+        selectedMeasurements = new Set(selectedConfig.measurement_specs?.map(spec => spec.measurement_type_id) || []);
     }
 
-    // Handle measurement selection
+    // Handle measurement selection - Make this more robust
     function toggleMeasurement(typeId) {
+        selectedMeasurements = new Set(selectedMeasurements); // Create new Set to ensure reactivity
         if (selectedMeasurements.has(typeId)) {
             selectedMeasurements.delete(typeId);
         } else {
             selectedMeasurements.add(typeId);
         }
-        selectedMeasurements = selectedMeasurements; // trigger reactivity
     }
 </script>
 
@@ -245,173 +244,177 @@
 
     <!-- Configuration Form Modal -->
     {#if showForm}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-br from-white via-gray-50 to-muted rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(183,50,51,0.15)] border border-white/50 overflow-hidden animate-scale">
             <!-- Modal Header -->
-            <div class="p-6 border-b">
-                <h2 class="text-xl font-bold">
+            <div class="p-6 bg-gradient-to-r from-primary to-primary-dark border-b border-primary/10">
+                <h2 class="text-2xl font-bold text-white">
                     {selectedConfig ? 'Edit Configuration' : 'New Configuration'}
                 </h2>
+                <p class="text-muted mt-2">Configure uniform specifications and measurements</p>
             </div>
 
             <!-- Modal Body - Scrollable -->
-            <div class="p-6 overflow-y-auto flex-1">
+            <div class="flex-1 flex overflow-hidden"> <!-- Changed to flex and overflow-hidden -->
                 <form
                     id="configForm"
                     method="POST"
                     action={selectedConfig ? '?/update' : '?/create'}
                     use:enhance={handleSubmit}
-                    class="space-y-6"
+                    class="flex-1 flex overflow-hidden"
                 >
                     {#if selectedConfig}
                         <input type="hidden" name="id" value={selectedConfig.id} />
                     {/if}
 
-                    <!-- Basic Info Section -->
-                    <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2" for="courseId">Course</label>
-                            <select
-                                name="courseId"
-                                class="block w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                required
-                            >
-                                <option value="">Select Course</option>
-                                {#each courses as course}
-                                {console.log(selectedConfig?.courses?.id, course.id)}
-                                    <option 
-                                        value={course.id}
-                                        selected={selectedConfig?.courses?.id === course.id}
-                                    >
-                                        {course.course_code}
-                                    </option>
-                                {/each}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2" for="gender">Gender</label>
-                            <select
-                                name="gender"
-                                class="block w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                required
-                            >
-                                <option value="">Select Gender</option>
-                                <option value="male" selected={selectedConfig?.gender === 'male'}>Male</option>
-                                <option value="female" selected={selectedConfig?.gender === 'female'}>Female</option>
-                                <option value="unisex" selected={selectedConfig?.gender === 'unisex'}>Unisex</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2" for="wearType">Wear Type</label>
-                            <select
-                                name="wearType"
-                                class="block w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                required
-                            >
-                                <option value="">Select Wear Type</option>
-                                <option value="upper" selected={selectedConfig?.wear_type === 'upper'}>Upper</option>
-                                <option value="lower" selected={selectedConfig?.wear_type === 'lower'}>Lower</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2" for="basePrice">Base Price (₱)</label>
-                            <input
-                                type="number"
-                                name="basePrice"
-                                step="0.01"
-                                value={selectedConfig?.base_price || ''}
-                                class="block w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Measurement Specifications Section -->
-                    <div class="mt-8">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Measurement Specifications</h3>
-                        <div class="grid grid-cols-1 gap-4">
-                            {#each measurementTypes as measurementType}
-                                {@const spec = selectedConfig?.measurement_specs?.find(s => s.measurement_type_id === measurementType.id)}
-                                <div class="bg-gray-50 p-4 rounded-lg border hover:bg-gray-100 cursor-pointer"
-                                     on:click|preventDefault={() => {
-                                        toggleMeasurement(measurementType.id);
-                                     }}
-                                >
-                                    <label class="inline-flex items-center mb-4 w-full cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            name="selectedMeasurements"
-                                            value={measurementType.id}
-                                            checked={selectedMeasurements.has(measurementType.id)}
-                                            class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                                        />
-                                        <span class="ml-2 text-base font-medium">{measurementType.name}</span>
-                                    </label>
-                                    
-                                    {#if selectedMeasurements.has(measurementType.id)}
-                                        <div class="ml-6 grid grid-cols-2 gap-4" 
-                                             on:click|stopPropagation
-                                        >
-                                            <div>
-                                                <label class="block text-sm text-gray-600 mb-1.5">Base Measurement (cm)</label>
-                                                <input
-                                                    type="number"
-                                                    name="baseCm_{measurementType.id}"
-                                                    value={spec?.base_cm ?? 0}
-                                                    class="block w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                                    min="0"
-                                                    step="0.1"
-                                                    required={selectedMeasurements.has(measurementType.id)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm text-gray-600 mb-1.5">Cost per Additional CM (₱)</label>
-                                                <input
-                                                    type="number"
-                                                    name="costPerCm_{measurementType.id}"
-                                                    value={spec?.additional_cost_per_cm ?? 0}
-                                                    class="block w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                                    min="0"
-                                                    step="0.01"
-                                                    required={selectedMeasurements.has(measurementType.id)}
-                                                />
-                                            </div>
-                                        </div>
-                                    {/if}
+                    <div class="flex flex-1 overflow-hidden">
+                        <!-- Left Column - Basic Info (Sticky) -->
+                        <div class="w-1/3 p-6 sticky top-0 max-h-[calc(90vh-8rem)]">
+                            <div class="bg-white/80 p-6 rounded-xl border border-primary/10 shadow-sm">
+                                <h3 class="text-lg font-semibold text-primary mb-4">Basic Information</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-1" for="courseId">Course</label>
+                                        <select name="courseId" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                            <option value="">Select Course</option>
+                                            {#each courses as course}
+                                                <option value={course.id} selected={selectedConfig?.courses?.id === course.id}>
+                                                    {course.course_code}
+                                                </option>
+                                            {/each}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-1" for="gender">Gender</label>
+                                        <select name="gender" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                            <option value="">Select Gender</option>
+                                            <option value="male" selected={selectedConfig?.gender === 'male'}>Male</option>
+                                            <option value="female" selected={selectedConfig?.gender === 'female'}>Female</option>
+                                            <option value="unisex" selected={selectedConfig?.gender === 'unisex'}>Unisex</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-1" for="wearType">Wear Type</label>
+                                        <select name="wearType" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                            <option value="">Select Wear Type</option>
+                                            <option value="upper" selected={selectedConfig?.wear_type === 'upper'}>Upper</option>
+                                            <option value="lower" selected={selectedConfig?.wear_type === 'lower'}>Lower</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-1" for="basePrice">Base Price (₱)</label>
+                                        <input type="number" name="basePrice" step="0.01" value={selectedConfig?.base_price || ''} class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required />
+                                    </div>
                                 </div>
-                            {/each}
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Measurements (Scrollable) -->
+                        <div class="w-2/3 p-6 overflow-y-auto">
+                            <div class="bg-white/80 p-6 rounded-xl border border-primary/10 shadow-sm space-y-6">
+                                <h3 class="text-lg font-semibold text-primary">Measurement Specifications</h3>
+
+                                <!-- Selected Measurements -->
+                                {#if selectedMeasurements.size > 0}
+                                    <div>
+                                        <h4 class="text-sm font-medium text-primary/70 mb-3">Selected Measurements</h4>
+                                        <div class="grid grid-cols-3 gap-3">
+                                            {#each measurementTypes as measurementType}
+                                                {#if selectedMeasurements.has(measurementType.id)}
+                                                    {@const spec = selectedConfig?.measurement_specs?.find(s => s.measurement_type_id === measurementType.id)}
+                                                    <div class="group"
+                                                         on:click|preventDefault={() => toggleMeasurement(measurementType.id)}>
+                                                        <div class="bg-primary/5 p-3 rounded-lg border border-primary/20 shadow-sm cursor-pointer group-hover:border-primary/50 group-hover:shadow-md transition-all duration-200">
+                                                            <div class="flex items-center justify-between p-2">
+                                                                <span class="font-medium text-primary">{measurementType.name}</span>
+                                                                <input type="checkbox" 
+                                                                       name="selectedMeasurements" 
+                                                                       value={measurementType.id}
+                                                                       checked={true}
+                                                                       class="w-4 h-4 rounded-md border-gray-300 text-primary focus:ring-primary pointer-events-none"
+                                                                />
+                                                            </div>
+                                                            <!-- Stop propagation for input fields to allow interaction -->
+                                                            <div class="space-y-2 mt-2" on:click|stopPropagation>
+                                                                <div>
+                                                                    <label class="block text-xs text-gray-600">Base (cm)</label>
+                                                                    <input type="number" 
+                                                                           name="baseCm_{measurementType.id}" 
+                                                                           value={spec?.base_cm ?? 0}
+                                                                           class="block w-full px-2 py-1 text-sm rounded-md border border-gray-200 bg-white/50"
+                                                                           min="0" 
+                                                                           step="0.1" 
+                                                                           required
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label class="block text-xs text-gray-600">Cost/cm (₱)</label>
+                                                                    <input type="number" 
+                                                                           name="costPerCm_{measurementType.id}" 
+                                                                           value={spec?.additional_cost_per_cm ?? 0}
+                                                                           class="block w-full px-2 py-1 text-sm rounded-md border border-gray-200 bg-white/50"
+                                                                           min="0" 
+                                                                           step="0.01" 
+                                                                           required
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {/if}
+                                            {/each}
+                                        </div>
+                                    </div>
+                                {/if}
+
+                                <!-- Available Measurements -->
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-500 mb-3">Available Measurements</h4>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        {#each measurementTypes as measurementType}
+                                            {#if !selectedMeasurements.has(measurementType.id)}
+                                                <div class="group"
+                                                     on:click|preventDefault={() => toggleMeasurement(measurementType.id)}>
+                                                    <div class="bg-white/90 p-3 rounded-lg border border-gray-100 hover:border-primary/20 hover:shadow-sm cursor-pointer transition-all duration-200">
+                                                        <div class="flex items-center justify-between p-2">
+                                                            <span class="font-medium text-gray-600 group-hover:text-primary">{measurementType.name}</span>
+                                                            <input type="checkbox" 
+                                                                   name="selectedMeasurements" 
+                                                                   value={measurementType.id}
+                                                                   checked={false}
+                                                                   class="w-4 h-4 rounded-md border-gray-300 text-primary focus:ring-primary pointer-events-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {/if}
+                                        {/each}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
 
             <!-- Modal Footer -->
-            <div class="p-6 border-t bg-gray-50 rounded-b-lg">
-                <div class="flex justify-end gap-3">
-                    <button
-                        type="button"
-                        on:click={resetForm}
-                        class="px-4 py-2 text-gray-700 hover:text-gray-900"
-                        disabled={isLoading}
-                    >
+            <div class="p-6 border-t border-primary/5 bg-gradient-to-b from-transparent to-white/80">
+                <div class="flex justify-end gap-4">
+                    <button type="button" on:click={resetForm}
+                            class="px-6 py-2 text-gray-600 hover:text-primary font-medium rounded-lg hover:bg-primary/5 transition-all duration-300"
+                            disabled={isLoading}>
                         Cancel
                     </button>
-                    <button
-                        type="submit"
-                        form="configForm"
-                        class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 font-medium"
-                        disabled={isLoading}
-                    >
+                    <button type="submit" form="configForm"
+                            class="px-8 py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-lg hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+                            disabled={isLoading}>
                         {isLoading ? 'Saving...' : (selectedConfig ? 'Update' : 'Create')}
                     </button>
                 </div>
             </div>
         </div>
     </div>
-{/if}
+    {/if}
 
     <!-- Delete Confirmation Modal -->
     {#if showDeleteModal}

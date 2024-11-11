@@ -1,53 +1,69 @@
 <script>
-    import { page } from '$app/stores';
-  
-    let showSidebar = false;
-  
-    let employeeNavigation = [
-      { name: 'Dashboard', href: '/employee/dashboard', icon: '🏠' },
-      { name: 'Task Management', href: '/employee/tasks', icon: '🛠' },
-      { name: 'Job Orders', href: '/employee/orders', icon: '📝' },
-      { name: 'Profile', href: '/employee/profile', icon: '👤' }
-    ];
-  </script>
-  
-  <!-- Main container that holds the sidebar and the content -->
-  <div class="flex h-screen bg-background text-foreground">
-    <!-- Sidebar (hidden on mobile, visible on larger screens) -->
-    <aside class="{showSidebar ? 'block' : 'hidden'} lg:block w-64 bg-primary text-accent-foreground">
-      <div class="p-4 font-bold text-xl">Employee Panel</div>
+  import { page } from "$app/stores";
+
+  // Managing the sidebar visibility for mobile devices
+  let showSidebar = false;
+
+  let navigation = [
+    { name: "Dashboard", href: "/employee/dashboard", icon: "🏠" },
+    { name: "Orders", href: "/employee/orders", icon: "👤" },
+    { name: "Student Information", href: "/employee/students", icon: "💸" },
+    { name: "Profile Settings", href: "/employee/profile", icon: "📝" },
+    { name: "Sign Out", href: "/signout", icon: "🚪" },
+  ];
+</script>
+
+<!-- Main container with overflow hidden -->
+<div class="flex h-screen overflow-hidden bg-background text-foreground">
+  <!-- Fixed Sidebar -->
+  <aside
+    class="{showSidebar
+      ? 'fixed inset-0 z-50'
+      : 'hidden'} lg:relative lg:block w-64 bg-primary text-accent-foreground"
+  >
+    <div class="sticky top-0 h-screen overflow-y-auto">
+      <div class="p-4 font-bold text-xl">Tailor Panel</div>
       <nav>
         <ul>
-          {#each employeeNavigation as navItem}
+          {#each navigation as navItem}
             <li>
               <a
                 href={navItem.href}
-                class="block py-3 px-4 hover:bg-primary-dark {$page.url.pathname === navItem.href ? 'bg-primary-dark' : ''}"
+                class="block py-3 px-4 hover:bg-primary {$page.url
+                  .pathname === navItem.href
+                  ? 'bg-primary'
+                  : ''}"
               >
-                {navItem.icon} {navItem.name}
+                {navItem.icon}
+                {navItem.name}
               </a>
             </li>
           {/each}
         </ul>
       </nav>
-    </aside>
-  
-    <!-- Mobile Menu Toggle (Visible on mobile screens) -->
-    <div class="lg:hidden flex items-center justify-between bg-primary text-accent-foreground p-4 w-full">
-      <div class="font-bold text-xl">Employee Panel</div>
-      <button on:click={() => showSidebar = !showSidebar}>
-        <!-- Hamburger Icon -->
-        ☰
-      </button>
     </div>
-  
-    <!-- Main content area -->
-    <div class="flex-1 p-6">
+  </aside>
+
+  <!-- Content wrapper -->
+  <div class="flex-1 flex flex-col lg:relative">
+    <!-- Mobile Menu Toggle -->
+    <div
+      class="lg:hidden flex items-center justify-between bg-primary text-accent-foreground p-4 w-full"
+    >
+      <div class="font-bold text-xl">Admin Panel</div>
+      <button on:click={() => (showSidebar = !showSidebar)}> ☰ </button>
+    </div>
+
+    <!-- Scrollable content area -->
+    <main class="flex-1 overflow-y-auto p-6">
       <slot />
-    </div>
+    </main>
   </div>
-  
-  <style>
-    /* Responsive styles, if needed */
-  </style>
-  
+</div>
+
+<style>
+  /* Optional: Add smooth transition for sidebar on mobile */
+  aside {
+    transition: transform 0.3s ease-in-out;
+  }
+</style>

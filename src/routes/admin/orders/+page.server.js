@@ -67,14 +67,20 @@ export const actions = {
         const dueDate = formData.get('dueDate');
         const totalAmount = formData.get('totalAmount');
 
-        // Validation
-        if (!studentId || !uniformType || !dueDate || !totalAmount) {
-            return fail(400, {
-                error: 'All fields are required'
+        // First get the student's current measurements
+        const { data: student, error: studentError } = await supabase
+            .from('students')
+            .select('measurements')
+            .eq('id', studentId)
+            .single();
+
+        if (studentError) {
+            return fail(500, {
+                error: 'Failed to fetch student measurements'
             });
         }
 
-        // Create the order
+        // Create the order with measurements
         const { error: insertError } = await supabase
             .from('orders')
             .insert({
@@ -82,7 +88,8 @@ export const actions = {
                 uniform_type: uniformType,
                 due_date: dueDate,
                 total_amount: totalAmount,
-                status: 'pending'
+                status: 'pending',
+                order_measurements: student.measurements // Store current measurements
             });
 
         if (insertError) {
@@ -217,6 +224,19 @@ export const actions = {
             });
         }
 
+        // Get student's current measurements
+        const { data: student, error: studentError } = await supabase
+            .from('students')
+            .select('measurements')
+            .eq('id', studentId)
+            .single();
+
+        if (studentError) {
+            return fail(500, {
+                error: 'Failed to fetch student measurements'
+            });
+        }
+
         // Check if order exists and is pending
         const { data: existingOrder, error: checkError } = await supabase
             .from('orders')
@@ -236,7 +256,7 @@ export const actions = {
             });
         }
 
-        // Update the order
+        // Update the order with new measurements
         const { error: updateError } = await supabase
             .from('orders')
             .update({
@@ -244,6 +264,7 @@ export const actions = {
                 uniform_type: uniformType,
                 due_date: dueDate,
                 total_amount: totalAmount,
+                order_measurements: student.measurements, // Update measurements
                 updated_at: new Date().toISOString()
             })
             .eq('id', orderId);

@@ -3,113 +3,94 @@
   import { supabase } from "$lib/supabaseClient";
   import { fade, slide } from "svelte/transition";
 
+  // Get data from server load function
+  export let data;
+
   // Constants
   const EMAIL_DOMAIN = "@scg.shop";
 
+  // Initialize accounts from server data with $:
+  $: accounts = data.accounts || [];
+  $: employees = accounts.filter((account) => account.role === "employee");
+  $: admins = accounts.filter((account) =>
+    ["admin", "superadmin"].includes(account.role)
+  );
+
   // Reactive states
-  let employees = [];
-  let admins = [];
-  let loading = true;
+  let loading = false;
   let activeTab = "employees";
   let showCreateModal = false;
-  let sortField = "created_at";
-  let sortOrder = "desc";
-  let dateRange = { start: "", end: "" };
   let searchQuery = "";
-  let hasActiveOrders = null;
+  let sortBy = { field: "created_at", order: "desc" };
 
   // Form states
   let newAccount = {
     firstName: "",
     lastName: "",
-    username: "", // Will be converted to username@scg.shop
+    username: "",
     password: "",
     confirmPassword: "",
     role: "employee",
+    position: "",
   };
 
   // Error states
   let errors = {};
 
-  onMount(async () => {
-    await fetchAccounts();
-    loading = false;
-  });
+  // Add new reactive states for UI
+  let showDeleteModal = false;
+  let selectedAccount = null;
+  let showToast = false;
+  let toastMessage = "";
+  let toastType = "success";
 
-  async function fetchAccounts() {
-    try {
-      // Get profiles with their related orders
-      const { data: profilesData, error } = await supabase
-        .from("profiles")
-        .select(
-          `
-                *,
-                orders!assigned_to(
-                    id,
-                    status,
-                    total_amount,
-                    created_at,
-                    due_date,
-                    student:students(
-                        first_name,
-                        last_name,
-                        course:courses(name)
-                    )
-                )
-            `
-        )
-        .order("created_at", { ascending: false });
+  // Modified for role-based access
+  $: canCreateAdmin = data.userRole === "superadmin";
 
-      if (error) throw error;
+  // Add edit state
+  let editingAccount = null;
+  let showEditModal = false;
 
-      // Get auth data to get emails (usernames)
-      const { data: authUsers, error: authError } =
-        await supabase.auth.admin.listUsers();
-      if (authError) throw authError;
+  // Remove email from editForm since it's in auth.users
+  let editForm = {
+    id: "",
+    firstName: "",
+    lastName: "",
+    contactNumber: "",
+    address: "",
+    position: "",
+    role: "",
+  };
 
-      // Process employees and admins with their orders
-      const processProfiles = (profiles) => {
-        return profiles.map((profile) => {
-          const authUser = authUsers?.find((user) => user.id === profile.id);
-          const username = authUser?.email?.replace(EMAIL_DOMAIN, ""); // Remove @scg.shop
+  function openEditModal(account) {
+    editForm = {
+      id: account.id,
+      firstName: account.first_name,
+      lastName: account.last_name,
+      contactNumber: account.contact_number || "",
+      address: account.address || "",
+      position: account.position || "",
+      role: account.role,
+    };
+    editingAccount = account;
+    showEditModal = true;
+  }
 
-          // Process orders
-          const activeOrders =
-            profile.orders?.filter((o) => o.status !== "COMPLETED") || [];
-          const completedOrders =
-            profile.orders?.filter((o) => o.status === "COMPLETED") || [];
+  async function handleEditSubmit() {
+    const formData = new FormData();
+    Object.entries(editForm).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
 
-          return {
-            ...profile,
-            username,
-            activeOrders,
-            completedOrders,
-            activeOrdersCount: activeOrders.length,
-            completedOrdersCount: completedOrders.length,
-            totalEarnings: completedOrders.reduce(
-              (sum, order) => sum + (order.total_amount || 0),
-              0
-            ),
-            // Add order details for display
-            orderDetails: profile.orders?.map((order) => ({
-              id: order.id,
-              status: order.status,
-              amount: order.total_amount,
-              dueDate: order.due_date,
-              studentName: `${order.student.first_name} ${order.student.last_name}`,
-              course: order.student.course.name,
-              createdAt: new Date(order.created_at).toLocaleDateString(),
-            })),
-          };
-        });
-      };
+    const result = await fetch("?/updateAccount", {
+      method: "POST",
+      body: formData,
+    });
 
-      employees = processProfiles(
-        profilesData.filter((p) => p.role === "employee")
-      );
-      admins = processProfiles(profilesData.filter((p) => p.role === "admin"));
-    } catch (error) {
-      console.error("Error fetching accounts:", error);
+    if (result.ok) {
+      showEditModal = false;
+      editingAccount = null;
+      window.location.reload(); // Refresh to show updated data
     }
   }
 
@@ -217,452 +198,956 @@
       password: "",
       confirmPassword: "",
       role: "employee",
+      position: "", // tailoring position
     };
     errors = {};
   }
 
+  // Sort function
+  function handleSort(field) {
+    if (sortBy.field === field) {
+      sortBy.order = sortBy.order === "asc" ? "desc" : "asc";
+    } else {
+      sortBy = { field, order: "asc" };
+    }
+  }
+
   $: filteredAccounts = (activeTab === "employees" ? employees : admins)
     .filter((account) => {
-      if (searchQuery) {
-        const search = searchQuery.toLowerCase();
-        return (
-          account.first_name.toLowerCase().includes(search) ||
-          account.last_name.toLowerCase().includes(search) ||
-          account.username.toLowerCase().includes(search)
-        );
-      }
-      if (hasActiveOrders !== null) {
-        return hasActiveOrders
-          ? account.activeOrdersCount > 0
-          : account.activeOrdersCount === 0;
-      }
-      return true;
+      if (!searchQuery) return true;
+      const search = searchQuery.toLowerCase().trim();
+      return (
+        account.first_name?.toLowerCase().includes(search) ||
+        account.last_name?.toLowerCase().includes(search) ||
+        account.email?.toLowerCase().includes(search) ||
+        account.contact_number?.toLowerCase().includes(search) ||
+        account.position?.toLowerCase().includes(search) ||
+        account.role?.toLowerCase().includes(search)
+      );
     })
     .sort((a, b) => {
-      const modifier = sortOrder === "asc" ? 1 : -1;
-      return a[sortField] > b[sortField] ? modifier : -modifier;
+      const modifier = sortBy.order === "asc" ? 1 : -1;
+      if (sortBy.field === "name") {
+        return (
+          (a.first_name + " " + a.last_name).localeCompare(
+            b.first_name + " " + b.last_name
+          ) * modifier
+        );
+      }
+      if (sortBy.field === "created_at") {
+        return (new Date(a.created_at) - new Date(b.created_at)) * modifier;
+      }
+      return (a[sortBy.field] > b[sortBy.field] ? 1 : -1) * modifier;
     });
+
+  // Add this function
+  function showDetailsModal(account) {
+    selectedAccount = account;
+  }
 </script>
 
-<div class="container mx-auto p-6">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-foreground">Account Management</h1>
-    <button on:click={() => (showCreateModal = true)} class="btn-primary">
-      Create New Account
-    </button>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="flex gap-4 mb-6">
-    <button
-      class="tab-button"
-      class:active={activeTab === "employees"}
-      on:click={() => (activeTab = "employees")}
+<div class="min-h-screen bg-gray-50/50">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div
+      class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between"
     >
-      Employees
-    </button>
-    <button
-      class="tab-button"
-      class:active={activeTab === "admins"}
-      on:click={() => (activeTab = "admins")}
-    >
-      Administrators
-    </button>
-  </div>
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Account Management</h1>
+        <p class="mt-2 text-sm text-gray-600">
+          Manage employee and administrator accounts
+        </p>
+      </div>
+      <button
+        on:click={() => (showCreateModal = true)}
+        class="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg shadow transition-colors duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      >
+        <svg
+          class="w-5 h-5 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+          />
+        </svg>
+        Create New Account
+      </button>
+    </div>
 
-  <!-- Filters -->
-  <div class="filters-container">
-    <input
-      type="text"
-      placeholder="Search by name or ID..."
-      bind:value={searchQuery}
-      class="filter-input"
-    />
-    <select bind:value={sortField} class="filter-select">
-      <option value="created_at">Created Date</option>
-      <option value="first_name">First Name</option>
-      <option value="last_name">Last Name</option>
-      <option value="activeOrdersCount">Active Orders</option>
-      <option value="completedOrdersCount">Completed Orders</option>
-    </select>
-    <select bind:value={sortOrder} class="filter-select">
-      <option value="asc">Ascending</option>
-      <option value="desc">Descending</option>
-    </select>
-    {#if activeTab === "employees"}
-      <select bind:value={hasActiveOrders} class="filter-select">
-        <option value={null}>All Orders</option>
-        <option value={true}>Has Active Orders</option>
-        <option value={false}>No Active Orders</option>
-      </select>
+    <!-- Tabs -->
+    <div class="mb-6 bg-white rounded-lg p-1 inline-flex shadow-sm">
+      <button
+        class="px-4 py-2 rounded-md transition-all duration-200 {activeTab ===
+        'employees'
+          ? 'bg-primary text-white shadow-sm'
+          : 'text-gray-600 hover:text-primary'}"
+        on:click={() => (activeTab = "employees")}
+      >
+        Employees
+      </button>
+      <button
+        class="px-4 py-2 rounded-md transition-all duration-200 {activeTab ===
+        'admins'
+          ? 'bg-primary text-white shadow-sm'
+          : 'text-gray-600 hover:text-primary'}"
+        on:click={() => (activeTab = "admins")}
+      >
+        Administrators
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="relative">
+          <input
+            type="text"
+            placeholder="Search by name, email, role..."
+            bind:value={searchQuery}
+            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+          <svg
+            class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {#if searchQuery}
+            <button
+              class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              on:click={() => (searchQuery = "")}
+            >
+              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 010-1.414z"
+                />
+              </svg>
+            </button>
+          {/if}
+        </div>
+        <!-- ...other filters... -->
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th
+                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                on:click={() => handleSort("name")}
+              >
+                <div class="flex items-center space-x-1">
+                  <span class="text-xs font-medium text-gray-500 uppercase"
+                    >Name</span
+                  >
+                  {#if sortBy.field === "name"}
+                    <svg
+                      class="w-4 h-4 text-gray-500 {sortBy.order === 'desc'
+                        ? 'transform rotate-180'
+                        : ''}"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 15l7-7 7 7"
+                      />
+                    </svg>
+                  {/if}
+                </div>
+              </th>
+              <th class="px-6 py-3 text-left">Email</th>
+              <th class="px-6 py-3 text-left">Role</th>
+              <th class="px-6 py-3 text-left">Position</th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
+                >Actions</th
+              >
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            {#each filteredAccounts as account (account.id)}
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4">
+                  <div class="flex items-center">
+                    <div
+                      class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium"
+                    >
+                      {account.first_name[0]}{account.last_name[0]}
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900">
+                        {account.first_name}
+                        {account.last_name}
+                      </div>
+                      <div class="text-sm text-gray-500">
+                        {account.contact_number || "No contact"}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                  {account.email}
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="px-2 py-1 rounded-full text-sm {account.role ===
+                    'superadmin'
+                      ? 'bg-purple-100 text-purple-800'
+                      : account.role === 'admin'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-green-100 text-green-800'}"
+                  >
+                    {account.role === "superadmin"
+                      ? "Super Admin"
+                      : account.role === "admin"
+                        ? "Admin"
+                        : "Employee"}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500"
+                  >{account.position || "Not assigned"}</td
+                >
+                <td class="px-6 py-4 text-right space-x-2">
+                  <button
+                    class="text-primary hover:text-primary-dark font-medium text-sm"
+                    on:click={() => showDetailsModal(account)}
+                  >
+                    Details
+                  </button>
+                  <button
+                    class="text-primary hover:text-primary-dark font-medium text-sm"
+                    on:click={() => openEditModal(account)}
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Details Modal -->
+    {#if selectedAccount}
+      <div
+        class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        transition:fade
+      >
+        <div
+          class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full"
+          transition:slide
+        >
+          <!-- Header with gradient background -->
+          <div
+            class="px-8 py-6 bg-gradient-to-r from-primary/90 to-primary-dark/90 rounded-t-2xl"
+          >
+            <div class="flex justify-between items-center">
+              <div class="flex items-center space-x-4">
+                <div
+                  class="h-20 w-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-2xl font-semibold shadow-lg border border-white/20"
+                >
+                  {selectedAccount.first_name[0]}{selectedAccount.last_name[0]}
+                </div>
+                <div class="text-white">
+                  <h3 class="text-2xl font-bold tracking-tight">
+                    {selectedAccount.first_name}
+                    {selectedAccount.last_name}
+                  </h3>
+                  <p class="text-white/80">{selectedAccount.email}</p>
+                </div>
+              </div>
+              <button
+                on:click={() => (selectedAccount = null)}
+                class="p-2 hover:bg-white/10 rounded-full transition-colors duration-200"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div class="p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <!-- Left Column -->
+              <div class="space-y-6">
+                <div
+                  class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm"
+                >
+                  <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                    Account Information
+                  </h4>
+                  <div class="space-y-4">
+                    <div>
+                      <span class="text-sm font-medium text-gray-500">Role</span
+                      >
+                      <div class="mt-2">
+                        <span
+                          class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium {selectedAccount.role ===
+                          'superadmin'
+                            ? 'bg-purple-100 text-purple-800'
+                            : selectedAccount.role === 'admin'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'}"
+                        >
+                          <span
+                            class="w-2 h-2 rounded-full mr-2 {selectedAccount.role ===
+                            'superadmin'
+                              ? 'bg-purple-400'
+                              : selectedAccount.role === 'admin'
+                                ? 'bg-blue-400'
+                                : 'bg-green-400'}"
+                          ></span>
+                          {selectedAccount.role === "superadmin"
+                            ? "Super Administrator"
+                            : selectedAccount.role === "admin"
+                              ? "Administrator"
+                              : "Employee"}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="text-sm font-medium text-gray-500"
+                        >Position</span
+                      >
+                      <p class="mt-2 text-gray-900 font-medium">
+                        {selectedAccount.position || "Not assigned"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm"
+                >
+                  <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                    Activity
+                  </h4>
+                  <div class="space-y-4">
+                    <div class="flex items-center space-x-3">
+                      <div class="flex-shrink-0">
+                        <svg
+                          class="w-5 h-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">
+                          Account Created
+                        </p>
+                        <p class="text-sm text-gray-500">
+                          {new Date(
+                            selectedAccount.created_at
+                          ).toLocaleDateString("en-US", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                      <div class="flex-shrink-0">
+                        <svg
+                          class="w-5 h-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">
+                          Last Sign In
+                        </p>
+                        <p class="text-sm text-gray-500">
+                          {selectedAccount.lastSignIn
+                            ? new Date(
+                                selectedAccount.lastSignIn
+                              ).toLocaleString("en-US", {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              })
+                            : "Never signed in"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div
+                class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm"
+              >
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                  Contact Details
+                </h4>
+                <div class="space-y-6">
+                  <div>
+                    <div class="flex items-center space-x-3 mb-2">
+                      <svg
+                        class="w-5 h-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                        />
+                      </svg>
+                      <span class="text-sm font-medium text-gray-900"
+                        >Contact Number</span
+                      >
+                    </div>
+                    <p class="text-gray-600 ml-8">
+                      {selectedAccount.contact_number || "Not provided"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center space-x-3 mb-2">
+                      <svg
+                        class="w-5 h-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span class="text-sm font-medium text-gray-900"
+                        >Address</span
+                      >
+                    </div>
+                    <p class="text-gray-600 ml-8">
+                      {selectedAccount.address || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     {/if}
   </div>
 
-  <!-- Accounts Table -->
-  {#if loading}
-    <div class="loading-spinner" />
-  {:else}
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr>
-            <th class="table-header">ID</th>
-            <th class="table-header">First Name</th>
-            <th class="table-header">Last Name</th>
-            <th class="table-header">Created Date</th>
-            {#if activeTab === "employees"}
-              <th class="table-header">Active Orders</th>
-              <th class="table-header">Completed Orders</th>
-            {:else}
-              <th class="table-header">Status</th>
-              <th class="table-header">Last Login</th>
-            {/if}
-            <th class="table-header">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filteredAccounts as account (account.id)}
-            <tr transition:fade class="table-row">
-              <td class="table-cell">{account.id}</td>
-              <td class="table-cell">{account.first_name}</td>
-              <td class="table-cell">{account.last_name}</td>
-              <td class="table-cell">
-                {new Date(account.created_at).toLocaleDateString()}
-              </td>
-              {#if activeTab === "employees"}
-                <td class="table-cell">
-                  <span class="badge-active">
-                    {account.activeOrdersCount}
-                  </span>
-                </td>
-                <td class="table-cell">
-                  <span class="badge-completed">
-                    {account.completedOrdersCount}
-                  </span>
-                </td>
-              {:else}
-                <td class="table-cell">
-                  <span class="badge-status"> Active </span>
-                </td>
-                <td class="table-cell">
-                  {account.last_login_at
-                    ? new Date(account.last_login_at).toLocaleDateString()
-                    : "Never"}
-                </td>
-              {/if}
-              <td class="table-cell">
-                <button class="btn-icon"> Edit </button>
-                <button class="btn-icon-danger"> Delete </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
-</div>
-
-<!-- Create Account Modal -->
-{#if showCreateModal}
-  <div class="modal-overlay" transition:fade>
-    <div class="modal-container" transition:slide>
-      <h2 class="modal-title">
-        Create New {newAccount.role === "employee" ? "Employee" : "Admin"} Account
-      </h2>
-
-      <form on:submit|preventDefault={createAccount} class="modal-form">
-        <div class="form-group">
-          <label for="firstName">First Name</label>
-          <input
-            type="text"
-            id="firstName"
-            bind:value={newAccount.firstName}
-            class="form-input"
-            class:error={errors.firstName}
-            maxlength="50"
-          />
-          {#if errors.firstName}
-            <span class="error-message">{errors.firstName}</span>
-          {/if}
+  <!-- Modals -->
+  {#if showCreateModal}
+    <div
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      transition:fade
+    >
+      <div
+        class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+        transition:slide
+      >
+        <!-- Header -->
+        <div
+          class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0"
+        >
+          <h3 class="text-xl font-semibold text-gray-900">
+            Create New Account
+          </h3>
+          <button
+            on:click={() => (showCreateModal = false)}
+            class="text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            <svg
+              class="w-6 h-6"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
-        <div class="form-group">
-          <label for="lastName">Last Name</label>
-          <input
-            type="text"
-            id="lastName"
-            bind:value={newAccount.lastName}
-            class="form-input"
-            class:error={errors.lastName}
-            maxlength="50"
-          />
-          {#if errors.lastName}
-            <span class="error-message">{errors.lastName}</span>
-          {/if}
+        <!-- Scrollable Content -->
+        <div class="overflow-y-auto flex-1 p-6">
+          <form on:submit|preventDefault={createAccount} class="space-y-8">
+            <!-- Two-column layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Basic Information -->
+              <div class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
+                    Basic Information
+                  </h4>
+                  <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          for="firstName"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >First Name</label
+                        >
+                        <input
+                          type="text"
+                          id="firstName"
+                          bind:value={newAccount.firstName}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.firstName
+                            ? 'border-error'
+                            : ''}"
+                        />
+                        {#if errors.firstName}
+                          <p class="mt-1 text-sm text-error">
+                            {errors.firstName}
+                          </p>
+                        {/if}
+                      </div>
+                      <div>
+                        <label
+                          for="lastName"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >Last Name</label
+                        >
+                        <input
+                          type="text"
+                          id="lastName"
+                          bind:value={newAccount.lastName}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.lastName
+                            ? 'border-error'
+                            : ''}"
+                        />
+                        {#if errors.lastName}
+                          <p class="mt-1 text-sm text-error">
+                            {errors.lastName}
+                          </p>
+                        {/if}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        for="role"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Account Role</label
+                      >
+                      {#if canCreateAdmin}
+                        <select
+                          id="role"
+                          bind:value={newAccount.role}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                        >
+                          <option value="employee">Tailor</option>
+                          <option value="admin">Administrator</option>
+                        </select>
+                      {:else}
+                        <input
+                          type="text"
+                          value="Tailor"
+                          disabled
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                        />
+                        <input type="hidden" bind:value={newAccount.role} />
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label
+                        for="position"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Position</label
+                      >
+                      <input
+                        type="text"
+                        id="position"
+                        bind:value={newAccount.position}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Enter position"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Account Credentials -->
+              <div class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
+                    Account Credentials
+                  </h4>
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        for="username"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Username</label
+                      >
+                      <div class="relative">
+                        <input
+                          type="text"
+                          id="username"
+                          bind:value={newAccount.username}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent pr-24 {errors.username
+                            ? 'border-error'
+                            : ''}"
+                        />
+                        <span
+                          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
+                          >{EMAIL_DOMAIN}</span
+                        >
+                      </div>
+                      {#if errors.username}
+                        <p class="mt-1 text-sm text-error">{errors.username}</p>
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label
+                        for="password"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Password</label
+                      >
+                      <input
+                        type="password"
+                        id="password"
+                        bind:value={newAccount.password}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password
+                          ? 'border-error'
+                          : ''}"
+                      />
+                      {#if errors.password}
+                        <p class="mt-1 text-sm text-error">{errors.password}</p>
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label
+                        for="confirmPassword"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Confirm Password</label
+                      >
+                      <input
+                        type="password"
+                        id="confirmPassword"
+                        bind:value={newAccount.confirmPassword}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword
+                          ? 'border-error'
+                          : ''}"
+                      />
+                      {#if errors.confirmPassword}
+                        <p class="mt-1 text-sm text-error">
+                          {errors.confirmPassword}
+                        </p>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
         </div>
 
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            bind:value={newAccount.username}
-            class="form-input"
-            class:error={errors.username}
-          />
-          {#if errors.username}
-            <span class="error-message">{errors.username}</span>
-          {/if}
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            bind:value={newAccount.password}
-            class="form-input"
-            class:error={errors.password}
-          />
-          {#if errors.password}
-            <span class="error-message">{errors.password}</span>
-          {/if}
-        </div>
-
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input
-            type="password"
-            id="confirmPassword"
-            bind:value={newAccount.confirmPassword}
-            class="form-input"
-            class:error={errors.confirmPassword}
-          />
-          {#if errors.confirmPassword}
-            <span class="error-message">{errors.confirmPassword}</span>
-          {/if}
-        </div>
-
-        <div class="modal-actions">
+        <!-- Footer -->
+        <div
+          class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white"
+        >
           <button
             type="button"
-            class="btn-secondary"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             on:click={() => (showCreateModal = false)}
           >
             Cancel
           </button>
-          <button type="submit" class="btn-primary"> Create Account </button>
+          <button
+            type="submit"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          >
+            Create Account
+          </button>
         </div>
-      </form>
+      </div>
     </div>
-  </div>
-{/if}
+  {/if}
 
-<style lang="postcss">
-  .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg transition-colors duration-200;
-  }
+  <!-- Edit Modal with similar layout -->
+  {#if showEditModal}
+    <div
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      transition:fade
+    >
+      <div
+        class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+        transition:slide
+      >
+        <!-- Header -->
+        <div
+          class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0"
+        >
+          <h3 class="text-xl font-semibold text-gray-900">Edit Account</h3>
+          <button
+            on:click={() => (showEditModal = false)}
+            class="text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            <svg
+              class="w-6 h-6"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
-  .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/80 text-white px-4 py-2 rounded-lg transition-colors duration-200;
-  }
+        <!-- Scrollable Content -->
+        <div class="overflow-y-auto flex-1 p-6">
+          <form on:submit|preventDefault={handleEditSubmit} class="space-y-8">
+            <!-- Two-column layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Basic Information -->
+              <div class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
+                    Basic Information
+                  </h4>
+                  <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          for="edit-firstName"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >First Name</label
+                        >
+                        <input
+                          type="text"
+                          id="edit-firstName"
+                          bind:value={editForm.firstName}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          for="edit-lastName"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >Last Name</label
+                        >
+                        <input
+                          type="text"
+                          id="edit-lastName"
+                          bind:value={editForm.lastName}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      </div>
+                    </div>
 
-  .btn-icon {
-    @apply text-secondary hover:text-primary px-2 py-1 rounded transition-colors duration-200;
-  }
+                    <div>
+                      <label
+                        for="edit-position"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Position</label
+                      >
+                      <input
+                        type="text"
+                        id="edit-position"
+                        bind:value={editForm.position}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Enter position"
+                        required
+                      />
+                    </div>
 
-  .btn-icon-danger {
-    @apply text-red-500 hover:text-red-700 px-2 py-1 rounded transition-colors duration-200;
-  }
+                    {#if data.userRole === "superadmin"}
+                      <div>
+                        <label
+                          for="edit-role"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >Account Role</label
+                        >
+                        <select
+                          id="edit-role"
+                          bind:value={editForm.role}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                        >
+                          <option value="employee">Tailor</option>
+                          <option value="admin">Administrator</option>
+                          <option value="superadmin">Super Administrator</option
+                          >
+                        </select>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              </div>
 
-  .tab-button {
-    @apply px-4 py-2 rounded-lg transition-colors duration-200;
-    &.active {
-      @apply bg-primary text-white;
-    }
-    &:not(.active) {
-      @apply bg-muted text-secondary hover:bg-muted/80;
-    }
-  }
+              <!-- Contact Information -->
+              <div class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="text-sm font-medium text-gray-900 uppercase mb-4">
+                    Contact Information
+                  </h4>
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        for="edit-contact"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Contact Number</label
+                      >
+                      <input
+                        type="text"
+                        id="edit-contact"
+                        bind:value={editForm.contactNumber}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
 
-  .filters-container {
-    @apply flex gap-4 mb-6 flex-wrap;
-  }
+                    <div>
+                      <label
+                        for="edit-address"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Address</label
+                      >
+                      <textarea
+                        id="edit-address"
+                        bind:value={editForm.address}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        rows="3"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
 
-  .filter-input {
-    @apply bg-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary;
-  }
+        <!-- Footer -->
+        <div
+          class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white"
+        >
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            on:click={() => (showEditModal = false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            on:click={handleEditSubmit}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
-  .filter-select {
-    @apply bg-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary;
-  }
-
-  .table-header {
-    @apply px-4 py-2 text-left bg-muted text-secondary font-medium;
-  }
-
-  .table-cell {
-    @apply px-4 py-2 border-b border-border;
-  }
-
-  .table-row {
-    @apply hover:bg-muted/50 transition-colors duration-200;
-  }
-
-  .badge-active {
-    @apply bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm;
-  }
-
-  .badge-completed {
-    @apply bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm;
-  }
-
-  .badge-status {
-    @apply bg-primary/20 text-primary px-2 py-1 rounded-full text-sm;
-  }
-
-  .modal-overlay {
-    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
-  }
-
-  .modal-container {
-    @apply bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl;
-  }
-
-  .modal-title {
-    @apply text-xl font-bold text-foreground mb-6;
-  }
-
-  .modal-form {
-    @apply space-y-4;
-  }
-
-  .modal-actions {
-    @apply flex justify-end gap-4 mt-6 pt-4 border-t border-border;
-  }
-
-  .form-group {
-    @apply space-y-1;
-  }
-
-  .form-group label {
-    @apply block text-sm font-medium text-secondary;
-  }
-
-  .form-input {
-    @apply w-full bg-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary transition-shadow duration-200;
-    &.error {
-      @apply ring-2 ring-red-500 bg-red-50;
-    }
-  }
-
-  .error-message {
-    @apply text-sm text-red-500 mt-1;
-  }
-
-  .loading-spinner {
-    @apply w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto my-8;
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 640px) {
-    .filters-container {
-      @apply flex-col;
-    }
-
-    .filter-input,
-    .filter-select {
-      @apply w-full;
-    }
-
-    .table-cell {
-      @apply px-2 py-1 text-sm;
-    }
-
-    .badge-active,
-    .badge-completed,
-    .badge-status {
-      @apply text-xs px-1.5;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-      @apply text-sm px-3 py-1.5;
-    }
-
-    .modal-container {
-      @apply p-4;
-    }
-
-    .modal-title {
-      @apply text-lg mb-4;
-    }
-
-    .modal-actions {
-      @apply mt-4 pt-3;
-    }
-  }
-
-  /* Animation classes */
-  .animate-fade-in {
-    @apply opacity-0 animate-[fadeIn_0.2s_ease-in-out_forwards];
-  }
-
-  .animate-slide-up {
-    @apply translate-y-4 animate-[slideUp_0.3s_ease-out_forwards];
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes slideUp {
-    from {
-      transform: translateY(1rem);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  /* Hover effects */
-  .hover-scale {
-    @apply hover:scale-105 transition-transform duration-200;
-  }
-
-  /* Focus styles */
-  .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
-  }
-
-  /* Toast notification styles */
-  .toast {
-    @apply fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-md;
-    &.success {
-      @apply bg-green-50 border-l-4 border-green-500;
-    }
-    &.error {
-      @apply bg-red-50 border-l-4 border-red-500;
-    }
-  }
-
-  /* Print styles */
-  @media print {
-    .btn-primary,
-    .btn-secondary,
-    .filters-container,
-    .modal-overlay {
-      @apply hidden;
-    }
-
-    .table-cell,
-    .table-header {
-      @apply text-black border;
-    }
-  }
-</style>
+  <!-- Toast Notifications -->
+  {#if showToast}
+    <div
+      class="fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg animate-slideDown flex items-center gap-2 {toastType ===
+      'success'
+        ? 'bg-success text-white'
+        : 'bg-error text-white'}"
+      transition:slide
+    >
+      {#if toastType === "success"}
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      {:else}
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      {/if}
+      {toastMessage}
+    </div>
+  {/if}
+</div>

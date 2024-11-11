@@ -1,5 +1,6 @@
 <script>
     import { enhance } from '$app/forms';
+    import { scale, fade } from 'svelte/transition';
     export let data;
     
     let measurements = data.measurements;
@@ -212,31 +213,56 @@
 
 <!-- Create Modal -->
 {#if showCreateModal}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4">Add New Measurement</h2>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         transition:fade={{ duration: 200 }}>
+        <div class="bg-white rounded-xl w-full max-w-md transform transition-all"
+             in:scale={{ duration: 200, start: 0.95 }}
+             out:scale={{ duration: 200, start: 1 }}>
+            <!-- Header Section -->
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                    <div class="bg-primary/10 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12M6 12h12m-12 6h12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Add New Measurement</h2>
+                        <p class="text-sm text-gray-500">Enter the measurement type details</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Section -->
             <form 
                 method="POST" 
                 action="?/create"
                 use:enhance={handleCreateSubmit}
-                class="space-y-4"
+                class="p-6 space-y-6"
             >
                 <div>
-                    <label class="block text-sm font-medium mb-1" for="name">Measurement Name</label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        bind:value={newMeasurementName}
-                        class="w-full px-3 py-2 border rounded-lg bg-input border-border"
-                        disabled={isLoading}
-                        required
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2" for="name">
+                        Measurement Name
+                    </label>
+                    <div class="relative">
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            bind:value={newMeasurementName}
+                            class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                            placeholder="Enter measurement name"
+                            disabled={isLoading}
+                            required
+                        />
+                    </div>
                 </div>
-                <div class="flex justify-end gap-2">
+
+                <!-- Actions Section -->
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                     <button 
                         type="button" 
-                        class="px-4 py-2 text-secondary"
+                        class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
                         on:click={resetForms}
                         disabled={isLoading}
                     >
@@ -244,10 +270,16 @@
                     </button>
                     <button 
                         type="submit"
-                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                        class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
                         disabled={isLoading}
                     >
-                        {isLoading ? 'Creating...' : 'Create'}
+                        {#if isLoading}
+                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                        {/if}
+                        {isLoading ? 'Creating...' : 'Create Measurement'}
                     </button>
                 </div>
             </form>
@@ -257,47 +289,85 @@
 
 <!-- Delete Confirmation Modal -->
 {#if showDeleteModal && measurementToDelete}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4">Confirm Delete</h2>
-            <p class="mb-4">Are you sure you want to delete "{measurementToDelete.name}"?</p>
-            <form 
-                method="POST" 
-                action="?/delete"
-                use:enhance={handleDeleteSubmit}
-            >
-                <input type="hidden" name="id" value={measurementToDelete.id} />
-                <div class="flex justify-end gap-2">
-                    <button 
-                        type="button" 
-                        class="px-4 py-2 text-secondary"
-                        on:click={resetForms}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit"
-                        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? 'Deleting...' : 'Delete'}
-                    </button>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         transition:fade={{ duration: 200 }}>
+        <div class="bg-white rounded-xl w-full max-w-md transform transition-all"
+             in:scale={{ duration: 200, start: 0.95 }}
+             out:scale={{ duration: 200, start: 1 }}>
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                    <div class="bg-red-100 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Confirm Delete</h2>
+                        <p class="text-sm text-gray-500">This action cannot be undone</p>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <div class="p-6">
+                <p class="mb-4">Are you sure you want to delete "{measurementToDelete.name}"?</p>
+                <form 
+                    method="POST" 
+                    action="?/delete"
+                    use:enhance={handleDeleteSubmit}
+                >
+                    <input type="hidden" name="id" value={measurementToDelete.id} />
+                    <div class="flex justify-end gap-3">
+                        <button 
+                            type="button" 
+                            class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
+                            on:click={resetForms}
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
+                            disabled={isLoading}
+                        >
+                            {#if isLoading}
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                            {/if}
+                            {isLoading ? 'Deleting...' : 'Delete Measurement'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 {/if}
 
 <!-- Error Modal -->
 {#if showErrorModal}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4 text-red-600">Error</h2>
-            <p class="mb-4">{errorMessage}</p>
-            <div class="flex justify-end">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         transition:fade={{ duration: 200 }}>
+        <div class="bg-white rounded-xl w-full max-w-md transform transition-all"
+             in:scale={{ duration: 200, start: 0.95 }}
+             out:scale={{ duration: 200, start: 1 }}>
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                    <div class="bg-red-100 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Error</h2>
+                        <p class="text-sm text-red-600">{errorMessage}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 flex justify-end">
                 <button 
-                    class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                    class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200"
                     on:click={() => showErrorModal = false}
                 >
                     Close

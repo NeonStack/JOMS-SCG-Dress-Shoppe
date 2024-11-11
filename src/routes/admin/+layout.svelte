@@ -3,15 +3,25 @@
 
   // Managing the sidebar visibility for mobile devices
   let showSidebar = false;
+  const { userRole } = $page.data;
 
   let navigation = [
     { name: "Dashboard", href: "/admin/dashboard", icon: "🏠" },
     { name: "Student Courses", href: "/admin/course", icon: "👤" },
     { name: "Measurement Types", href: "/admin/measurement", icon: "💸" },
-    { name: "Uniform Configuration", href: "/admin/uniform-configuration", icon: "📝" },
+    {
+      name: "Uniform Configuration",
+      href: "/admin/uniform-configuration",
+      icon: "📝",
+    },
     { name: "Students", href: "/admin/students", icon: "📊" },
     { name: "Orders", href: "/admin/orders", icon: "📊" },
-    { name: "Account Management", href: "/admin/account-management", icon: "⚙️" },
+    {
+      name: "Account Management",
+      href: "/admin/account-management",
+      icon: "⚙️",
+    },
+    { name: "Sign Out", href: "/signout", icon: "🚪" },
   ];
 </script>
 
@@ -24,15 +34,23 @@
       : 'hidden'} lg:relative lg:block w-64 bg-primary text-accent-foreground"
   >
     <div class="sticky top-0 h-screen overflow-y-auto">
-      <div class="p-4 font-bold text-xl">Admin Panel</div>
+      <div class="p-4 font-bold text-xl">
+        {#if userRole === "admin"}
+          Admin Panel
+        {:else if userRole === "superadmin"}
+          SuperAdmin Panel
+        {:else}
+          JOMS Panel
+        {/if}
+      </div>
       <nav>
         <ul>
           {#each navigation as navItem}
             <li>
               <a
                 href={navItem.href}
-                class="block py-3 px-4 hover:bg-primary {$page.url
-                  .pathname === navItem.href
+                class="block py-3 px-4 hover:bg-primary {$page.url.pathname ===
+                navItem.href
                   ? 'bg-primary'
                   : ''}"
               >
@@ -52,7 +70,15 @@
     <div
       class="lg:hidden flex items-center justify-between bg-primary text-accent-foreground p-4 w-full"
     >
-      <div class="font-bold text-xl">Admin Panel</div>
+      <div class="font-bold text-xl">
+        {#if userRole === "admin"}
+          Admin Panel
+        {:else if userRole === "superadmin"}
+          SuperAdmin Panel
+        {:else}
+          JOMS Panel
+        {/if}
+      </div>
       <button on:click={() => (showSidebar = !showSidebar)}> ☰ </button>
     </div>
 

@@ -271,10 +271,7 @@ export const load = async () => {
             },
 
             orderMetrics: {
-                byStatus: orderData?.reduce((acc, curr) => {
-                    acc[curr.status] = (acc[curr.status] || 0) + 1;
-                    return acc;
-                }, {}),
+                byStatus: processOrderMetrics(orderData),
                 byType: orderData?.reduce((acc, curr) => {
                     acc[curr.uniform_type] = (acc[curr.uniform_type] || 0) + 1;
                     return acc;
@@ -294,7 +291,7 @@ export const load = async () => {
                     ).length || 0
                 },
                 orderTurnover: calculateOrderTurnover(orderData),
-                highPriorityOrders: identifyHighPriorityOrders(orderData)
+                recentOrders: getRecentOrders(orderData)
             },
 
             financialMetrics: {
@@ -315,7 +312,8 @@ export const load = async () => {
                     notPaid: orderData?.filter(o => o.payment_status === 'not paid').length || 0
                 },
                 averageOrderValue: calculateAverageOrderValue(orderData),
-                revenueByStatus: calculateRevenueByStatus(orderData)
+                revenueByStatus: calculateRevenueByStatus(orderData),
+                revenueOverTime: calculateRevenueOverTime(orderData),
             },
 
             studentAnalytics: {
@@ -339,21 +337,7 @@ export const load = async () => {
             },
 
             performanceMetrics: {
-                employeeStats: employeeData?.reduce((acc, curr) => {
-                    const name = `${curr.profiles.first_name} ${curr.profiles.last_name}`;
-                    if (!acc[name]) acc[name] = {
-                        completed: 0,
-                        pending: 0,
-                        total: 0,
-                        revenue: 0,
-                        averageOrderValue: 0
-                    };
-                    acc[name].total++;
-                    acc[name].revenue += curr.total_amount;
-                    acc[name][curr.status === 'completed' ? 'completed' : 'pending']++;
-                    acc[name].averageOrderValue = acc[name].revenue / acc[name].total;
-                    return acc;
-                }, {}),
+                employeeStats: calculateEmployeeStats(employeeData),
                 topPerformers: Object.entries(employeeData?.reduce((acc, curr) => {
                     const name = `${curr.profiles.first_name} ${curr.profiles.last_name}`;
                     acc[name] = (acc[name] || 0) + (curr.status === 'completed' ? 1 : 0);
@@ -386,6 +370,10 @@ export const load = async () => {
                 seasonalTrends: calculateSeasonalTrends(orderData),
                 peakOrderTimes: identifyPeakOrderTimes(orderData),
                 deliveryPerformance: calculateDeliveryPerformance(orderData)
+            },
+
+            additionalMetrics: {
+                averageOrderValueOverTime: calculateAverageOrderValueOverTime(orderData),
             }
         };
 
@@ -439,17 +427,17 @@ function calculateProcessingTimes(orders) {
     };
 }
 
-function identifyHighPriorityOrders(orders) {
-    return orders?.filter(order => {
-        const daysUntilDue = getDateDiff(new Date(), order.due_date);
-        const isHighValue = order.total_amount > 2000; // Adjust threshold as needed
-        return daysUntilDue <= 7 && order.status !== 'completed' && isHighValue;
-    }).map(order => ({
-        id: order.id,
-        student: `${order.students.first_name} ${order.students.last_name}`,
-        dueDate: order.due_date,
-        amount: order.total_amount
-    })) || [];
+function getRecentOrders(orders) {
+    return orders
+        ?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5)
+        .map(order => ({
+            student: `${order.students.first_name} ${order.students.last_name}`,
+            orderedAt: order.created_at,
+            dueDate: order.due_date,
+            amount: order.total_amount,
+            status: order.status
+        })) || [];
 }
 
 function calculateDeliveryPerformance(orders) {
@@ -463,4 +451,221 @@ function calculateDeliveryPerformance(orders) {
 
 function getDateDiff(date1, date2) {
     return Math.ceil((new Date(date2) - new Date(date1)) / (1000 * 60 * 60 * 24));
+}
+
+function calculateAverageOrderValueOverTime(orders) {
+    const timeFrames = {
+        day: {},
+        week: {},
+        month: {},
+        year: {}
+    };
+
+    // Get date ranges
+    const now = new Date();
+    const last30Days = new Date(now.getTime() - (29 * 24 * 60 * 60 * 1000)); // Changed to 29 to include today
+    const last12Weeks = new Date(now.getTime() - (11 * 7 * 24 * 60 * 60 * 1000)); // Changed to 11 to include current week
+    const last12Months = new Date(now.getTime() - (11 * 30 * 24 * 60 * 60 * 1000)); // Changed to 11 to include current month
+    const currentYear = now.getFullYear();
+    const startYear = currentYear - 4; // Show last 5 years including current year
+
+    // Initialize periods with zero values for all time frames
+    // Days - including today
+    for (let i = 0; i <= 29; i++) { // Changed to <= 29 to include today
+        const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+        const dayKey = date.toISOString().split('T')[0];
+        timeFrames.day[dayKey] = { total: 0, count: 0 };
+    }
+
+    // Weeks - including current week
+    for (let i = 0; i <= 11; i++) { // Changed to <= 11 to include current week
+        const weekDate = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
+        const weekKey = `${weekDate.getFullYear()}-W${getWeekNumber(weekDate)}`;
+        timeFrames.week[weekKey] = { total: 0, count: 0 };
+    }
+
+    // Months - including current month
+    for (let i = 0; i <= 11; i++) { // Changed to <= 11 to include current month
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        timeFrames.month[monthKey] = { total: 0, count: 0 };
+    }
+
+    // Years - last 5 years including current year
+    for (let year = startYear; year <= currentYear; year++) {
+        timeFrames.year[year.toString()] = { total: 0, count: 0 };
+    }
+
+    // Process orders
+    orders.forEach(order => {
+        const orderDate = new Date(order.created_at);
+        
+        // Daily stats
+        if (orderDate >= last30Days) {
+            const dayKey = orderDate.toISOString().split('T')[0];
+            if (timeFrames.day[dayKey]) {
+                timeFrames.day[dayKey].total += order.total_amount;
+                timeFrames.day[dayKey].count += 1;
+            }
+        }
+
+        // Weekly stats
+        if (orderDate >= last12Weeks) {
+            const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
+            if (timeFrames.week[weekKey]) {
+                timeFrames.week[weekKey].total += order.total_amount;
+                timeFrames.week[weekKey].count += 1;
+            }
+        }
+
+        // Monthly stats
+        if (orderDate >= last12Months) {
+            const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+            if (timeFrames.month[monthKey]) {
+                timeFrames.month[monthKey].total += order.total_amount;
+                timeFrames.month[monthKey].count += 1;
+            }
+        }
+
+        // Yearly stats
+        const yearKey = orderDate.getFullYear().toString();
+        if (timeFrames.year[yearKey]) {
+            timeFrames.year[yearKey].total += order.total_amount;
+            timeFrames.year[yearKey].count += 1;
+        }
+    });
+
+    return timeFrames;
+}
+
+function calculateRevenueOverTime(orders) {
+    const timeFrames = {
+        day: {},
+        week: {},
+        month: {},
+        year: {}
+    };
+
+    // Get date ranges
+    const now = new Date();
+    const last30Days = new Date(now.getTime() - (29 * 24 * 60 * 60 * 1000)); // Changed to include today
+    const last12Weeks = new Date(now.getTime() - (11 * 7 * 24 * 60 * 60 * 1000));
+    const last12Months = new Date(now.getTime() - (11 * 30 * 24 * 60 * 60 * 1000));
+    const currentYear = now.getFullYear();
+    const startYear = currentYear - 4; // Show last 5 years
+
+    // Initialize all periods with zero
+    // Days - including today
+    for (let i = 0; i <= 29; i++) {
+        const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+        const dayKey = date.toISOString().split('T')[0];
+        timeFrames.day[dayKey] = 0;
+    }
+
+    // Weeks - including current week
+    for (let i = 0; i <= 11; i++) {
+        const weekDate = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
+        const weekKey = `${weekDate.getFullYear()}-W${getWeekNumber(weekDate)}`;
+        timeFrames.week[weekKey] = 0;
+    }
+
+    // Months - including current month
+    for (let i = 0; i <= 11; i++) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        timeFrames.month[monthKey] = 0;
+    }
+
+    // Years - last 5 years including current year
+    for (let year = startYear; year <= currentYear; year++) {
+        timeFrames.year[year.toString()] = 0;
+    }
+
+    // Process orders
+    orders.forEach(order => {
+        const orderDate = new Date(order.created_at);
+        
+        if (orderDate >= last30Days) {
+            const dayKey = orderDate.toISOString().split('T')[0];
+            if (timeFrames.day.hasOwnProperty(dayKey)) {
+                timeFrames.day[dayKey] += (order.amount_paid || 0);
+            }
+        }
+
+        if (orderDate >= last12Weeks) {
+            const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
+            if (timeFrames.week.hasOwnProperty(weekKey)) {
+                timeFrames.week[weekKey] += (order.amount_paid || 0);
+            }
+        }
+
+        if (orderDate >= last12Months) {
+            const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+            if (timeFrames.month.hasOwnProperty(monthKey)) {
+                timeFrames.month[monthKey] += (order.amount_paid || 0);
+            }
+        }
+
+        const yearKey = orderDate.getFullYear().toString();
+        if (timeFrames.year.hasOwnProperty(yearKey)) {
+            timeFrames.year[yearKey] += (order.amount_paid || 0);
+        }
+    });
+
+    return timeFrames;
+}
+
+function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function processOrderMetrics(orders) {
+    const statusCounts = orders.reduce((acc, order) => {
+        const status = order.status.toLowerCase();
+        // Skip cancelled orders
+        if (status !== 'cancelled') {
+            acc[status] = (acc[status] || 0) + 1;
+        }
+        return acc;
+    }, {});
+
+    // Ensure all possible statuses are represented (excluding cancelled)
+    const defaultStatuses = {
+        completed: 0,
+        'in progress': 0,
+        pending: 0
+    };
+
+    return { ...defaultStatuses, ...statusCounts };
+}
+
+function calculateEmployeeStats(employeeData) {
+    return employeeData?.reduce((acc, curr) => {
+        const name = `${curr.profiles.first_name} ${curr.profiles.last_name}`;
+        if (!acc[name]) {
+            acc[name] = {
+                completed: 0,
+                pending: 0,
+                total: 0,
+                revenue: 0,
+                averageOrderValue: 0
+            };
+        }
+        
+        acc[name].total++;
+        acc[name].revenue += (curr.total_amount || 0);
+        
+        if (curr.status.toLowerCase() === 'completed') {
+            acc[name].completed++;
+        } else {
+            acc[name].pending++;
+        }
+        
+        acc[name].averageOrderValue = acc[name].revenue / acc[name].total;
+        return acc;
+    }, {}) || {};
 }

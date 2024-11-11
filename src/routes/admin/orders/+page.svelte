@@ -2,6 +2,7 @@
     import { enhance } from '$app/forms';
     import { format } from 'date-fns';
     import { invalidate } from '$app/navigation';
+    import { browser } from '$app/environment';
     
     export let data;
     let showModal = false;
@@ -61,6 +62,11 @@
     $: formatPaymentDate = (date) => {
         return date ? format(new Date(date), 'MMM d, yyyy') : 'No payment';
     };
+
+    // Modify this to also run when availableUniformTypes changes
+    $: if (selectedStudent && availableUniformTypes.length === 1) {
+        selectedUniformType = availableUniformTypes[0];
+    }
 
     function calculateTotalAmount(student, uniformType) {
         if (!student || !uniformType) return 0;
@@ -216,6 +222,11 @@
     function switchTab(tab) {
         activeTab = tab;
         selectedOrders = []; // Clear selections when switching tabs
+        if (browser) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            history.pushState({}, '', url.toString());
+        }
     }
 
     // Add function to handle filter reset
@@ -230,7 +241,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 resetForm();
-                window.location.reload(); // Force reload after successful creation
+                reloadWithTab('pending');
             }
         };
     };
@@ -240,7 +251,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 handleAssignmentSuccess();
-                window.location.reload(); // Force page reload instead of just invalidating
+                reloadWithTab('in_progress');
             }
         };
     };
@@ -295,7 +306,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 orderToDelete = null; // Close modal
-                window.location.reload(); // Force page reload
+                reloadWithTab('pending');
             }
         };
     };
@@ -316,7 +327,7 @@
         return async ({ result }) => {
             if (result.type === 'success') {
                 resetForm();
-                window.location.reload();
+                reloadWithTab('pending');
             }
         };
     };
@@ -326,10 +337,30 @@
             if (result.type === 'success') {
                 orderToPayment = null;
                 paymentAmount = '';
-                window.location.reload();
+                reloadWithTab('payments'); // Use the new function instead of window.location.reload()
             }
         };
     };
+
+    // Add this function near the top with other utility functions
+    function reloadWithTab(tab) {
+        if (browser) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.location.href = url.toString();
+        }
+    }
+
+    // Add this to handle tab persistence on page load
+    $: {
+        if (browser) {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            if (tabParam) {
+                activeTab = tabParam;
+            }
+        }
+    }
 </script>
 
 <!-- Student Search Modal -->
@@ -589,50 +620,122 @@
     </div>
 {/if}
 
-<!-- Add Payment Modal -->
+<!-- Payment Modal -->
 {#if orderToPayment}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-[400px]">
-            <h2 class="text-xl font-bold mb-4">Record Payment</h2>
-            <div class="mb-4">
-                <p class="text-sm text-gray-600">Order #{orderToPayment.id}</p>
-                <p class="font-medium">Student: {orderToPayment.student?.first_name} {orderToPayment.student?.last_name}</p>
-                <p class="text-sm">Total Amount: ₱{orderToPayment.total_amount}</p>
-                <p class="text-sm">Amount Paid: ₱{orderToPayment.amount_paid}</p>
-                <p class="text-sm">Balance: ₱{orderToPayment.balance}</p>
+        <div class="bg-white rounded-2xl w-[500px] max-h-[90vh] overflow-hidden">
+            <!-- Header Section -->
+            <div class="bg-primary text-white px-8 py-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Record Payment</h2>
+                    <button 
+                        class="text-white hover:text-gray-200 transition-colors"
+                        on:click={() => orderToPayment = null}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-primary-50 mt-2">Order #{orderToPayment.id}</p>
             </div>
-            
+
+            <!-- Order Details Section -->
+            <div class="px-8 py-6 bg-gray-50">
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg">
+                                {orderToPayment.student?.first_name} {orderToPayment.student?.last_name}
+                            </h3>
+                            <p class="text-gray-600 text-sm">Student</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4 mt-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <p class="text-sm text-gray-600">Total Amount</p>
+                            <p class="text-lg font-bold text-primary">₱{orderToPayment.total_amount}</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <p class="text-sm text-gray-600">Amount Paid</p>
+                            <p class="text-lg font-bold text-green-600">₱{orderToPayment.amount_paid}</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <p class="text-sm text-gray-600">Balance</p>
+                            <p class="text-lg font-bold text-red-600">₱{orderToPayment.balance}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Form Section -->
             <form
                 method="POST"
                 action="?/updatePayment"
                 use:enhance={handlePayment}
-                class="space-y-4"
+                class="px-8 py-6 space-y-6"
             >
                 <input type="hidden" name="orderId" value={orderToPayment.id}>
+                
                 <div>
-                    <label class="block text-sm font-medium mb-1">Payment Amount</label>
-                    <input 
-                        type="number"
-                        name="amountPaid"
-                        bind:value={paymentAmount}
-                        step="0.01"
-                        class="w-full p-2 border rounded"
-                        placeholder="Enter amount (can be negative)"
-                        required
-                    >
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Payment Amount
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₱</span>
+                        <input 
+                            type="number"
+                            name="amountPaid"
+                            bind:value={paymentAmount}
+                            step="0.01"
+                            class="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                            placeholder="Enter amount (can be negative)"
+                            required
+                        >
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Use negative values for refunds or corrections
+                    </p>
                 </div>
-                <div class="flex justify-end gap-3">
+
+                <!-- Progress Bar -->
+                {#if orderToPayment.total_amount > 0}
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Payment Progress</span>
+                            <span>{Math.round((orderToPayment.amount_paid / orderToPayment.total_amount) * 100)}%</span>
+                        </div>
+                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                                class="h-full bg-primary transition-all duration-500"
+                                style="width: {(orderToPayment.amount_paid / orderToPayment.total_amount) * 100}%"
+                            ></div>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 pt-4 border-t">
                     <button
                         type="button"
-                        class="px-4 py-2 border rounded hover:bg-gray-50"
+                        class="px-6 py-2 border-2 border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                         on:click={() => orderToPayment = null}
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                        class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
                     >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
                         Record Payment
                     </button>
                 </div>
@@ -750,14 +853,18 @@
                 <table class="w-full">
                     <thead>
                         <tr class="bg-muted">
-                            <th class="p-2">Order ID</th>
-                            <th class="p-2">Student</th>
-                            <th class="p-2">Order Status</th>
-                            <th class="p-2">Total Amount</th>
-                            <th class="p-2">Amount Paid</th>
-                            <th class="p-2">Balance</th>
-                            <th class="p-2">Last Payment</th>
-                            <th class="p-2">Payment Status</th>
+                            {#each ['id', 'student', 'status', 'total_amount', 'amount_paid', 'balance', 'payment_date', 'payment_status'] as field}
+                                <th 
+                                    class="p-2 cursor-pointer hover:bg-gray-200"
+                                    on:click={() => toggleSort(field)}
+                                >
+                                    {field === 'id' ? 'Order ID' :
+                                     field === 'payment_date' ? 'Last Payment' :
+                                     field === 'payment_status' ? 'Payment Status' :
+                                     field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}
+                                    <span class="ml-1">{getSortIcon(field)}</span>
+                                </th>
+                            {/each}
                             <th class="p-2">Actions</th>
                         </tr>
                     </thead>
@@ -998,5 +1105,5 @@
             </div>
         {/if}
     </div>
-</div> 
+</div>
 

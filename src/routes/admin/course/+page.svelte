@@ -1,5 +1,6 @@
 <script>
     import { enhance } from '$app/forms';
+    import { scale, fade } from 'svelte/transition';
     export let data;
     
     let courses = data.courses;
@@ -244,42 +245,75 @@
 
 <!-- Create Modal -->
 {#if showCreateModal}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4">Add New Course</h2>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         transition:fade={{ duration: 200 }}>
+        <div class="bg-white rounded-xl w-full max-w-md transform transition-all"
+             in:scale={{ duration: 200, start: 0.95 }}
+             out:scale={{ duration: 200, start: 1 }}>
+            <!-- Header Section -->
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                    <div class="bg-primary/10 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Add New Course</h2>
+                        <p class="text-sm text-gray-500">Enter the details for the new course</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Section -->
             <form 
                 method="POST" 
                 action="?/create"
                 use:enhance={handleCreateSubmit}
-                class="space-y-4"
+                class="p-6 space-y-6"
             >
-                <div>
-                    <label class="block text-sm font-medium mb-1" for="course_code">Course Code</label>
-                    <input
-                        type="text"
-                        id="course_code"
-                        name="course_code"
-                        bind:value={newCourse.course_code}
-                        class="w-full px-3 py-2 border rounded-lg bg-input border-border"
-                        disabled={isLoading}
-                        required
-                    />
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" for="course_code">
+                            Course Code
+                        </label>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="course_code"
+                                name="course_code"
+                                bind:value={newCourse.course_code}
+                                class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                                placeholder="Enter course code"
+                                disabled={isLoading}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" for="description">
+                            Description
+                        </label>
+                        <div class="relative">
+                            <textarea
+                                id="description"
+                                name="description"
+                                bind:value={newCourse.description}
+                                class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none resize-none"
+                                placeholder="Enter course description"
+                                rows="3"
+                                disabled={isLoading}
+                            ></textarea>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1" for="description">Description</label>
-                    <input
-                        type="text"
-                        id="description"
-                        name="description"
-                        bind:value={newCourse.description}
-                        class="w-full px-3 py-2 border rounded-lg bg-input border-border"
-                        disabled={isLoading}
-                    />
-                </div>
-                <div class="flex justify-end gap-2">
+
+                <!-- Actions Section -->
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                     <button 
                         type="button" 
-                        class="px-4 py-2 text-secondary"
+                        class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
                         on:click={resetForms}
                         disabled={isLoading}
                     >
@@ -287,10 +321,16 @@
                     </button>
                     <button 
                         type="submit"
-                        class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                        class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
                         disabled={isLoading}
                     >
-                        {isLoading ? 'Creating...' : 'Create'}
+                        {#if isLoading}
+                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                        {/if}
+                        {isLoading ? 'Creating...' : 'Create Course'}
                     </button>
                 </div>
             </form>
