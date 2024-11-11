@@ -2,6 +2,7 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
 
+  let isNavigating = false;
   // Managing the sidebar visibility for mobile devices
   let showSidebar = false;
 
@@ -12,6 +13,21 @@
     { name: "Profile Settings", href: "/employee/profile", icon: "📝" },
     { name: "Sign Out", href: "/signout", icon: "🚪" },
   ];
+
+  async function handleNavigation(path) {
+    if (isNavigating) return;
+    
+    try {
+      isNavigating = true;
+      await goto(path);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    } finally {
+      setTimeout(() => {
+        isNavigating = false;
+      }, 1000);
+    }
+  }
 </script>
 
 <!-- Main container with overflow hidden -->
@@ -29,13 +45,17 @@
           {#each navigation as navItem}
             <li>
               <button
-                on:click={() => goto(navItem.href)}
-                class="w-full text-left block py-3 px-4 hover:bg-primary {$page.url
-                  .pathname === navItem.href
-                  ? 'bg-primary'
-                  : ''}"
+                on:click={() => handleNavigation(navItem.href)}
+                disabled={isNavigating}
+                class="w-full text-left block py-3 px-4 hover:bg-primary 
+                {$page.url.pathname === navItem.href ? 'bg-primary' : ''}
+                {isNavigating ? 'opacity-50 cursor-not-allowed' : ''}"
               >
-                {navItem.icon}
+                {#if isNavigating && $page.url.pathname === navItem.href}
+                  ⌛
+                {:else}
+                  {navItem.icon}
+                {/if}
                 {navItem.name}
               </button>
             </li>
@@ -66,5 +86,9 @@
   /* Optional: Add smooth transition for sidebar on mobile */
   aside {
     transition: transform 0.3s ease-in-out;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
   }
 </style>
