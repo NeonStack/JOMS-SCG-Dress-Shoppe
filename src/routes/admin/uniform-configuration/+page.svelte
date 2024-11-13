@@ -269,7 +269,7 @@
 
                     <div class="flex flex-1 overflow-hidden">
                         <!-- Left Column - Basic Info (Sticky) -->
-                        <div class="w-1/3 p-6 sticky top-0 max-h-[calc(90vh-8rem)]">
+                        <div class="w-1/3 p-6 max-h-[calc(90vh-8rem)] overflow-y-auto">
                             <div class="bg-white/80 p-6 rounded-xl border border-primary/10 shadow-sm">
                                 <h3 class="text-lg font-semibold text-primary mb-4">Basic Information</h3>
                                 <div class="space-y-4">
