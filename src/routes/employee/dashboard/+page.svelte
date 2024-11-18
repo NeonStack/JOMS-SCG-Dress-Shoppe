@@ -164,7 +164,7 @@
     >
       <h3 class="text-sm font-medium text-red-900 mb-1">Due Today</h3>
       <p class="text-2xl font-bold text-red-800">{stats.dueToday}</p>
-      <p class="text-xs text-red-700 mt-1">Urgent Priority</p>
+      <p class="text-xs text-red-700 mt-1">Critical Priority</p>
     </div>
 
     <div 

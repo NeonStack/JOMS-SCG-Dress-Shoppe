@@ -120,9 +120,14 @@
     $: dateFilteredOrders = filterByDateRange(ordersToDisplay, startDate, endDate);
     $: displayedOrders = sortedOrders(dateFilteredOrders);
 
-    const handleComplete = async (form) => {
-        await applyAction(form);
-        await invalidateAll();
+    const handleComplete = async () => {
+        return async ({ result }) => {
+            if (result.type === 'success') {
+                window.location.reload();
+            } else if (result.type === 'failure') {
+                showError(result.error || 'Failed to create course');
+            }
+        };
     }
 </script>
 
