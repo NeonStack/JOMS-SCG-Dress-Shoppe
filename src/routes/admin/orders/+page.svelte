@@ -428,7 +428,7 @@
 <!-- Replace the Create/Edit Order Modal section -->
 {#if showCreateModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-[80%] max-w-5xl">
+        <div class="bg-white p-6 rounded-lg w-[80%] max-w-5xl max-h-[95vh] overflow-auto">
             <div class="flex justify-between mb-6">
                 <h2 class="text-2xl font-bold">{isEditing ? 'Edit Order' : 'Create New Order'}</h2>
                 <button on:click={resetForm} class="text-gray-500 text-xl">&times;</button>
@@ -623,7 +623,7 @@
 <!-- Payment Modal -->
 {#if orderToPayment}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl w-[500px] max-h-[90vh] overflow-hidden">
+        <div class="bg-white rounded-2xl w-[500px] max-h-[90vh] overflow-auto">
             <!-- Header Section -->
             <div class="bg-primary text-white px-8 py-6">
                 <div class="flex justify-between items-center">
@@ -757,7 +757,7 @@
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-md">
-        <!-- Add this before tab navigation for global search -->
+        
         <div class="mb-4">
             <input 
                 type="text"
@@ -1058,7 +1058,7 @@
                                     </td>
                                     <td class="p-2">
                                         <div class="flex gap-2">
-                                            <!-- Any additional actions if needed -->
+                                            
                                         </div>
                                     </td>
                                 </tr>
@@ -1094,7 +1094,7 @@
                                     </td>
                                     <td class="p-2">
                                         <div class="flex gap-2">
-                                            <!-- Any additional actions if needed -->
+                                            
                                         </div>
                                     </td>
                                 </tr>
