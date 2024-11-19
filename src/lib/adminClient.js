@@ -7,12 +7,5 @@ import {
 
 export const adminClient = createClient(
   PRIVATE_SUPABASE_URL,
-  PRIVATE_SUPABASE_SERVICE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: true,
-      detectSessionInUrl: false,
-    }
-  }
+  PRIVATE_SUPABASE_SERVICE_KEY
 );
