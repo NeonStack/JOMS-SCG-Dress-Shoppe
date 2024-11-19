@@ -116,6 +116,18 @@ export const actions = {
     const address = formData.get('address');
 
     try {
+      // Check if user already exists
+      const { data: existingUser } = await adminClient.auth.admin.listUsers({
+        filter: `email eq '${email}'`
+      });
+
+      if (existingUser?.users?.length > 0) {
+        return {
+          status: 400,
+          body: { error: 'An account with this email already exists' }
+        };
+      }
+
       // Create auth user
       const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email,
@@ -128,7 +140,12 @@ export const actions = {
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        return {
+          status: 400,
+          body: { error: authError.message }
+        };
+      }
 
       // Create profile
       const { error: profileError } = await adminClient
@@ -143,12 +160,25 @@ export const actions = {
           address: address
         });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        // Clean up auth user if profile creation fails
+        await adminClient.auth.admin.deleteUser(authData.user.id);
+        return {
+          status: 400,
+          body: { error: profileError.message }
+        };
+      }
 
-      return { success: true };
+      return { 
+        status: 200,
+        body: { success: true }
+      };
     } catch (err) {
       console.error('Server error creating account:', err);
-      return { error: err.message };
+      return {
+        status: 500,
+        body: { error: err.message || 'Internal server error' }
+      };
     }
   }
 };

@@ -133,10 +133,8 @@
     
     loading = true;
     try {
-      // Create email by appending domain
       const email = `${newAccount.username.toLowerCase()}${EMAIL_DOMAIN}`;
 
-      // Create form data
       const formData = new FormData();
       formData.append('email', email);
       formData.append('password', newAccount.password);
@@ -154,8 +152,8 @@
 
       const result = await response.json();
 
-      if (result.error) {
-        throw new Error(result.error);
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to create account');
       }
 
       showCreateModal = false;
@@ -163,10 +161,12 @@
       toastType = 'success';
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
-      window.location.reload(); // Refresh to show new account
+      window.location.reload();
     } catch (error) {
       console.error('Error creating account:', error);
-      toastMessage = error.message || 'Failed to create account';
+      toastMessage = error.message.includes('duplicate') ? 
+        'Username already exists' : 
+        error.message || 'Failed to create account';
       toastType = 'error';
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
