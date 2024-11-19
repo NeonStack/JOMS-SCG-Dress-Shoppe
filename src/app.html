@@ -25,7 +25,27 @@
 		<!-- Additional SEO Meta Tags -->
 		<meta name="googlebot" content="index, follow" />
 		<meta name="revisit-after" content="7 days" />
-		<link rel="canonical" href="%sveltekit.assets%" />
+		<link rel="canonical" href="https://scgjoms.vercel.app" />
+		
+		<!-- Additional SEO Improvements -->
+		<meta name="theme-color" content="#ffffff"/>
+		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+		<meta name="application-name" content="JOMS SCG" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		
+		<!-- Structured Data -->
+		<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@type": "WebApplication",
+			"name": "JOMS SCG Dress Shoppe",
+			"description": "Internal uniform order management system for SCG Dress Shoppe",
+			"applicationCategory": "BusinessApplication",
+			"operatingSystem": "Web Browser",
+			"url": "https://scgjoms.vercel.app"
+		}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

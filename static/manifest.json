@@ -1,0 +1,16 @@
+{
+  "name": "JOMS SCG Dress Shoppe",
+  "short_name": "JOMS SCG",
+  "description": "Uniform Order Management System for SCG Dress Shoppe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#B73233",
+  "icons": [
+    {
+      "src": "/SCGLogo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
