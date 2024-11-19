@@ -7,7 +7,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    storageKey: 'supabase.auth.token',
     detectSessionInUrl: true
+  }
+});
+
+// Set up auth state change listener
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    // Refresh the session when signed in
+    supabase.auth.refreshSession();
   }
 });
