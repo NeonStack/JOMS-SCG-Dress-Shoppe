@@ -1,38 +1,64 @@
 import { redirect } from "@sveltejs/kit";
+import { supabase } from "$lib/supabaseClient";
+
+async function getUserRole(userId) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) {
+    throw redirect(303, "/");
+  }
+
+  return data.role;
+}
 
 export const load = async ({ locals, url }) => {
   const path = url.pathname;
-  const { session, userRole } = locals;
-
-  // If user is logged in
-  if (session) {
-    // Redirect from login page
-    if (path === "/") {
-      const dashboardPath =
-        userRole === "employee" ? "/employee/dashboard" : "/admin/dashboard";
-      throw redirect(303, dashboardPath);
+  
+  // If user is logged in, handle their session first
+  if (locals.session) {
+    const role = await getUserRole(locals.session.user.id);
+    
+    // Add account management access control
+    if (path.includes('/admin/account-management')) {
+      if (role === 'employee') {
+        throw redirect(303, '/employee/dashboard');
+      }
     }
 
-    // Handle role-based access
-    if (path.includes("/admin") && userRole === "employee") {
+    // Redirect authenticated users from root/login page
+    if (path === "/") {
+      const dashboardPaths = {
+        superadmin: "/admin/dashboard",
+        admin: "/admin/dashboard",
+        employee: "/employee/dashboard"
+      };
+      throw redirect(303, dashboardPaths[role] || "/");
+    }
+
+    // Handle role-based access restrictions
+    if (path.includes("/admin") && role === "employee") {
       throw redirect(303, "/employee/dashboard");
     }
 
-    if (path.includes("/employee") && userRole === "admin") {
+    if (path.includes("/employee") && (role === "superadmin" || role === "admin")) {
       throw redirect(303, "/admin/dashboard");
     }
 
     return {
-      session,
-      userRole,
+      session: locals.session,
+      userRole: role
     };
   }
 
-  // Non-authenticated users
+  // Handle non-authenticated users
   if (path === "/") {
     return {
       session: null,
-      userRole: null,
+      userRole: null
     };
   }
 
