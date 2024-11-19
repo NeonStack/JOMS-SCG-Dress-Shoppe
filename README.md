@@ -1,5 +1,5 @@
 Structure and flow:
-# Complete Detailed System Flow of JOMS (Uniform Order Management System)
+# Complete Detailed System Flow of JOMS (Job Order Management System)
 
 ## Initial System Access
 1. System starts with a login page
