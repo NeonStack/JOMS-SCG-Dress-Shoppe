@@ -140,33 +140,40 @@
 
     const labels = Object.keys(
       data.additionalMetrics.averageOrderValueOverTime[selectedTimeFrame]
-    ).sort();
-    averageOrderValueChart = new Chart(averageOrderValueChartEl, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: `Average Order Value (${selectedTimeFrame})`,
-            data: labels.map((key) => {
-              const item =
-                data.additionalMetrics.averageOrderValueOverTime[
-                  selectedTimeFrame
-                ][key];
-              return (item.total / item.count).toFixed(2);
-            }),
-            borderColor: "#E85D2F",
-            backgroundColor: "rgba(232, 93, 47, 0.1)",
-            fill: true,
-            tension: 0.4,
-          },
-        ],
-      },
-      options: commonOptions,
+    );
+    
+    const values = labels.map(key => {
+        const item = data.additionalMetrics.averageOrderValueOverTime[selectedTimeFrame][key];
+        return item.count > 0 ? (item.total / item.count).toFixed(2) : 0;
     });
-  }
 
-  // Initialize order status chart
+    averageOrderValueChart = new Chart(averageOrderValueChartEl, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: `Average Order Value (${selectedTimeFrame})`,
+                data: values,
+                borderColor: '#E85D2F',
+                backgroundColor: 'rgba(232, 93, 47, 0.1)',
+                fill: true,
+                tension: 0.4,
+                spanGaps: true // This ensures continuous line even with missing data
+            }]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: (value) => formatCurrency(value) }
+                }
+            }
+        }
+    });
+}
+
+// Initialize order status chart
   function initOrderStatusChart() {
     if (orderStatusChart) orderStatusChart.destroy();
     if (!orderStatusChartEl) return;
@@ -222,7 +229,7 @@
         datasets: [
           {
             data: Object.values(data.studentAnalytics.genderDistribution),
-            backgroundColor: ["#3B82F6", "#EC4899"],
+            backgroundColor: ["#EC4899", "#3B82F6"],
           },
         ],
       },

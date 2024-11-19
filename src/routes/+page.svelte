@@ -1,11 +1,9 @@
 <script>
-  import { onMount } from "svelte";
   import { enhance } from '$app/forms';
   
   let username = "";
   let password = "";
   let showPassword = false;
-  let rememberMe = false;
   let loginError = "";
   let loading = false;
 
@@ -47,9 +45,9 @@
         <p class="text-primary text-sm mt-4">JOMS v1.0 - Job Order Management System</p>
       </div>
     </div>
-    <div class="w-1/2 max-lg:w-full max-w-md">
+    <div class="w-1/2 max-lg:w-full max-w-md flex">
       <div
-        class="bg-background rounded-2xl shadow-2xl overflow-hidden"
+        class="bg-background rounded-2xl shadow-2xl overflow-hidden w-full"
       >
         <div class="p-8">
           <h2 class="text-3xl font-bold text-primary text-center mb-8">
@@ -151,19 +149,6 @@
                   {/if}
                 </button>
               </div>
-            </div>
-
-            <div class="flex items-center">
-              <input
-                type="checkbox"
-                id="remember-me"
-                name="remember-me"
-                bind:checked={rememberMe}
-                class="w-4 h-4 rounded border-input text-primary accent-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent cursor-pointer"
-              />
-              <label for="remember-me" class="ml-2 block text-sm text-secondary select-none cursor-pointer"
-                >Remember me</label
-              >
             </div>
 
             <button

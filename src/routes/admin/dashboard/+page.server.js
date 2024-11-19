@@ -460,79 +460,76 @@ function calculateAverageOrderValueOverTime(orders) {
         year: {}
     };
 
-    // Get date ranges
     const now = new Date();
-    const last30Days = new Date(now.getTime() - (29 * 24 * 60 * 60 * 1000)); // Changed to 29 to include today
-    const last12Weeks = new Date(now.getTime() - (11 * 7 * 24 * 60 * 60 * 1000)); // Changed to 11 to include current week
-    const last12Months = new Date(now.getTime() - (11 * 30 * 24 * 60 * 60 * 1000)); // Changed to 11 to include current month
-    const currentYear = now.getFullYear();
-    const startYear = currentYear - 4; // Show last 5 years including current year
+    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    // Initialize periods with zero values for all time frames
-    // Days - including today
-    for (let i = 0; i <= 29; i++) { // Changed to <= 29 to include today
+    // Initialize data structures with counts
+    for (let i = 29; i >= 0; i--) {
         const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
         const dayKey = date.toISOString().split('T')[0];
         timeFrames.day[dayKey] = { total: 0, count: 0 };
     }
 
-    // Weeks - including current week
-    for (let i = 0; i <= 11; i++) { // Changed to <= 11 to include current week
+    for (let i = 11; i >= 0; i--) {
         const weekDate = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
         const weekKey = `${weekDate.getFullYear()}-W${getWeekNumber(weekDate)}`;
         timeFrames.week[weekKey] = { total: 0, count: 0 };
     }
 
-    // Months - including current month
-    for (let i = 0; i <= 11; i++) { // Changed to <= 11 to include current month
+    for (let i = 11; i >= 0; i--) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthKey = monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
         timeFrames.month[monthKey] = { total: 0, count: 0 };
     }
 
-    // Years - last 5 years including current year
-    for (let year = startYear; year <= currentYear; year++) {
+    const currentYear = now.getFullYear();
+    for (let year = currentYear - 4; year <= currentYear; year++) {
         timeFrames.year[year.toString()] = { total: 0, count: 0 };
     }
 
     // Process orders
     orders.forEach(order => {
         const orderDate = new Date(order.created_at);
+        const amount = Number(order.total_amount) || 0;
         
-        // Daily stats
-        if (orderDate >= last30Days) {
-            const dayKey = orderDate.toISOString().split('T')[0];
-            if (timeFrames.day[dayKey]) {
-                timeFrames.day[dayKey].total += order.total_amount;
-                timeFrames.day[dayKey].count += 1;
-            }
+        const dayKey = orderDate.toISOString().split('T')[0];
+        if (timeFrames.day.hasOwnProperty(dayKey)) {
+            timeFrames.day[dayKey].total += amount;
+            timeFrames.day[dayKey].count += 1;
         }
 
-        // Weekly stats
-        if (orderDate >= last12Weeks) {
-            const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
-            if (timeFrames.week[weekKey]) {
-                timeFrames.week[weekKey].total += order.total_amount;
-                timeFrames.week[weekKey].count += 1;
-            }
+        const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
+        if (timeFrames.week.hasOwnProperty(weekKey)) {
+            timeFrames.week[weekKey].total += amount;
+            timeFrames.week[weekKey].count += 1;
         }
 
-        // Monthly stats
-        if (orderDate >= last12Months) {
-            const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-            if (timeFrames.month[monthKey]) {
-                timeFrames.month[monthKey].total += order.total_amount;
-                timeFrames.month[monthKey].count += 1;
-            }
+        const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        if (timeFrames.month.hasOwnProperty(monthKey)) {
+            timeFrames.month[monthKey].total += amount;
+            timeFrames.month[monthKey].count += 1;
         }
 
-        // Yearly stats
         const yearKey = orderDate.getFullYear().toString();
-        if (timeFrames.year[yearKey]) {
-            timeFrames.year[yearKey].total += order.total_amount;
+        if (timeFrames.year.hasOwnProperty(yearKey)) {
+            timeFrames.year[yearKey].total += amount;
             timeFrames.year[yearKey].count += 1;
         }
     });
+
+    // Sort months and calculate averages
+    const sortedMonth = {};
+    Object.entries(timeFrames.month)
+        .sort((a, b) => {
+            const [aMonth, aYear] = a[0].split(' ');
+            const [bMonth, bYear] = b[0].split(' ');
+            if (aYear !== bYear) return Number(aYear) - Number(bYear);
+            return monthOrder.indexOf(aMonth) - monthOrder.indexOf(bMonth);
+        })
+        .forEach(([key, value]) => {
+            sortedMonth[key] = value;
+        });
+    timeFrames.month = sortedMonth;
 
     return timeFrames;
 }
@@ -545,71 +542,72 @@ function calculateRevenueOverTime(orders) {
         year: {}
     };
 
-    // Get date ranges
     const now = new Date();
-    const last30Days = new Date(now.getTime() - (29 * 24 * 60 * 60 * 1000)); // Changed to include today
-    const last12Weeks = new Date(now.getTime() - (11 * 7 * 24 * 60 * 60 * 1000));
-    const last12Months = new Date(now.getTime() - (11 * 30 * 24 * 60 * 60 * 1000));
-    const currentYear = now.getFullYear();
-    const startYear = currentYear - 4; // Show last 5 years
+    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    // Initialize all periods with zero
-    // Days - including today
-    for (let i = 0; i <= 29; i++) {
+    // Initialize with zero values for continuous data
+    for (let i = 29; i >= 0; i--) {
         const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
         const dayKey = date.toISOString().split('T')[0];
         timeFrames.day[dayKey] = 0;
     }
 
-    // Weeks - including current week
-    for (let i = 0; i <= 11; i++) {
+    for (let i = 11; i >= 0; i--) {
         const weekDate = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
         const weekKey = `${weekDate.getFullYear()}-W${getWeekNumber(weekDate)}`;
         timeFrames.week[weekKey] = 0;
     }
 
-    // Months - including current month
-    for (let i = 0; i <= 11; i++) {
+    for (let i = 11; i >= 0; i--) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthKey = monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
         timeFrames.month[monthKey] = 0;
     }
 
-    // Years - last 5 years including current year
-    for (let year = startYear; year <= currentYear; year++) {
+    const currentYear = now.getFullYear();
+    for (let year = currentYear - 4; year <= currentYear; year++) {
         timeFrames.year[year.toString()] = 0;
     }
 
     // Process orders
     orders.forEach(order => {
         const orderDate = new Date(order.created_at);
+        const amount = Number(order.amount_paid) || 0;
         
-        if (orderDate >= last30Days) {
-            const dayKey = orderDate.toISOString().split('T')[0];
-            if (timeFrames.day.hasOwnProperty(dayKey)) {
-                timeFrames.day[dayKey] += (order.amount_paid || 0);
-            }
+        const dayKey = orderDate.toISOString().split('T')[0];
+        if (timeFrames.day.hasOwnProperty(dayKey)) {
+            timeFrames.day[dayKey] += amount;
         }
 
-        if (orderDate >= last12Weeks) {
-            const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
-            if (timeFrames.week.hasOwnProperty(weekKey)) {
-                timeFrames.week[weekKey] += (order.amount_paid || 0);
-            }
+        const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
+        if (timeFrames.week.hasOwnProperty(weekKey)) {
+            timeFrames.week[weekKey] += amount;
         }
 
-        if (orderDate >= last12Months) {
-            const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-            if (timeFrames.month[monthKey]) {
-                timeFrames.month[monthKey] += (order.amount_paid || 0);
-            }
+        const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        if (timeFrames.month.hasOwnProperty(monthKey)) {
+            timeFrames.month[monthKey] += amount;
         }
 
         const yearKey = orderDate.getFullYear().toString();
         if (timeFrames.year.hasOwnProperty(yearKey)) {
-            timeFrames.year[yearKey] += (order.amount_paid || 0);
+            timeFrames.year[yearKey] += amount;
         }
     });
+
+    // Sort months correctly
+    const sortedMonth = {};
+    Object.entries(timeFrames.month)
+        .sort((a, b) => {
+            const [aMonth, aYear] = a[0].split(' ');
+            const [bMonth, bYear] = b[0].split(' ');
+            if (aYear !== bYear) return Number(aYear) - Number(bYear);
+            return monthOrder.indexOf(aMonth) - monthOrder.indexOf(bMonth);
+        })
+        .forEach(([key, value]) => {
+            sortedMonth[key] = value;
+        });
+    timeFrames.month = sortedMonth;
 
     return timeFrames;
 }
