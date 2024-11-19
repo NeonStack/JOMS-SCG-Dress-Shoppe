@@ -24,6 +24,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@supabase/auth-helpers-sveltekit": "^0.13.0",
 		"@supabase/supabase-js": "^2.45.6",
 		"chart.js": "^4.4.4",
 		"date-fns": "^4.1.0",

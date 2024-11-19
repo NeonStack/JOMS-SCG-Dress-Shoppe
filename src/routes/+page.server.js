@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
-    signin: async ({ request, locals }) => {
+    signin: async ({ request, locals, cookies }) => {
         const formData = await request.formData();
         const email = formData.get('username')?.trim();
         const password = formData.get('password');
@@ -21,6 +21,22 @@ export const actions = {
             return fail(400, {
                 error: authError.message
             });
+        }
+
+        if (authData.session) {
+            cookies.set('sb-access-token', authData.session.access_token, {
+                path: '/',
+                sameSite: 'strict',
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 60 * 60 * 24 // 1 day
+            })
+            
+            cookies.set('sb-refresh-token', authData.session.refresh_token, {
+                path: '/',
+                sameSite: 'strict',
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 60 * 60 * 24 * 7 // 1 week
+            })
         }
 
         const { data: userData, error: userError } = await locals.supabase

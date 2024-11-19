@@ -1,5 +1,4 @@
 import { error, fail } from '@sveltejs/kit';
-import { supabase } from '$lib/supabaseClient';
 
 const getDateRanges = () => {
     const now = new Date();
@@ -161,18 +160,18 @@ function getTimeSlot(hour) {
     return 'Night';
 }
 
-export const load = async () => {
+export const load = async ({ locals }) => {
     try {
         const { today, thisWeekStart, thisMonthStart, thisYearStart, last12Months } = getDateRanges();
         const next7Days = new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
         const promises = [
             // Basic Statistics
-            supabase.from('students').select('*', { count: 'exact', head: true }),
-            supabase.from('orders').select('*', { count: 'exact', head: true }),
+            locals.supabase.from('students').select('*', { count: 'exact', head: true }),
+            locals.supabase.from('orders').select('*', { count: 'exact', head: true }),
             
             // Enhanced Order Analytics
-            supabase.from('orders').select(`
+            locals.supabase.from('orders').select(`
                 id,
                 status,
                 uniform_type,
@@ -200,7 +199,7 @@ export const load = async () => {
             `).gte('created_at', last12Months),
 
             // Additional Analytics
-            supabase.from('orders').select(`
+            locals.supabase.from('orders').select(`
                 id,
                 status,
                 payment_status,
@@ -215,7 +214,7 @@ export const load = async () => {
             `).lte('due_date', next7Days).neq('status', 'completed'),
 
             // Student Demographics with Course Info
-            supabase.from('students').select(`
+            locals.supabase.from('students').select(`
                 id,
                 gender,
                 created_at,
@@ -226,7 +225,7 @@ export const load = async () => {
             `),
 
             // Employee Performance
-            supabase.from('orders').select(`
+            locals.supabase.from('orders').select(`
                 employee_id,
                 status,
                 created_at,
@@ -238,7 +237,7 @@ export const load = async () => {
             `).not('employee_id', 'is', null),
 
             // Payment Analytics
-            supabase.from('orders').select(`
+            locals.supabase.from('orders').select(`
                 payment_status,
                 total_amount,
                 amount_paid,
@@ -601,7 +600,7 @@ function calculateRevenueOverTime(orders) {
 
         if (orderDate >= last12Months) {
             const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-            if (timeFrames.month.hasOwnProperty(monthKey)) {
+            if (timeFrames.month[monthKey]) {
                 timeFrames.month[monthKey] += (order.amount_paid || 0);
             }
         }
