@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
 export const actions = {
-    signin: async ({ request, locals, cookies }) => {
+    signin: async ({ request, locals }) => {
         const formData = await request.formData();
         const email = formData.get('username')?.trim();
         const password = formData.get('password');
@@ -20,17 +20,6 @@ export const actions = {
         if (authError) {
             return fail(400, {
                 error: authError.message
-            });
-        }
-
-        if (authData?.session) {
-            // Set auth cookie with a long expiry
-            cookies.set('supabase-auth-token', authData.session.refresh_token, {
-                path: '/',
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: 60 * 60 * 24 * 30 // 30 days
             });
         }
 
