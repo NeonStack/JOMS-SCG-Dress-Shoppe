@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { redirect } from '@sveltejs/kit'
 
 export const handle = async ({ event, resolve }) => {
     event.locals.supabase = createClient(
@@ -26,14 +27,45 @@ export const handle = async ({ event, resolve }) => {
         event.locals.session = null
     }
 
-    // Protected routes (add your protected routes here)
-    if (event.url.pathname.startsWith('/admin') && !event.locals.session) {
-        throw redirect(303, '/')
+    // Add no-cache headers for protected routes
+    if (event.url.pathname.startsWith('/admin') || event.url.pathname.startsWith('/employee')) {
+        event.setHeaders({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
     }
 
-    if (event.url.pathname.startsWith('/employee') && !event.locals.session) {
-      throw redirect(303, '/')
-  }
+    // First check: Protected routes require authentication
+    if (event.url.pathname.startsWith('/admin') || event.url.pathname.startsWith('/employee')) {
+        if (!event.locals.session) {
+            throw redirect(303, '/')
+        }
+    }
+
+    // Only check roles if user is authenticated
+    if (event.locals.session) {
+        const { data: userData } = await event.locals.supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', event.locals.session.user.id)
+            .single()
+        
+        event.locals.userRole = userData?.role
+        
+        // Then check role-based access
+        if (event.url.pathname.startsWith('/admin')) {
+            if (!['superadmin', 'admin'].includes(event.locals.userRole)) {
+                throw redirect(303, '/employee/dashboard')
+            }
+        }
+
+        if (event.url.pathname.startsWith('/employee')) {
+            if (!['employee'].includes(event.locals.userRole)) {
+                throw redirect(303, '/admin/dashboard')
+            }
+        }
+    }
 
     return resolve(event)
 }
