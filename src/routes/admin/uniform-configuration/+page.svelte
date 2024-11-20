@@ -26,7 +26,18 @@
             c.courses?.course_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.gender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.wear_type?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        )
+        ?.sort((a, b) => {
+            let aVal = sortField === 'course' ? a.courses?.course_code : a[sortField];
+            let bVal = sortField === 'course' ? b.courses?.course_code : b[sortField];
+
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
 
     function toggleSort(field) {
         if (sortField === field) {
@@ -35,23 +46,6 @@
             sortField = field;
             sortDirection = 'asc';
         }
-        
-        configs = configs.sort((a, b) => {
-            let aVal = field === 'course' ? a.courses?.course_code : a[field];
-            let bVal = field === 'course' ? b.courses?.course_code : b[field];
-            
-            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-            
-            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
-    }
-
-    function getSortIcon(field) {
-        if (sortField !== field) return '↕';
-        return sortDirection === 'asc' ? '↑' : '↓';
     }
 
     function formatDate(dateString) {
@@ -161,31 +155,46 @@
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('course')}
                         >
-                            Course {getSortIcon('course')}
+                            Course
+                            {#if sortField === 'course'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('gender')}
                         >
-                            Gender {getSortIcon('gender')}
+                            Gender
+                            {#if sortField === 'gender'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('base_price')}
                         >
-                            Base Price {getSortIcon('base_price')}
+                            Base Price
+                            {#if sortField === 'base_price'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('wear_type')}
                         >
-                            Wear Type {getSortIcon('wear_type')}
+                            Wear Type
+                            {#if sortField === 'wear_type'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('created_at')}
                         >
-                            Created At {getSortIcon('created_at')}
+                            Created At
+                            {#if sortField === 'created_at'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th class="p-2 text-right">Actions</th>
                     </tr>

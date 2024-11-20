@@ -14,8 +14,8 @@
     let selectedOrders = [];
     let selectedEmployee = null;
     let dateRange = { start: '', end: '' };
-    let sortField = 'due_date';
-    let sortDirection = 'asc';
+    let sortField = 'created_at';
+    let sortDirection = 'desc';
     let activeTab = 'pending'; // Add this for tab management
     let selectAll = false; // Add new state for select all
     let filteredResults = null; // Add new state for filtered orders
@@ -34,10 +34,19 @@
     $: totalAmount = calculateTotalAmount(selectedStudent, selectedUniformType);
 
     $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-        const direction = sortDirection === 'asc' ? 1 : -1;
-        return aVal > bVal ? direction : -direction;
+        let comparison = 0;
+        if (sortField === 'id') {
+            comparison = a.id - b.id;
+        } else if (sortField === 'student') {
+            comparison = `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
+                `${b.student?.first_name} ${b.student?.last_name}`
+            );
+        } else if (sortField === 'created_at' || sortField === 'due_date') {
+            comparison = new Date(a[sortField]) - new Date(b[sortField]);
+        } else {
+            comparison = (a[sortField] || '').toString().localeCompare((b[sortField] || '').toString());
+        }
+        return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     // Add these computed properties for filtering orders by status
@@ -360,6 +369,32 @@
                 activeTab = tabParam;
             }
         }
+    }
+
+    function sort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDirection = 'asc';
+        }
+
+        // Update the sorting logic
+        sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
+            let comparison = 0;
+            if (field === 'id') {
+                comparison = a.id - b.id;
+            } else if (field === 'student') {
+                comparison = `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
+                    `${b.student?.first_name} ${b.student?.last_name}`
+                );
+            } else if (field === 'created_at' || field === 'due_date') {
+                comparison = new Date(a[field]) - new Date(b[field]);
+            } else {
+                comparison = (a[field] || '').toString().localeCompare((b[field] || '').toString());
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
     }
 </script>
 
@@ -959,12 +994,14 @@
                             {/if}
                             {#each ['id', 'student', 'uniform_type', 'created_at', 'due_date', 'total_amount', 'status'] as field}
                                 <th 
-                                    class="p-2 cursor-pointer hover:bg-gray-200"
-                                    on:click={() => toggleSort(field)}
+                                    class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                                    on:click={() => sort(field)}
                                 >
                                     {field === 'created_at' ? 'Ordered At' : 
                                      field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ')}
-                                    <span class="ml-1">{getSortIcon(field)}</span>
+                                    {#if sortField === field}
+                                        <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                                    {/if}
                                 </th>
                             {/each}
                             {#if activeTab !== 'pending' && activeTab !== 'payments'}

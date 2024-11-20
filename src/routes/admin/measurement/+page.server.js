@@ -3,6 +3,7 @@ import { supabase } from '$lib/supabaseClient';
 
 export const load = async ({ locals }) => {
     try {
+        // First get all measurement types
         const { data: measurements, error: fetchError } = await supabase
             .from('measurement_types')
             .select('*')
@@ -10,8 +11,27 @@ export const load = async ({ locals }) => {
 
         if (fetchError) throw fetchError;
 
+        // Get usage counts for each measurement type
+        const { data: configurations } = await supabase
+            .from('uniform_configuration')
+            .select('measurement_specs');
+
+        // Count usages for each measurement type
+        const usageCounts = measurements.map(measurement => {
+            const count = configurations.filter(config => 
+                config.measurement_specs.some(spec => 
+                    spec.measurement_type_id === measurement.id
+                )
+            ).length;
+            
+            return {
+                ...measurement,
+                usage_count: count
+            };
+        });
+
         return {
-            measurements
+            measurements: usageCounts
         };
     } catch (err) {
         console.error('Error:', err);
@@ -85,6 +105,27 @@ export const actions = {
         }
 
         try {
+            // Improved check for measurement type usage
+            const { data: configs, error: checkError } = await supabase
+                .from('uniform_configuration')
+                .select('measurement_specs');
+
+            if (checkError) throw checkError;
+
+            // Check if any configuration uses this measurement type
+            const isUsed = configs.some(config => 
+                config.measurement_specs.some(spec => 
+                    spec.measurement_type_id === Number(id)
+                )
+            );
+
+            if (isUsed) {
+                return fail(400, {
+                    error: 'Cannot delete this measurement type as it is being used in uniform configurations'
+                });
+            }
+
+            // If not used, proceed with deletion
             const { error: deleteError } = await supabase
                 .from('measurement_types')
                 .delete()

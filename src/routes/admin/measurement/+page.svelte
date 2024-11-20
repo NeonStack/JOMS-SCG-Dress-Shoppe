@@ -20,13 +20,15 @@
     $: filteredMeasurements = measurements
         ?.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()))
         ?.sort((a, b) => {
-            const modifier = sortDirection === 'asc' ? 1 : -1;
+            let comparison = 0;
             if (sortColumn === 'name') {
-                return modifier * a.name.localeCompare(b.name);
+                comparison = a.name.localeCompare(b.name);
             } else if (sortColumn === 'created_at') {
-                return modifier * (new Date(a.created_at) - new Date(b.created_at));
+                comparison = new Date(a.created_at) - new Date(b.created_at);
+            } else if (sortColumn === 'usage_count') {
+                comparison = a.usage_count - b.usage_count;
             }
-            return 0;
+            return sortDirection === 'asc' ? comparison : -comparison;
         });
 
     // Reset form states
@@ -105,12 +107,6 @@
             sortDirection = 'asc';
         }
     };
-
-    // Add getSortIcon function for consistency
-    function getSortIcon(column) {
-        if (sortColumn !== column) return '↕';
-        return sortDirection === 'asc' ? '↑' : '↓';
-    }
 </script>
 
 <div class="p-6">
@@ -145,13 +141,28 @@
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('name')}
                         >
-                            Name <span class="ml-1">{getSortIcon('name')}</span>
+                            Name
+                            {#if sortColumn === 'name'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
+                        </th>
+                        <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                            on:click={() => toggleSort('usage_count')}
+                        >
+                            Usage Count
+                            {#if sortColumn === 'usage_count'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('created_at')}
                         >
-                            Created At <span class="ml-1">{getSortIcon('created_at')}</span>
+                            Created At
+                            {#if sortColumn === 'created_at'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th class="p-2 text-right">Actions</th>
                     </tr>
@@ -183,6 +194,11 @@
                                         {measurement.name}
                                     </span>
                                 {/if}
+                            </td>
+                            <td class="p-2">
+                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                                    {measurement.usage_count} {measurement.usage_count === 1 ? 'use' : 'uses'}
+                                </span>
                             </td>
                             <td class="p-2">{new Date(measurement.created_at).toLocaleDateString()}</td>
                             <td class="p-2 text-right">

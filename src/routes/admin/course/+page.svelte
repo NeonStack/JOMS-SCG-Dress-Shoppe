@@ -17,28 +17,46 @@
         description: ''
     };
 
-    let sortColumn = 'course_code';
-    let sortDirection = 'asc';
+    // Initialize sort state
+    let sortState = {
+        column: 'course_code',
+        direction: 'asc'
+    };
 
-    // Sort function
+    // Updated toggle sort function
     const toggleSort = (column) => {
-        if (sortColumn === column) {
-            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        if (sortState.column === column) {
+            // If same column, toggle direction
+            sortState = {
+                ...sortState,
+                direction: sortState.direction === 'asc' ? 'desc' : 'asc'
+            };
         } else {
-            sortColumn = column;
-            sortDirection = 'asc';
+            // If new column, set it with asc direction
+            sortState = {
+                column: column,
+                direction: 'asc'
+            };
         }
     };
 
-    // Modified filtered courses with sorting
+    // Updated getSortIcon function
+    function getSortIcon(column) {
+        if (sortState.column !== column) {
+            return '⋮⋮';
+        }
+        return sortState.direction === 'asc' ? '△' : '▽';
+    }
+
+    // Modified filtered courses with new sorting logic
     $: filteredCourses = courses
         ?.filter(c => 
             c.course_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.description?.toLowerCase().includes(searchTerm.toLowerCase())
         )
         ?.sort((a, b) => {
-            const modifier = sortDirection === 'asc' ? 1 : -1;
-            switch (sortColumn) {
+            const modifier = sortState.direction === 'asc' ? 1 : -1;
+            switch (sortState.column) {
                 case 'course_code':
                     return modifier * a.course_code.localeCompare(b.course_code);
                 case 'description':
@@ -111,10 +129,28 @@
         showDeleteModal = true;
     };
 
-    // Add getSortIcon function for consistency
-    function getSortIcon(column) {
-        if (sortColumn !== column) return '↕';
-        return sortDirection === 'asc' ? '↑' : '↓';
+    let sortField = 'created_at';
+    let sortDirection = 'desc';
+
+    function sort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDirection = 'asc';
+        }
+
+        filteredCourses = [...filteredCourses].sort((a, b) => {
+            let comparison = 0;
+            if (field === 'course_code') {
+                comparison = a.course_code.localeCompare(b.course_code);
+            } else if (field === 'description') {
+                comparison = (a.description || '').localeCompare(b.description || '');
+            } else if (field === 'created_at') {
+                comparison = new Date(a.created_at) - new Date(b.created_at);
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
     }
 </script>
 
@@ -148,21 +184,30 @@
                     <tr class="bg-muted">
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
-                            on:click={() => toggleSort('course_code')}
+                            on:click={() => sort('course_code')}
                         >
-                            Course Code <span class="ml-1">{getSortIcon('course_code')}</span>
+                            Course Code
+                            {#if sortField === 'course_code'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
-                            on:click={() => toggleSort('description')}
+                            on:click={() => sort('description')}
                         >
-                            Description <span class="ml-1">{getSortIcon('description')}</span>
+                            Description
+                            {#if sortField === 'description'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
-                            on:click={() => toggleSort('created_at')}
+                            on:click={() => sort('created_at')}
                         >
-                            Created At <span class="ml-1">{getSortIcon('created_at')}</span>
+                            Created At
+                            {#if sortField === 'created_at'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
                         </th>
                         <th class="p-2 text-right">Actions</th>
                     </tr>
