@@ -62,18 +62,45 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-  deleteAccount: async ({ request }) => {
+  deleteAccount: async ({ request, locals }) => {
     const formData = await request.formData();
     const userId = formData.get('userId');
 
     try {
-      // Delete from profiles first due to foreign key constraint
-      await supabase.from('profiles').delete().eq('id', userId);
-      await supabase.auth.admin.deleteUser(userId);
+      // Get current user's role and target account's role
+      const { data: currentUser } = await adminClient
+        .from('profiles')
+        .select('role')
+        .eq('id', locals.session.user.id)
+        .single();
+
+      const { data: targetUser } = await adminClient
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      // Check permissions
+      if (!currentUser || !targetUser) {
+        return { error: 'User not found' };
+      }
+
+      if (currentUser.role === 'admin' && targetUser.role !== 'employee') {
+        return { error: 'Insufficient permissions' };
+      }
+
+      if (currentUser.role !== 'superadmin' && currentUser.role !== 'admin') {
+        return { error: 'Unauthorized' };
+      }
+
+      // Proceed with deletion
+      await adminClient.from('profiles').delete().eq('id', userId);
+      await adminClient.auth.admin.deleteUser(userId);
 
       return { success: true };
     } catch (err) {
-      return { error: 'Failed to delete account' };
+      console.error('Error deleting account:', err);
+      return { error: err.message || 'Failed to delete account' };
     }
   },
 

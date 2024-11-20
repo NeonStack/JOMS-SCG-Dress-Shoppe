@@ -45,6 +45,7 @@
   let showToast = false;
   let toastMessage = "";
   let toastType = "success";
+  let showDetailsModal = false;  // Add this line near other modal states
 
   // Modified for role-based access
   $: canCreateAdmin = data.userRole === "superadmin";
@@ -124,7 +125,7 @@
     if (result.ok) {
       showEditModal = false;
       editingAccount = null;
-      window.location.reload(); // Refresh to show updated data
+      location.reload(); // Refresh to show updated data
     }
   }
 
@@ -161,7 +162,7 @@
       toastType = 'success';
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
-      window.location.reload();
+      location.reload();
     } catch (error) {
       console.error('Error creating account:', error);
       toastMessage = error.message.includes('duplicate') ? 
@@ -269,9 +270,44 @@
       return (a[sortBy.field] > b[sortBy.field] ? 1 : -1) * modifier;
     });
 
-  // Add this function
-  function showDetailsModal(account) {
+  // Replace the showDetailsModal function with:
+  function handleShowDetails(account) {
     selectedAccount = account;
+    showDetailsModal = true;
+  }
+
+  async function handleDeleteAccount() {
+    if (!selectedAccount) return;
+
+    const formData = new FormData();
+    formData.append('userId', selectedAccount.id);
+
+    try {
+      const response = await fetch('?/deleteAccount', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      showDeleteModal = false;
+      selectedAccount = null;
+      toastMessage = 'Account deleted successfully';
+      toastType = 'success';
+      showToast = true;
+      setTimeout(() => (showToast = false), 3000);
+      location.reload();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toastMessage = error.message || 'Failed to delete account';
+      toastType = 'error';
+      showToast = true;
+      setTimeout(() => (showToast = false), 3000);
+    }
   }
 </script>
 
@@ -458,16 +494,36 @@
                 <td class="px-6 py-4 text-right space-x-2">
                   <button
                     class="text-primary hover:text-primary-dark font-medium text-sm"
-                    on:click={() => showDetailsModal(account)}
+                    on:click={() => {
+                      showDeleteModal = false;
+                      showDetailsModal = true;
+                      selectedAccount = account;
+                    }}
                   >
                     Details
                   </button>
                   <button
                     class="text-primary hover:text-primary-dark font-medium text-sm"
-                    on:click={() => openEditModal(account)}
+                    on:click={() => {
+                      showDeleteModal = false;
+                      showDetailsModal = false;
+                      openEditModal(account);
+                    }}
                   >
                     Edit
                   </button>
+                  {#if (data.userRole === 'superadmin') || (data.userRole === 'admin' && account.role === 'employee')}
+                    <button
+                      class="text-error hover:text-error-dark font-medium text-sm"
+                      on:click={() => {
+                        selectedAccount = account;
+                        showDeleteModal = true;
+                        showDetailsModal = false;
+                      }}
+                    >
+                      Delete
+                    </button>
+                  {/if}
                 </td>
               </tr>
             {/each}
@@ -477,7 +533,7 @@
     </div>
 
     <!-- Details Modal -->
-    {#if selectedAccount}
+    {#if showDetailsModal && selectedAccount}
       <div
         class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
         transition:fade
@@ -506,7 +562,10 @@
                 </div>
               </div>
               <button
-                on:click={() => (selectedAccount = null)}
+                on:click={() => {
+                  showDetailsModal = false;
+                  selectedAccount = null;
+                }}
                 class="p-2 hover:bg-white/10 rounded-full transition-colors duration-200"
               >
                 <svg
@@ -672,7 +731,7 @@
                           stroke-linecap="round"
                           stroke-linejoin="round"
                           stroke-width="2"
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 011.21-.502l4.493 1.498a1 1 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                         />
                       </svg>
                       <span class="text-sm font-medium text-gray-900"
@@ -1217,6 +1276,38 @@
             on:click={handleEditSubmit}
           >
             Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Delete Confirmation Modal -->
+  {#if showDeleteModal}
+    <div
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      transition:fade
+    >
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" transition:slide>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Confirm Delete</h3>
+        <p class="text-gray-600 mb-6">
+          Are you sure you want to delete the account for {selectedAccount?.first_name} {selectedAccount?.last_name}? This action cannot be undone.
+        </p>
+        <div class="flex justify-end gap-4">
+          <button
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            on:click={() => {
+              showDeleteModal = false;
+              selectedAccount = null;
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 text-sm font-medium text-white bg-error hover:bg-error-dark rounded-lg"
+            on:click={handleDeleteAccount}
+          >
+            Delete Account
           </button>
         </div>
       </div>
