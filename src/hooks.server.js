@@ -52,6 +52,17 @@ export const handle = async ({ event, resolve }) => {
             .single()
         
         event.locals.userRole = userData?.role
+
+        //Prevent authenticated users from accessing the login page
+        if (event.url.pathname.startsWith('/')) {
+            if (event.locals.userRole === 'superadmin') {
+                throw redirect(303, '/admin/dashboard')
+            } else if (event.locals.userRole === 'admin') {
+                throw redirect(303, '/admin/dashboard')
+            } else if (event.locals.userRole === 'employee') {
+                throw redirect(303, '/employee/dashboard')
+            }
+        }
         
         // Then check role-based access
         if (event.url.pathname.startsWith('/admin')) {
