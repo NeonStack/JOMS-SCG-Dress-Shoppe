@@ -429,7 +429,7 @@
           : 'text-gray-600 hover:text-primary'}"
         on:click={() => (activeTab = "employees")}
       >
-        Employees
+        Tailor
       </button>
       <button
         class="px-4 py-2 rounded-md transition-all duration-200 {activeTab ===
@@ -561,7 +561,7 @@
                       ? "Super Admin"
                       : account.role === "admin"
                         ? "Admin"
-                        : "Employee"}
+                        : "Tailor"}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-500"
@@ -697,7 +697,7 @@
                             ? "Super Administrator"
                             : selectedAccount.role === "admin"
                               ? "Administrator"
-                              : "Employee"}
+                              : "Tailor"}
                         </span>
                       </div>
                     </div>

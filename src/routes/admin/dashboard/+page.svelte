@@ -620,7 +620,7 @@
         <div
           class="col-span-12 md:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Employee Performance</h3>
+          <h3 class="text-lg font-bold mb-4">Tailor Performance</h3>
           <div class="h-72">
             <canvas bind:this={employeePerformanceChartEl}></canvas>
           </div>

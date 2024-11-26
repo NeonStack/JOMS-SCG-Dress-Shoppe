@@ -1059,7 +1059,7 @@
               <input
                 type="text"
                 bind:value={employeeSearchTerm}
-                placeholder="Search employee..."
+                placeholder="Search tailor..."
                 class="w-full p-2 border rounded {selectedEmployee
                   ? 'bg-gray-50'
                   : ''}"
