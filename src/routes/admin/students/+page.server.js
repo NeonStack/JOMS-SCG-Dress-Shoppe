@@ -1,6 +1,76 @@
 import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
+const toSentenceCase = (str) => {
+    return str
+        .trim()
+        .toLowerCase()
+        .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.substr(1).toLowerCase());
+};
+
+const isValidPhoneNumber = (phone) => {
+    const phoneRegex = /^09\d{9}$/;  // Format: 09 followed by 9 digits
+    return phoneRegex.test(phone);
+};
+
+const isValidName = (name) => {
+    const nameRegex = /^[A-Za-z\s\-']+$/;  // Only letters, spaces, hyphens, and apostrophes
+    return nameRegex.test(name) && name.trim().length >= 2 && name.trim().length <= 50;
+};
+
+const isValidAddress = (address) => {
+    if (!address) return true; // Optional field
+    const addressRegex = /^[A-Za-z0-9\s,\.\-'#]+$/;
+    return addressRegex.test(address) && address.trim().length <= 200;
+};
+
+const sanitizeAndValidateInput = (formData) => {
+    const first_name = toSentenceCase(formData.get('first_name') || '');
+    const last_name = toSentenceCase(formData.get('last_name') || '');
+    const gender = (formData.get('gender') || '').toLowerCase();
+    const course_id = formData.get('course_id');
+    const contact_number = (formData.get('contact_number') || '').trim();
+    const address = (formData.get('address') || '').trim();
+
+    const errors = {};
+
+    if (!first_name || !isValidName(first_name)) {
+        errors.first_name = 'First name must be 2-50 characters long and contain only letters';
+    }
+
+    if (!last_name || !isValidName(last_name)) {
+        errors.last_name = 'Last name must be 2-50 characters long and contain only letters';
+    }
+
+    if (!gender) {
+        errors.gender = 'Please select a gender';
+    }
+
+    if (!course_id) {
+        errors.course_id = 'Please select a course';
+    }
+
+    if (contact_number && !isValidPhoneNumber(contact_number)) {
+        errors.contact_number = 'Phone number must start with 09 and have 11 digits total';
+    }
+
+    if (!isValidAddress(address)) {
+        errors.address = 'Address contains invalid characters or exceeds 200 characters';
+    }
+
+    return {
+        sanitizedData: {
+            first_name,
+            last_name,
+            gender,
+            course_id,
+            contact_number: contact_number || null,
+            address: address || null
+        },
+        errors: Object.keys(errors).length > 0 ? errors : null
+    };
+};
+
 export const load = async ({ locals }) => {
     try {
         // Get all students with their course information
@@ -79,105 +149,60 @@ export const actions = {
     create: async ({ request }) => {
         try {
             const formData = await request.formData();
-            const first_name = formData.get('first_name');
-            const last_name = formData.get('last_name');
-            const gender = formData.get('gender')?.toLowerCase();
-            const course_id = formData.get('course_id');
-            const contact_number = formData.get('contact_number');
-            const address = formData.get('address');
+            const { sanitizedData, errors } = sanitizeAndValidateInput(formData);
 
-            // Validation
-            if (!first_name || !last_name || !gender || !course_id) {
-                return fail(400, { error: 'Required fields are missing' });
+            if (errors) {
+                return fail(400, { errors });
             }
 
-            console.log('Form data:', { first_name, last_name, gender, course_id }); // Debug log
-
-            // Get uniform configuration
-            const { data: configs, error: configError } = await supabase
-                .from('uniform_configuration')
-                .select('*')
-                .eq('gender', gender)
-                .eq('course_id', parseInt(course_id));
-
-            if (configError) {
-                console.error('Config error:', configError);
-                throw configError;
-            }
-
-            console.log('Found configs:', configs); // Debug log
-
-            // Collect measurements from form
+            // Collect measurements (without validation)
             const measurements = {};
-            const entries = Array.from(formData.entries());
-            for (const [key, value] of entries) {
+            for (const [key, value] of formData.entries()) {
                 if (key.startsWith('measurement_')) {
                     const measurementId = parseInt(key.replace('measurement_', ''));
                     measurements[measurementId] = parseFloat(value);
                 }
             }
 
-            console.log('Collected measurements:', measurements); // Debug log
-
-            // Insert student
+            // Insert student with sanitized data
             const { data: student, error: insertError } = await supabase
                 .from('students')
                 .insert({
-                    first_name,
-                    last_name,
-                    gender,
-                    course_id: parseInt(course_id),
-                    contact_number: contact_number || null,
-                    address: address || null,
-                    measurements // Supabase will handle JSONB conversion
+                    ...sanitizedData,
+                    course_id: parseInt(sanitizedData.course_id),
+                    measurements
                 })
                 .select()
                 .single();
 
-            if (insertError) {
-                console.error('Insert error:', insertError);
-                throw insertError;
-            }
+            if (insertError) throw insertError;
 
-            return {
-                success: true,
-                student
-            };
-
+            return { success: true, student };
         } catch (err) {
-            console.error('Create student error:', err);
-            return fail(500, {
-                error: err.message || 'Failed to create student'
+            return fail(500, { 
+                errors: { _form: 'Failed to create student. Please try again.' }
             });
         }
     },
 
     edit: async ({ request }) => {
-        const formData = await request.formData();
-        const id = formData.get('id');
-        const first_name = formData.get('first_name');
-        const last_name = formData.get('last_name');
-        const gender = formData.get('gender')?.toLowerCase();
-        const course_id = parseInt(formData.get('course_id'));
-        const contact_number = formData.get('contact_number');
-        const address = formData.get('address');
-
-        if (!id || !first_name || !last_name || !gender || !course_id) {
-            return fail(400, {
-                error: 'Required fields are missing'
-            });
-        }
-
         try {
-            // Get uniform configuration for the student's course and gender
-            const { data: configs, error: configError } = await supabase
-                .from('uniform_configuration')
-                .select('measurement_specs')
-                .match({ gender, course_id });
+            const formData = await request.formData();
+            const id = formData.get('id');
 
-            if (configError) throw configError;
+            if (!id) {
+                return fail(400, { 
+                    errors: { _form: 'Student ID is required' }
+                });
+            }
 
-            // Collect measurements from form data
+            const { sanitizedData, errors } = sanitizeAndValidateInput(formData);
+
+            if (errors) {
+                return fail(400, { errors });
+            }
+
+            // Collect measurements
             const measurements = {};
             for (const [key, value] of formData.entries()) {
                 if (key.startsWith('measurement_')) {
@@ -190,13 +215,9 @@ export const actions = {
             const { error: updateError } = await supabase
                 .from('students')
                 .update({
-                    first_name,
-                    last_name,
-                    gender,
-                    course_id,
-                    contact_number: contact_number || null,
-                    address: address || null,
-                    measurements // This will be automatically converted to JSONB
+                    ...sanitizedData,
+                    course_id: parseInt(sanitizedData.course_id),
+                    measurements
                 })
                 .eq('id', id);
 
@@ -205,8 +226,8 @@ export const actions = {
             return { success: true };
         } catch (err) {
             console.error('Update error:', err);
-            return fail(500, {
-                error: 'Failed to update student'
+            return fail(500, { 
+                errors: { _form: 'Failed to update student. Please try again.' }
             });
         }
     },

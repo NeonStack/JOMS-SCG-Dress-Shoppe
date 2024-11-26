@@ -165,6 +165,107 @@
       }
     };
   }
+
+  // Add validation functions
+  const isValidPhoneNumber = (phone) => {
+    if (!phone) return true; // Allow empty phone numbers
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const isValidName = (name) => {
+    const nameRegex = /^[A-Za-z\s\-']+$/;
+    return nameRegex.test(name);
+  };
+
+  // Add form validation state
+  let formErrors = {
+    first_name: '',
+    last_name: '',
+    contact_number: '',
+    gender: '',
+    course_id: '',
+    address: ''
+  };
+
+
+  let serverErrors = {};
+
+  function validateField(field, value) {
+    formErrors = { ...formErrors };
+    
+    switch (field) {
+        case 'first_name':
+            if (!value) {
+                formErrors[field] = 'First name is required';
+            } else if (value.length < 2 || value.length > 50) {
+                formErrors[field] = 'First name must be between 2 and 50 characters';
+            } else if (!/^[A-Za-z\s\-']+$/.test(value)) {
+                formErrors[field] = 'First name can only contain letters';
+            } else {
+                delete formErrors[field];
+            }
+            break;
+        case 'last_name':
+            if (!value) {
+                formErrors[field] = 'Last name is required';
+            } else if (value.length < 2 || value.length > 50) {
+                formErrors[field] = 'Last name must be between 2 and 50 characters';
+            } else if (!/^[A-Za-z\s\-']+$/.test(value)) {
+                formErrors[field] = 'Last name can only contain letters';
+            } else {
+                delete formErrors[field];
+            }
+            break;
+        case 'contact_number':
+            if (value && !/^09\d{9}$/.test(value)) {
+                formErrors[field] = 'Phone number must start with 09 and have 11 digits';
+            } else {
+                delete formErrors[field];
+            }
+            break;
+        case 'address':
+          if (value) {
+            if (value.length > 200) {
+              formErrors[field] = 'Address must not exceed 200 characters';
+            } else if (!/^[A-Za-z0-9\s,\.\-'#]+$/.test(value)) {
+              formErrors[field] = 'Address contains invalid characters';
+            } else {
+              delete formErrors[field];
+            }
+          } else {
+            delete formErrors[field];
+          }
+          break;
+        case 'gender':
+          if (!value) {
+            formErrors[field] = 'Please select a gender';
+          } else {
+            delete formErrors[field];
+          }
+          break;
+        case 'course_id':
+          if (!value) {
+            formErrors[field] = 'Please select a course';
+          } else {
+            delete formErrors[field];
+          }
+          break;
+    }
+  }
+
+  // Enhanced form submission
+  function handleSubmit() {
+    return async ({ result }) => {
+      if (result.type === 'failure') {
+        const serverErrors = result.data?.errors || {};
+        formErrors = { ...formErrors, ...serverErrors };
+      } else if (result.type === 'success') {
+        showModal = false;
+        window.location.reload();
+      }
+    };
+  }
 </script>
 
 {#if error}
@@ -316,20 +417,19 @@
           id="studentForm"
           method="POST"
           action="?/{modalMode}"
-          use:enhance={({ form, data, action, cancel }) => {
-            return async ({ result, update }) => {
-              if (result.type === "success") {
-                showModal = false;
-                window.location.reload();
-              } else if (result.type === "error") {
-                console.error("Form submission error:", result);
-              }
-            };
-          }}
+          use:enhance={handleSubmit}
+          on:submit={handleSubmit}
           class="space-y-8"
         >
           {#if modalMode === "edit"}
             <input type="hidden" name="id" value={editingStudent.id} />
+          {/if}
+
+          <!-- Show form-level errors if any -->
+          {#if formErrors._form || serverErrors._form}
+            <div class="p-4 bg-red-50 text-red-600 rounded-lg">
+                {formErrors._form || serverErrors._form}
+            </div>
           {/if}
 
           <!-- Personal Information Section -->
@@ -346,9 +446,15 @@
                   type="text"
                   name="first_name"
                   value={editingStudent.first_name || ""}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.first_name ? 'border-red-500' : 'border-gray-300'}"
+                  on:input={(e) => validateField('first_name', e.target.value)}
                   required
                 />
+                {#if formErrors.first_name || serverErrors.first_name}
+                  <p class="text-red-500 text-sm mt-1">
+                    {formErrors.first_name || serverErrors.first_name}
+                  </p>
+                {/if}
               </div>
 
               <div class="space-y-2">
@@ -359,35 +465,42 @@
                   type="text"
                   name="last_name"
                   value={editingStudent.last_name || ""}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.last_name ? 'border-red-500' : 'border-gray-300'}"
+                  on:input={(e) => validateField('last_name', e.target.value)}
                   required
                 />
+                {#if formErrors.last_name || serverErrors.last_name}
+                  <p class="text-red-500 text-sm mt-1">
+                    {formErrors.last_name || serverErrors.last_name}
+                  </p>
+                {/if}
               </div>
 
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700"
-                  >Gender</label
-                >
+                <label class="block text-sm font-medium text-gray-700">Gender</label>
                 <select
                   name="gender"
                   bind:value={selectedGender}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.gender ? 'border-red-500' : 'border-gray-300'}"
+                  on:change={(e) => validateField('gender', e.target.value)}
                   required
                 >
                   <option value="">Select Gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                 </select>
+                {#if formErrors.gender}
+                  <p class="text-red-500 text-sm mt-1">{formErrors.gender}</p>
+                {/if}
               </div>
 
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700"
-                  >Course</label
-                >
+                <label class="block text-sm font-medium text-gray-700">Course</label>
                 <select
                   name="course_id"
                   bind:value={selectedCourseId}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.course_id ? 'border-red-500' : 'border-gray-300'}"
+                  on:change={(e) => validateField('course_id', e.target.value)}
                   required
                 >
                   <option value="">Select Course</option>
@@ -397,6 +510,9 @@
                     </option>
                   {/each}
                 </select>
+                {#if formErrors.course_id}
+                  <p class="text-red-500 text-sm mt-1">{formErrors.course_id}</p>
+                {/if}
               </div>
 
               <div class="space-y-2">
@@ -407,20 +523,29 @@
                   type="text"
                   name="contact_number"
                   value={editingStudent.contact_number || ""}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.contact_number ? 'border-red-500' : 'border-gray-300'}"
+                  on:input={(e) => validateField('contact_number', e.target.value)}
+                  placeholder="09XXXXXXXXX"
                 />
+                {#if formErrors.contact_number || serverErrors.contact_number}
+                  <p class="text-red-500 text-sm mt-1">
+                    {formErrors.contact_number || serverErrors.contact_number}
+                  </p>
+                {/if}
               </div>
 
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700"
-                  >Address</label
-                >
+                <label class="block text-sm font-medium text-gray-700">Address</label>
                 <textarea
                   name="address"
                   value={editingStudent.address || ""}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  class="w-full p-3 border rounded-lg focus:ring-2 {formErrors.address ? 'border-red-500' : 'border-gray-300'}"
+                  on:input={(e) => validateField('address', e.target.value)}
                   rows="2"
                 ></textarea>
+                {#if formErrors.address}
+                  <p class="text-red-500 text-sm mt-1">{formErrors.address}</p>
+                {/if}
               </div>
             </div>
           </div>

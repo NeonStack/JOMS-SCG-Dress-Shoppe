@@ -16,6 +16,15 @@
         course_code: '',
         description: ''
     };
+    let newCourses = [{ course_code: '', description: '' }];
+
+    const addCourseField = () => {
+        newCourses = [...newCourses, { course_code: '', description: '' }];
+    };
+
+    const removeCourseField = (index) => {
+        newCourses = newCourses.filter((_, i) => i !== index);
+    };
 
     // Initialize sort state
     let sortState = {
@@ -77,6 +86,7 @@
         errorMessage = '';
         isLoading = false;
         courseToDelete = null;
+        newCourses = [{ course_code: '', description: '' }];
     };
 
     const showError = (message) => {
@@ -87,12 +97,17 @@
 
     const handleCreateSubmit = () => {
         isLoading = true;
+        // Filter out empty entries
+        const validCourses = newCourses.filter(course => 
+            course.course_code.trim() !== ''
+        );
+        
         return async ({ result }) => {
             if (result.type === 'success') {
                 resetForms();
                 window.location.reload();
             } else if (result.type === 'failure') {
-                showError(result.error || 'Failed to create course');
+                showError(result.error || result.data?.error || 'Failed to create courses');
             }
             isLoading = false;
         };
@@ -152,6 +167,22 @@
             return sortDirection === 'asc' ? comparison : -comparison;
         });
     }
+
+    // Function to convert to sentence case
+    const toSentenceCase = (str) => {
+        if (!str) return str;
+        return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
+    };
+
+    // Handle input blur events
+    const handleDescriptionBlur = (index) => {
+        newCourses[index].description = toSentenceCase(newCourses[index].description);
+        newCourses = [...newCourses]; // Trigger reactivity
+    };
+
+    const handleUpdateDescriptionBlur = (event) => {
+        event.target.value = toSentenceCase(event.target.value);
+    };
 </script>
 
 <div class="p-6">
@@ -235,6 +266,7 @@
                                             type="text"
                                             name="description"
                                             value={course.description || ''}
+                                            on:blur={handleUpdateDescriptionBlur}
                                             placeholder="Description"
                                             class="px-2 py-1 border rounded"
                                             disabled={isLoading}
@@ -315,68 +347,97 @@
                 method="POST" 
                 action="?/create"
                 use:enhance={handleCreateSubmit}
-                class="p-6 space-y-6"
+                class="flex flex-col max-h-[calc(80vh-200px)]"
             >
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2" for="course_code">
-                            Course Code
-                        </label>
-                        <div class="relative">
-                            <input
-                                type="text"
-                                id="course_code"
-                                name="course_code"
-                                bind:value={newCourse.course_code}
-                                class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
-                                placeholder="Enter course code"
-                                disabled={isLoading}
-                                required
-                            />
-                        </div>
-                    </div>
+                <div class="p-6 space-y-6 overflow-y-auto flex-1">
+                    <div class="space-y-6">
+                        {#each newCourses as course, index}
+                            <div class="bg-gray-50 p-4 rounded-lg relative">
+                                {#if index > 0}
+                                    <button 
+                                        type="button"
+                                        class="absolute right-2 top-2 text-red-600 hover:text-red-800"
+                                        on:click={() => removeCourseField(index)}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                {/if}
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="course_code_{index}">
+                                            Course Code {index + 1}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="course_code_{index}"
+                                            name="course_codes"
+                                            bind:value={course.course_code}
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                                            placeholder="Enter course code"
+                                            disabled={isLoading}
+                                            required
+                                        />
+                                    </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2" for="description">
-                            Description
-                        </label>
-                        <div class="relative">
-                            <textarea
-                                id="description"
-                                name="description"
-                                bind:value={newCourse.description}
-                                class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none resize-none"
-                                placeholder="Enter course description"
-                                rows="3"
-                                disabled={isLoading}
-                            ></textarea>
-                        </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="description_{index}">
+                                            Description {index + 1}
+                                        </label>
+                                        <textarea
+                                            id="description_{index}"
+                                            name="descriptions"
+                                            bind:value={course.description}
+                                            on:blur={() => handleDescriptionBlur(index)}
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none resize-none"
+                                            placeholder="Enter course description"
+                                            rows="2"
+                                            disabled={isLoading}
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                        
+                        <button 
+                            type="button"
+                            class="text-primary hover:text-primary-dark flex items-center gap-2 mt-4"
+                            on:click={addCourseField}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Add Another Course
+                        </button>
                     </div>
                 </div>
 
-                <!-- Actions Section -->
-                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button 
-                        type="button" 
-                        class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
-                        on:click={resetForms}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit"
-                        class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
-                        disabled={isLoading}
-                    >
-                        {#if isLoading}
-                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                            </svg>
-                        {/if}
-                        {isLoading ? 'Creating...' : 'Create Course'}
-                    </button>
+                <!-- Fixed footer with actions -->
+                <div class="p-6 border-t border-gray-100 bg-white">
+                    <div class="flex items-center justify-end gap-3">
+                        <button 
+                            type="button" 
+                            class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
+                            on:click={resetForms}
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
+                            disabled={isLoading}
+                        >
+                            {#if isLoading}
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                            {/if}
+                            {isLoading ? 'Creating...' : 'Create Course'}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

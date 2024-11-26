@@ -15,6 +15,7 @@
     let measurementToDelete = null;
     let sortColumn = 'name';
     let sortDirection = 'asc';
+    let newMeasurements = [''];  // Array to hold multiple measurement names
 
     // Filter and sort measurements
     $: filteredMeasurements = measurements
@@ -41,6 +42,7 @@
         errorMessage = '';
         isLoading = false;
         measurementToDelete = null;
+        newMeasurements = [''];
     };
 
     // Show error modal
@@ -50,15 +52,25 @@
         isLoading = false;
     };
 
+    // Function to convert to sentence case
+    const toSentenceCase = (str) => {
+        return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
+    };
+
     // Handle create submission
     const handleCreateSubmit = () => {
         isLoading = true;
+        // Format names before submitting
+        const formattedMeasurements = newMeasurements
+            .map(name => toSentenceCase(name.trim()))
+            .filter(name => name);
+        
         return async ({ result }) => {
             if (result.type === 'success') {
                 resetForms();
                 window.location.reload();
             } else if (result.type === 'failure') {
-                showError(result.data?.error || 'Failed to create measurement');
+                showError(result.data?.error || 'Failed to create measurements');
             }
             isLoading = false;
         };
@@ -106,6 +118,14 @@
             sortColumn = column;
             sortDirection = 'asc';
         }
+    };
+
+    const addMeasurementField = () => {
+        newMeasurements = [...newMeasurements, ''];
+    };
+
+    const removeMeasurementField = (index) => {
+        newMeasurements = newMeasurements.filter((_, i) => i !== index);
     };
 </script>
 
@@ -231,7 +251,7 @@
 {#if showCreateModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
          transition:fade={{ duration: 200 }}>
-        <div class="bg-white rounded-xl w-full max-w-md transform transition-all"
+        <div class="bg-white rounded-xl w-full max-w-md max-h-[80vh] transform transition-all overflow-hidden"
              in:scale={{ duration: 200, start: 0.95 }}
              out:scale={{ duration: 200, start: 1 }}>
             <!-- Header Section -->
@@ -254,49 +274,78 @@
                 method="POST" 
                 action="?/create"
                 use:enhance={handleCreateSubmit}
-                class="p-6 space-y-6"
+                class="flex flex-col max-h-[calc(80vh-200px)]"
             >
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2" for="name">
-                        Measurement Name
-                    </label>
-                    <div class="relative">
-                        <input
-                            type="text"
-                            id="name"
-                            name="name"
-                            bind:value={newMeasurementName}
-                            class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
-                            placeholder="Enter measurement name"
-                            disabled={isLoading}
-                            required
-                        />
+                <div class="p-6 space-y-6 overflow-y-auto flex-1">
+                    <div class="space-y-4">
+                        {#each newMeasurements as measurement, index}
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2" for="name_{index}">
+                                        Measurement Name {index + 1}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="name_{index}"
+                                        name="names"
+                                        bind:value={newMeasurements[index]}
+                                        on:blur={(e) => newMeasurements[index] = toSentenceCase(e.target.value)}
+                                        class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                                        placeholder="Enter measurement name"
+                                        disabled={isLoading}
+                                        required
+                                    />
+                                </div>
+                                {#if index > 0}
+                                    <button 
+                                        type="button"
+                                        class="mt-8 p-2 text-red-600 hover:text-red-800"
+                                        on:click={() => removeMeasurementField(index)}
+                                    >
+                                        <p class="font-bold">x</p>
+                                    </button>
+                                {/if}
+                            </div>
+                        {/each}
+                        
+                        <button 
+                            type="button"
+                            class="text-primary hover:text-primary-dark flex items-center gap-2"
+                            on:click={addMeasurementField}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Add Another Measurement
+                        </button>
                     </div>
                 </div>
 
                 <!-- Actions Section -->
-                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button 
-                        type="button" 
-                        class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
-                        on:click={resetForms}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit"
-                        class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
-                        disabled={isLoading}
-                    >
-                        {#if isLoading}
-                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                            </svg>
-                        {/if}
-                        {isLoading ? 'Creating...' : 'Create Measurement'}
-                    </button>
+                <div class="p-6 border-t border-gray-100 bg-white">
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button 
+                            type="button" 
+                            class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200 font-medium"
+                            on:click={resetForms}
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 font-medium flex items-center gap-2"
+                            disabled={isLoading}
+                        >
+                            {#if isLoading}
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                            {/if}
+                            {isLoading ? 'Creating...' : 'Create Measurement'}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

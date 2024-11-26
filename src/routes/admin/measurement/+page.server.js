@@ -42,18 +42,33 @@ export const load = async ({ locals }) => {
 export const actions = {
     create: async ({ request }) => {
         const formData = await request.formData();
-        const name = formData.get('name')?.toString().trim();
+        const names = formData.getAll('names')
+            .map(name => name.toString().trim())
+            .filter(name => name.length > 0);
 
-        if (!name) {
+        if (names.length === 0) {
             return fail(400, {
-                error: 'Measurement name is required'
+                error: 'At least one measurement name is required'
             });
         }
 
         try {
+            // First check for existing measurements
+            const { data: existingMeasurements } = await supabase
+                .from('measurement_types')
+                .select('name')
+                .in('name', names);
+
+            if (existingMeasurements && existingMeasurements.length > 0) {
+                const duplicates = existingMeasurements.map(m => m.name).join(', ');
+                return fail(400, {
+                    error: `Measurement types already exist: ${duplicates}`
+                });
+            }
+
             const { error: insertError } = await supabase
                 .from('measurement_types')
-                .insert({ name });
+                .insert(names.map(name => ({ name })));
 
             if (insertError) throw insertError;
 
@@ -61,7 +76,7 @@ export const actions = {
         } catch (err) {
             console.error('Error:', err);
             return fail(500, {
-                error: 'Failed to create measurement type'
+                error: 'Failed to create measurement types'
             });
         }
     },

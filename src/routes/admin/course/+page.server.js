@@ -22,34 +22,54 @@ export const load = async () => {
 export const actions = {
     create: async ({ request }) => {
         const formData = await request.formData();
-        const course_code = formData.get('course_code')?.toString().trim();
-        const description = formData.get('description')?.toString().trim();
+        const course_codes = formData.getAll('course_codes');
+        const descriptions = formData.getAll('descriptions');
 
-        if (!course_code) {
+        // Helper function for sentence case
+        const toSentenceCase = str => 
+            str ? str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) : null;
+
+        // Create array of course objects
+        const courses = course_codes.map((code, index) => ({
+            course_code: code.toString().trim().toUpperCase(),
+            description: toSentenceCase(descriptions[index]?.toString().trim()) || null
+        })).filter(course => course.course_code !== '');
+
+        if (courses.length === 0) {
             return fail(400, {
-                error: 'Course code is required'
+                error: 'At least one course code is required'
             });
         }
 
         try {
+            // Check for existing courses
+            const { data: existingCourses } = await supabase
+                .from('courses')
+                .select('course_code')
+                .in('course_code', courses.map(c => c.course_code));
+
+            if (existingCourses && existingCourses.length > 0) {
+                const duplicates = existingCourses.map(c => c.course_code).join(', ');
+                return fail(400, {
+                    error: `Course codes already exist: ${duplicates}`
+                });
+            }
+
             const { error: insertError } = await supabase
                 .from('courses')
-                .insert({ 
-                    course_code, 
-                    description: description || null 
-                });
+                .insert(courses);
 
             if (insertError) throw insertError;
 
             return {
                 type: 'success',
-                message: 'Course created successfully'
+                message: 'Courses created successfully'
             };
         } catch (err) {
             console.error('Error:', err);
             return fail(500, {
                 type: 'failure',
-                error: err.message || 'Failed to create course'
+                error: err.message || 'Failed to create courses'
             });
         }
     },
@@ -71,8 +91,10 @@ export const actions = {
             const { error: updateError } = await supabase
                 .from('courses')
                 .update({ 
-                    course_code,
-                    description: description || null
+                    course_code: course_code.toUpperCase(),
+                    description: description ? 
+                        description.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) 
+                        : null
                 })
                 .eq('id', id);
 

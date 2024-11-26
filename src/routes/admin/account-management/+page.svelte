@@ -1,6 +1,4 @@
 <script>
-  import { onMount } from "svelte";
-  import { supabase } from "$lib/supabaseClient";
   import { fade, slide } from "svelte/transition";
 
   // Get data from server load function
@@ -89,6 +87,13 @@
   }
 
   async function handleEditSubmit() {
+    if (!validateEditForm()) return;
+  
+    // Convert names to sentence case
+    editForm.firstName = toSentenceCase(editForm.firstName);
+    editForm.lastName = toSentenceCase(editForm.lastName);
+    editForm.position = toSentenceCase(editForm.position);
+    
     // Reset errors
     editErrors = {};
 
@@ -132,6 +137,11 @@
   async function createAccount() {
     if (!validateForm()) return;
     
+    // Convert names to sentence case
+    newAccount.firstName = toSentenceCase(newAccount.firstName);
+    newAccount.lastName = toSentenceCase(newAccount.lastName);
+    newAccount.position = toSentenceCase(newAccount.position);
+    
     loading = true;
     try {
       const email = `${newAccount.username.toLowerCase()}${EMAIL_DOMAIN}`;
@@ -153,8 +163,8 @@
 
       const result = await response.json();
 
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to create account');
+      if (result.error) {
+        throw new Error(result.error);
       }
 
       showCreateModal = false;
@@ -163,11 +173,10 @@
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
       location.reload();
+
     } catch (error) {
       console.error('Error creating account:', error);
-      toastMessage = error.message.includes('duplicate') ? 
-        'Username already exists' : 
-        error.message || 'Failed to create account';
+      toastMessage = error.message || 'Failed to create account';
       toastType = 'error';
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
@@ -176,26 +185,29 @@
     }
   }
 
-  // Login function
-  async function login(username, password) {
-    try {
-      const email = `${username.toLowerCase()}${EMAIL_DOMAIN}`;
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error logging in:", error);
-      throw error;
-    }
-  }
-
   function validateForm() {
     errors = {};
+    
+    // Name validations
+    const firstNameError = validateName(newAccount.firstName);
+    if (firstNameError) errors.firstName = firstNameError;
+    
+    const lastNameError = validateName(newAccount.lastName);
+    if (lastNameError) errors.lastName = lastNameError;
 
+    // Position validation
+    const positionError = validatePosition(newAccount.position);
+    if (positionError) errors.position = positionError;
+
+    // Contact number validation
+    const phoneError = validatePhoneNumber(newAccount.contactNumber);
+    if (phoneError) errors.contactNumber = phoneError;
+
+    // Address validation
+    const addressError = validateAddress(newAccount.address);
+    if (addressError) errors.address = addressError;
+
+    // Existing username and password validations
     if (!newAccount.firstName) errors.firstName = "First name is required";
     if (!newAccount.lastName) errors.lastName = "Last name is required";
     if (!newAccount.username) errors.username = "Username is required";
@@ -218,6 +230,32 @@
     }
 
     return Object.keys(errors).length === 0;
+  }
+
+  function validateEditForm() {
+    editErrors = {};
+    
+    const firstNameError = validateName(editForm.firstName);
+    if (firstNameError) editErrors.firstName = firstNameError;
+    
+    const lastNameError = validateName(editForm.lastName);
+    if (lastNameError) editErrors.lastName = lastNameError;
+    
+    const positionError = validatePosition(editForm.position);
+    if (positionError) editErrors.position = positionError;
+    
+    const phoneError = validatePhoneNumber(editForm.contactNumber);
+    if (phoneError) editErrors.contactNumber = phoneError;
+    
+    const addressError = validateAddress(editForm.address);
+    if (addressError) editErrors.address = addressError;
+
+    // Password validation only if password is provided
+    if (editForm.password) {
+      // ...existing password validation...
+    }
+
+    return Object.keys(editErrors).length === 0;
   }
 
   function resetForm() {
@@ -308,6 +346,44 @@
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
     }
+  }
+
+  function validateName(name) {
+    if (!name) return 'This field is required';
+    name = name.trim().replace(/\s+/g, ' '); // Remove extra spaces
+    if (name.length < 2 || name.length > 50) return 'Must be between 2-50 characters';
+    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Only letters and spaces allowed';
+    return null;
+  }
+
+  function validatePhoneNumber(phone) {
+    if (!phone) return 'Contact number is required';
+    phone = phone.trim();
+    if (!/^09\d{9}$/.test(phone)) return 'Must be 11 digits starting with 09';
+    return null;
+  }
+
+  function validateAddress(address) {
+    if (!address) return 'Address is required';
+    address = address.trim().replace(/\s+/g, ' '); // Remove extra spaces
+    if (address.length < 5 || address.length > 200) return 'Must be between 5-200 characters';
+    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) return 'Invalid characters in address';
+    return null;
+  }
+
+  function validatePosition(position) {
+    if (!position) return 'Position is required';
+    position = position.trim().replace(/\s+/g, ' '); // Remove extra spaces
+    if (position.length < 2 || position.length > 50) return 'Must be between 2-50 characters';
+    if (!/^[a-zA-Z\s\-]+$/.test(position)) return 'Only letters, spaces, and hyphens allowed';
+    return null;
+  }
+
+  function toSentenceCase(text) {
+    return text.trim()
+      .replace(/\s+/g, ' ') // Remove extra spaces
+      .toLowerCase()
+      .replace(/(?:^|\s)\w/g, letter => letter.toUpperCase());
   }
 </script>
 
@@ -841,6 +917,7 @@
                           type="text"
                           id="firstName"
                           bind:value={newAccount.firstName}
+                          on:input={() => errors.firstName = validateName(newAccount.firstName)}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.firstName
                             ? 'border-error'
                             : ''}"
@@ -861,6 +938,7 @@
                           type="text"
                           id="lastName"
                           bind:value={newAccount.lastName}
+                          on:input={() => errors.lastName = validateName(newAccount.lastName)}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.lastName
                             ? 'border-error'
                             : ''}"
@@ -909,10 +987,14 @@
                         type="text"
                         id="position"
                         bind:value={newAccount.position}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        on:input={() => errors.position = validatePosition(newAccount.position)}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.position ? 'border-error' : ''}"
                         placeholder="Enter position"
                         required
                       />
+                      {#if errors.position}
+                        <p class="mt-1 text-sm text-error">{errors.position}</p>
+                      {/if}
                     </div>
 
                     <div>
@@ -921,9 +1003,13 @@
                         type="text"
                         id="contactNumber"
                         bind:value={newAccount.contactNumber}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        on:input={() => errors.contactNumber = validatePhoneNumber(newAccount.contactNumber)}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.contactNumber ? 'border-error' : ''}"
                         placeholder="+639898938291"
                       />
+                      {#if errors.contactNumber}
+                        <p class="mt-1 text-sm text-error">{errors.contactNumber}</p>
+                      {/if}
                     </div>
 
                     <div>
@@ -931,9 +1017,13 @@
                       <textarea
                         id="address"
                         bind:value={newAccount.address}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        on:input={() => errors.address = validateAddress(newAccount.address)}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.address ? 'border-error' : ''}"
                         rows="3"
                       ></textarea>
+                      {#if errors.address}
+                        <p class="mt-1 text-sm text-error">{errors.address}</p>
+                      {/if}
                     </div>
                   </div>
                 </div>
@@ -957,6 +1047,7 @@
                           type="text"
                           id="username"
                           bind:value={newAccount.username}
+                          on:input={() => errors.username = validateUsername(newAccount.username)}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent pr-24 {errors.username
                             ? 'border-error'
                             : ''}"
@@ -981,6 +1072,7 @@
                         type="password"
                         id="password"
                         bind:value={newAccount.password}
+                        on:input={() => errors.password = validatePassword(newAccount.password)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password
                           ? 'border-error'
                           : ''}"
@@ -1000,6 +1092,7 @@
                         type="password"
                         id="confirmPassword"
                         bind:value={newAccount.confirmPassword}
+                        on:input={() => errors.confirmPassword = validateConfirmPassword(newAccount.confirmPassword)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword
                           ? 'border-error'
                           : ''}"
@@ -1106,6 +1199,7 @@
                           type="text"
                           id="edit-firstName"
                           bind:value={editForm.firstName}
+                          on:input={() => editErrors.firstName = validateName(editForm.firstName)}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.firstName ? 'border-error' : ''}"
                         />
                         {#if editErrors.firstName}
@@ -1122,6 +1216,7 @@
                           type="text"
                           id="edit-lastName"
                           bind:value={editForm.lastName}
+                          on:input={() => editErrors.lastName = validateName(editForm.lastName)}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.lastName ? 'border-error' : ''}"
                         />
                         {#if editErrors.lastName}
@@ -1166,6 +1261,7 @@
                         type="text"
                         id="edit-position"
                         bind:value={editForm.position}
+                        on:input={() => editErrors.position = validatePosition(editForm.position)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter position"
                       />
@@ -1181,9 +1277,13 @@
                         type="text"
                         id="edit-contactNumber"
                         bind:value={editForm.contactNumber}
+                        on:input={() => editErrors.contactNumber = validatePhoneNumber(editForm.contactNumber)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="+639..."
                       />
+                      {#if editErrors.contactNumber}
+                        <p class="mt-1 text-sm text-error">{editErrors.contactNumber}</p>
+                      {/if}
                     </div>
 
                     <div>
@@ -1195,9 +1295,13 @@
                       <textarea
                         id="edit-address"
                         bind:value={editForm.address}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        on:input={() => editErrors.address = validateAddress(editForm.address)}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.address ? 'border-error' : ''}"
                         rows="3"
                       ></textarea>
+                      {#if editErrors.address}
+                        <p class="mt-1 text-sm text-error">{editErrors.address}</p>
+                      {/if}
                     </div>
                   </div>
                 </div>
@@ -1236,6 +1340,7 @@
                         type="password"
                         id="edit-password"
                         bind:value={editForm.password}
+                        on:input={() => editErrors.password = validatePassword(editForm.password)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
                       />
                       {#if editErrors.password}
@@ -1249,8 +1354,12 @@
                         type="password"
                         id="edit-confirmPassword"
                         bind:value={editForm.confirmPassword}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                        on:input={() => editErrors.confirmPassword = validateConfirmPassword(editForm.confirmPassword)}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
                       />
+                      {#if editErrors.confirmPassword}
+                        <p class="mt-1 text-sm text-error">{editErrors.confirmPassword}</p>
+                      {/if}
                     </div>
                   </div>
                 </div>

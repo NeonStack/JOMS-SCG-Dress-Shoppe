@@ -1,6 +1,36 @@
 import { error } from '@sveltejs/kit';
 import { adminClient } from '$lib/adminClient';
 
+// Update validateInput functions to properly return error messages
+const validateInput = {
+  name: (name) => {
+    if (!name || typeof name !== 'string') return 'Name is required';
+    name = name.trim();
+    if (name.length < 2 || name.length > 50) return 'Name must be between 2-50 characters';
+    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Name can only contain letters and spaces';
+    return null;
+  },
+  phone: (phone) => {
+    if (!phone || typeof phone !== 'string') return 'Phone number is required';
+    if (!/^09\d{9}$/.test(phone)) return 'Phone number must be 11 digits starting with 09';
+    return null;
+  },
+  address: (address) => {
+    if (!address || typeof address !== 'string') return 'Address is required';
+    address = address.trim();
+    if (address.length < 5 || address.length > 200) return 'Address must be between 5-200 characters';
+    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) return 'Address contains invalid characters';
+    return null;
+  },
+  position: (position) => {
+    if (!position || typeof position !== 'string') return 'Position is required';
+    position = position.trim();
+    if (position.length < 2 || position.length > 50) return 'Position must be between 2-50 characters';
+    if (!/^[a-zA-Z\s\-]+$/.test(position)) return 'Position can only contain letters, spaces, and hyphens';
+    return null;
+  }
+};
+
 export const load = async ({ locals }) => {
   try {
     // Get all profile data with position info
@@ -107,6 +137,27 @@ export const actions = {
   updateAccount: async ({ request }) => {
     const formData = await request.formData();
     const userData = Object.fromEntries(formData);
+    
+    const errors = {};
+    const firstNameError = validateInput.name(userData.firstName);
+    if (firstNameError) errors.firstName = firstNameError;
+    
+    const lastNameError = validateInput.name(userData.lastName);
+    if (lastNameError) errors.lastName = lastNameError;
+    
+    const phoneError = validateInput.phone(userData.contactNumber);
+    if (phoneError) errors.contactNumber = phoneError;
+    
+    const addressError = validateInput.address(userData.address);
+    if (addressError) errors.address = addressError;
+    
+    const positionError = validateInput.position(userData.position);
+    if (positionError) errors.position = positionError;
+
+    if (Object.keys(errors).length > 0) {
+      return { error: 'Validation failed', errors };
+    }
+
     const password = formData.get('password');
 
     try {
@@ -142,39 +193,38 @@ export const actions = {
     const contactNumber = formData.get('contactNumber');
     const address = formData.get('address');
 
+    // Validation
+    const errors = {};
+    const firstNameError = validateInput.name(firstName);
+    if (firstNameError) errors.firstName = firstNameError;
+    
+    const lastNameError = validateInput.name(lastName);
+    if (lastNameError) errors.lastName = lastNameError;
+    
+    const phoneError = validateInput.phone(contactNumber);
+    if (phoneError) errors.contactNumber = phoneError;
+    
+    const addressError = validateInput.address(address);
+    if (addressError) errors.address = addressError;
+    
+    const positionError = validateInput.position(position);
+    if (positionError) errors.position = positionError;
+
+    if (Object.keys(errors).length > 0) {
+      return { error: 'Validation failed', errors };
+    }
+
     try {
-      // Check if user already exists
-      const { data: existingUser } = await adminClient.auth.admin.listUsers({
-        filter: `email eq '${email}'`
-      });
-
-      if (existingUser?.users?.length > 0) {
-        return {
-          status: 400,
-          body: { error: 'An account with this email already exists' }
-        };
-      }
-
-      // Create auth user
+      // Create auth user first
       const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: firstName,
-          last_name: lastName,
-          role: role
-        }
+        email_confirm: true
       });
 
-      if (authError) {
-        return {
-          status: 400,
-          body: { error: authError.message }
-        };
-      }
+      if (authError) throw authError;
 
-      // Create profile
+      // Create profile with the new user ID
       const { error: profileError } = await adminClient
         .from('profiles')
         .insert({
@@ -188,23 +238,21 @@ export const actions = {
         });
 
       if (profileError) {
-        // Clean up auth user if profile creation fails
+        // Rollback: delete auth user if profile creation fails
         await adminClient.auth.admin.deleteUser(authData.user.id);
-        return {
-          status: 400,
-          body: { error: profileError.message }
-        };
+        throw profileError;
       }
 
-      return { 
+      return {
         status: 200,
         body: { success: true }
       };
+
     } catch (err) {
-      console.error('Server error creating account:', err);
+      console.error('Error creating account:', err);
       return {
         status: 500,
-        body: { error: err.message || 'Internal server error' }
+        body: { error: err.message || 'Failed to create account' }
       };
     }
   }
