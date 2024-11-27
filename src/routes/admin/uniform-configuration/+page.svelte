@@ -211,7 +211,7 @@
                                 <span class="px-2 py-1 rounded-full text-sm
                                     {config.gender === 'male' ? 'bg-green-100 text-green-800' : 
                                     config.gender === 'female' ? 'bg-pink-100 text-pink-800' : 
-                                    'bg-purple-100 text-purple-800'}">
+                                    ''}">
                                     {config.gender}
                                 </span>
                             </td>
@@ -299,7 +299,6 @@
                                             <option value="">Select Gender</option>
                                             <option value="male" selected={selectedConfig?.gender === 'male'}>Male</option>
                                             <option value="female" selected={selectedConfig?.gender === 'female'}>Female</option>
-                                            <option value="unisex" selected={selectedConfig?.gender === 'unisex'}>Unisex</option>
                                         </select>
                                     </div>
                                     <div>

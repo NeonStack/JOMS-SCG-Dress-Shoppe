@@ -28,6 +28,7 @@
   let isStudentDropdownOpen = false;
   let isEmployeeDropdownOpen = false;
   let employeeSearchTerm = "";
+  let isLoading = false;
 
   $: filteredEmployees = data.employees.filter((employee) =>
     `${employee.first_name} ${employee.last_name}`
@@ -352,46 +353,50 @@
 
   // Modify this function
   const handleDeleteOrder = () => {
+    isLoading = true;
     return async ({ result }) => {
       if (result.type === "success") {
+        isLoading = false;
         orderToDelete = null; // Close modal
         reloadWithTab("pending");
       }
     };
   };
 
-  // Add this function to handle edit button click
+  //  handle edit button click
   function handleEditClick(order) {
     isEditing = true;
     orderToEdit = order;
-    // Find the complete student data including course from the students array
     selectedStudent = data.students.find((s) => s.id === order.student.id);
     selectedUniformType = order.uniform_type;
     selectedDueDate = order.due_date;
     showCreateModal = true;
   }
 
-  // Add this for edit form submission
+  // edit form submission
   const handleEditOrder = () => {
+    isLoading = true;
     return async ({ result }) => {
       if (result.type === "success") {
         resetForm();
         reloadWithTab("pending");
+        isLoading = false;
       }
     };
   };
 
   const handlePayment = () => {
     return async ({ result }) => {
+      isLoading = true;
       if (result.type === "success") {
         orderToPayment = null;
         paymentAmount = "";
-        reloadWithTab("payments"); // Use the new function instead of window.location.reload()
+        reloadWithTab("payments");
+        isLoading = false;
       }
     };
   };
 
-  // Add this function near the top with other utility functions
   function reloadWithTab(tab) {
     if (browser) {
       const url = new URL(window.location.href);
@@ -400,7 +405,6 @@
     }
   }
 
-  // Add this to handle tab persistence on page load
   $: {
     if (browser) {
       const params = new URLSearchParams(window.location.search);
@@ -439,6 +443,30 @@
       return sortDirection === "asc" ? comparison : -comparison;
     });
   }
+
+  // Add these new handlers
+  const handleFilter = () => {
+    isLoading = true;
+    return async ({ result }) => {
+      if (result.type === "success" && result.data.filteredOrders) {
+        filteredResults = result.data.filteredOrders;
+        await invalidate("app:orders");
+      }
+      isLoading = false;
+    };
+  };
+
+  const handleCreateClick = () => {
+    if (!isLoading) {
+      showCreateModal = true;
+    }
+  };
+
+  const handleRecordPayment = (order) => {
+    if (!isLoading) {
+      orderToPayment = order;
+    }
+  };
 </script>
 
 <!-- Student Search Modal -->
@@ -738,11 +766,21 @@
           </button>
           <button
             type="submit"
-            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+            class="px-6 py-2 rounded-lg transition-colors flex items-center gap-2
+              {selectedStudent && selectedUniformType && selectedDueDate
+              ? 'bg-primary text-white hover:bg-primary-dark'
+              : 'bg-gray-400 text-gray-700 cursor-not-allowed'}
+              {isLoading ? 'opacity-50 cursor-not-allowed' : ''}"
             disabled={!selectedStudent ||
               !selectedUniformType ||
-              !selectedDueDate}
+              !selectedDueDate ||
+              isLoading}
           >
+            {#if isLoading}
+              <div
+                class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+              ></div>
+            {/if}
             {isEditing ? "Save Changes" : "Create Order"}
           </button>
         </div>
@@ -779,8 +817,16 @@
         </button>
         <button
           type="submit"
-          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2 {isLoading
+            ? 'opacity-50 cursor-not-allowed'
+            : ''}"
+          disabled={isLoading}
         >
+          {#if isLoading}
+            <div
+              class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+            ></div>
+          {/if}
           Delete
         </button>
       </form>
@@ -942,22 +988,16 @@
           </button>
           <button
             type="submit"
-            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
+            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 {isLoading
+              ? 'opacity-50 cursor-not-allowed'
+              : ''}"
+            disabled={isLoading}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
+            {#if isLoading}
+              <div
+                class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+              ></div>
+            {/if}
             Record Payment
           </button>
         </div>
@@ -971,9 +1011,17 @@
   <div class="flex justify-between mb-6">
     <h1 class="text-2xl font-bold text-foreground">Order Management</h1>
     <button
-      class="bg-primary text-white px-4 py-2 rounded-lg"
-      on:click={() => (showCreateModal = true)}
+      class="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 {isLoading
+        ? 'opacity-50 cursor-not-allowed'
+        : ''}"
+      on:click={handleCreateClick}
+      disabled={isLoading}
     >
+      {#if isLoading}
+        <div
+          class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+        ></div>
+      {/if}
       Create New Order
     </button>
   </div>
@@ -1127,9 +1175,16 @@
             />
             <button
               type="submit"
-              class="bg-accent text-white px-4 py-2 rounded hover:bg-accent-hover transition-colors"
-              disabled={!selectedEmployee}
+              class="bg-accent text-white px-4 py-2 rounded hover:bg-accent-hover transition-colors flex items-center gap-2 {isLoading
+                ? 'opacity-50 cursor-not-allowed'
+                : ''}"
+              disabled={!selectedEmployee || isLoading}
             >
+              {#if isLoading}
+                <div
+                  class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                ></div>
+              {/if}
               Assign Orders
             </button>
           </form>
@@ -1210,8 +1265,9 @@
                 </td>
                 <td class="p-2">
                   <button
-                    class="text-blue-600 hover:text-blue-800"
-                    on:click={() => (orderToPayment = order)}
+                    class="text-blue-600 hover:text-blue-800 {isLoading ? 'opacity-50 cursor-not-allowed' : ''}"
+                    on:click={() => handleRecordPayment(order)}
+                    disabled={isLoading}
                   >
                     Record Payment
                   </button>
@@ -1228,7 +1284,7 @@
         <form
           method="POST"
           action="?/filterOrders"
-          use:enhance={handleFilterOrders}
+          use:enhance={handleFilter}
           class="flex gap-4"
         >
           <input
@@ -1245,9 +1301,16 @@
           />
           <button
             type="submit"
-            class="bg-secondary text-white px-4 py-2 rounded"
-            disabled={!dateRange.start || !dateRange.end}
+            class="bg-secondary text-white px-4 py-2 rounded flex items-center gap-2 {isLoading
+              ? 'opacity-50 cursor-not-allowed'
+              : ''}"
+            disabled={!dateRange.start || !dateRange.end || isLoading}
           >
+            {#if isLoading}
+              <div
+                class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+              ></div>
+            {/if}
             Filter
           </button>
           {#if filteredResults}

@@ -11,6 +11,65 @@
         address: profile.address || ''
     };
 
+    let errors = {
+        first_name: '',
+        last_name: '',
+        contact_number: '',
+        address: ''
+    };
+
+    // Validation functions
+    function validateName(name, field) {
+        if (name.length < 2 || name.length > 50) {
+            errors[field] = 'Name must be between 2-50 characters';
+            return false;
+        }
+        if (/[0-9]/.test(name)) {
+            errors[field] = 'Name cannot contain numbers';
+            return false;
+        }
+        if (!/^[a-zA-Z\s]*$/.test(name)) {
+            errors[field] = 'Name can only contain letters and spaces';
+            return false;
+        }
+        errors[field] = '';
+        return true;
+    }
+
+    function validatePhone(phone) {
+        if (!/^09\d{9}$/.test(phone)) {
+            errors.contact_number = 'Phone number must start with 09 and have 11 digits';
+            return false;
+        }
+        errors.contact_number = '';
+        return true;
+    }
+
+    function validateAddress(address) {
+        if (!/^[a-zA-Z0-9\s,\-\.#]+$/.test(address)) {
+            errors.address = 'Address can only contain letters, numbers, and common symbols (,-.#)';
+            return false;
+        }
+        errors.address = '';
+        return true;
+    }
+
+    let isSubmitting = false;
+
+    async function handleSubmit(event) {
+        const isFirstNameValid = validateName(formData.first_name, 'first_name');
+        const isLastNameValid = validateName(formData.last_name, 'last_name');
+        const isPhoneValid = formData.contact_number ? validatePhone(formData.contact_number) : true;
+        const isAddressValid = formData.address ? validateAddress(formData.address) : true;
+
+        if (!isFirstNameValid || !isLastNameValid || !isPhoneValid || !isAddressValid) {
+            event.preventDefault();
+            return;
+        }
+
+        isSubmitting = true;
+    }
+
     const initials = `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
     const displayRole = profile.role === 'employee' ? 'Tailor' : profile.role;
 
@@ -51,7 +110,7 @@
         </div>
 
         {#if editing}
-            <form method="POST" action="?/updateProfile" class="bg-muted rounded-lg p-6 shadow-sm space-y-6">
+            <form method="POST" action="?/updateProfile" class="bg-muted rounded-lg p-6 shadow-sm space-y-6" on:submit={handleSubmit}>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-secondary" for="first_name">First Name</label>
@@ -61,8 +120,12 @@
                             name="first_name"
                             class="w-full p-2 rounded-md bg-input border border-border"
                             bind:value={formData.first_name}
+                            on:input={() => validateName(formData.first_name, 'first_name')}
                             required
                         />
+                        {#if errors.first_name}
+                            <p class="text-xs text-error mt-1">{errors.first_name}</p>
+                        {/if}
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-secondary" for="last_name">Last Name</label>
@@ -72,8 +135,12 @@
                             name="last_name"
                             class="w-full p-2 rounded-md bg-input border border-border"
                             bind:value={formData.last_name}
+                            on:input={() => validateName(formData.last_name, 'last_name')}
                             required
                         />
+                        {#if errors.last_name}
+                            <p class="text-xs text-error mt-1">{errors.last_name}</p>
+                        {/if}
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-secondary" for="contact_number">Contact Number</label>
@@ -83,7 +150,12 @@
                             name="contact_number"
                             class="w-full p-2 rounded-md bg-input border border-border"
                             bind:value={formData.contact_number}
+                            on:input={() => formData.contact_number && validatePhone(formData.contact_number)}
+                            placeholder="09XXXXXXXXX"
                         />
+                        {#if errors.contact_number}
+                            <p class="text-xs text-error mt-1">{errors.contact_number}</p>
+                        {/if}
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium text-secondary" for="address">Address</label>
@@ -93,15 +165,30 @@
                             name="address"
                             class="w-full p-2 rounded-md bg-input border border-border"
                             bind:value={formData.address}
+                            on:input={() => formData.address && validateAddress(formData.address)}
                         />
+                        {#if errors.address}
+                            <p class="text-xs text-error mt-1">{errors.address}</p>
+                        {/if}
                     </div>
                 </div>
                 <div class="flex justify-end space-x-4">
                     <button 
                         type="submit"
-                        class="px-4 py-2 bg-primary text-accent-foreground rounded-md hover:bg-accent"
+                        class="px-4 py-2 bg-primary text-accent-foreground rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isSubmitting}
                     >
-                        Save Changes
+                        {#if isSubmitting}
+                            <span class="inline-flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </span>
+                        {:else}
+                            Save Changes
+                        {/if}
                     </button>
                 </div>
             </form>

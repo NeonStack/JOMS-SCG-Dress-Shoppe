@@ -26,6 +26,14 @@ export const load = async ({ locals }) => {
     };
 };
 
+function toSentenceCase(str) {
+    return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 export const actions = {
     updateProfile: async ({ request, locals }) => {
         if (!locals.session) {
@@ -34,10 +42,10 @@ export const actions = {
 
         const formData = await request.formData();
         const updates = {
-            first_name: formData.get('first_name'),
-            last_name: formData.get('last_name'),
+            first_name: toSentenceCase(formData.get('first_name')),
+            last_name: toSentenceCase(formData.get('last_name')),
             contact_number: formData.get('contact_number'),
-            address: formData.get('address')
+            address: toSentenceCase(formData.get('address') || '')
         };
 
         const { error: updateError } = await locals.supabase
