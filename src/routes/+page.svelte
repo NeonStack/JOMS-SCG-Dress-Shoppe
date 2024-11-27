@@ -39,10 +39,10 @@
         class="w-full max-w-md h-auto object-contain mb-8"
       />
       <div class="w-full max-w-md">
-        <h2 class="text-xl font-bold text-foreground mb-4">Job Online Monitoring System</h2>
+        <h2 class="text-xl font-bold text-foreground mb-4">Job Order Monitoring System</h2>
         <p class="text-secondary mb-2">This system is exclusively for SCG Dress Shoppe employees.</p>
         <p class="text-secondary mb-2">If you're having trouble logging in, please contact the admin.</p>
-        <p class="text-primary text-sm mt-4">JOMS v1.0 - Job Order Management System</p>
+        <p class="text-primary text-sm mt-4">JOMS v1.0 - Job Order Monitoring System</p>
       </div>
     </div>
     <div class="w-1/2 max-lg:w-full max-w-md flex">
