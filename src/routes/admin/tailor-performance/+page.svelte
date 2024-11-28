@@ -26,7 +26,7 @@
 
     // Updated sort icons to match course page
     function getSortIcon(column) {
-        if (sortState.column !== column) return '↕';
+        if (sortState.column !== column) return '';
         return sortState.direction === 'asc' ? '↑' : '↓';
     }
 
