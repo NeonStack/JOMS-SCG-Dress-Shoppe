@@ -15,6 +15,13 @@
       </svg>`,
     },
     {
+      name: "Tailor Performance",
+      href: "/admin/tailor-performance",
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" {...$$props}>
+	<path fill="currentColor" d="M3 22V8h4v14zm7 0V2h4v20zm7 0v-8h4v8z" />
+</svg>`,
+    },
+    {
       name: "Student Courses",
       href: "/admin/course",
       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" {...$$props}>
