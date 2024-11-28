@@ -1,4 +1,6 @@
 <script>
+    import { get } from "svelte/store";
+
     export let data;
     let dateRange = { start: '', end: '' };
     let selectedEmployee = 'all';
@@ -418,19 +420,27 @@
                     <tr class="bg-gray-50">
                         <th class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
                             on:click={() => toggleSort('created_at')}>
-                            Order Date {getSortIcon('created_at')}
+                            Order Date {#if sortState.column === 'created_at'}
+                            <span class="ml-1">{sortState.direction === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
                         </th>
                         <th class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
                             on:click={() => toggleSort('due_date')}>
-                            Due Date {getSortIcon('due_date')}
+                            Due Date {#if sortState.column === 'due_date'}
+                            <span class="ml-1">{sortState.direction === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
                         </th>
                         <th class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
                             on:click={() => toggleSort('student')}>
-                            Student Details {getSortIcon('student')}
+                            Student Details {#if sortState.column === 'student'}
+                            <span class="ml-1">{sortState.direction === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
                         </th>
                         <th class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
                             on:click={() => toggleSort('employee')}>
-                            Assigned Tailor {getSortIcon('employee')}
+                            Assigned Tailor {#if sortState.column === 'employee'}
+                            <span class="ml-1">{sortState.direction === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
                         </th>
                         <th class="p-3 text-left font-semibold">Order Status</th>
                     </tr>
