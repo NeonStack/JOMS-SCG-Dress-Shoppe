@@ -18,7 +18,8 @@ export async function load({ locals: { supabase } }) {
                 employee:profiles!orders_employee_id_fkey(
                     id,
                     first_name,
-                    last_name
+                    last_name,
+                    position
                 ),
                 student:students!orders_student_id_fkey(
                     first_name,
@@ -26,7 +27,9 @@ export async function load({ locals: { supabase } }) {
                     course:courses(
                         course_code
                     )
-                )
+                ),
+                order_measurements,
+                uniform_type
             `)
             .order('created_at', { ascending: false });
         
@@ -34,8 +37,24 @@ export async function load({ locals: { supabase } }) {
         return orders;
     };
 
+    // Get historical completion times for prediction
+    const getHistoricalMetrics = async () => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const { data, error } = await supabase
+            .from('orders')
+            .select('uniform_type, created_at, updated_at')
+            .eq('status', 'completed')
+            .gte('created_at', thirtyDaysAgo.toISOString());
+
+        if (error) throw error(500, error.message);
+        return data;
+    };
+
     return {
         employees: await getEmployees(),
-        performanceData: await getPerformanceMetrics()
+        performanceData: await getPerformanceMetrics(),
+        historicalMetrics: await getHistoricalMetrics()
     };
 }
