@@ -506,6 +506,115 @@
       ? `${employee.first_name} ${employee.last_name}`
       : "Unknown Employee";
   };
+
+  // Add tab state
+  let activeTab = 'overview';
+
+  // Modified ranking calculation to get fastest completion per employee
+  function calculateFastestCompletions(orders) {
+    // Group orders by employee
+    const employeeOrders = orders
+      .filter(order => order.status === 'completed' && order.employee)
+      .reduce((acc, order) => {
+        if (!acc[order.employee.id]) {
+          acc[order.employee.id] = [];
+        }
+        acc[order.employee.id].push(order);
+        return acc;
+      }, {});
+
+    // Find fastest completion for each employee
+    const fastestPerEmployee = Object.entries(employeeOrders).map(([employeeId, orders]) => {
+      return orders
+        .map(order => {
+          const startDate = new Date(order.created_at);
+          const completedDate = new Date(order.updated_at);
+          const dueDate = new Date(order.due_date);
+          
+          const availableDays = (dueDate - startDate) / (1000 * 60 * 60 * 24);
+          const daysUsed = (completedDate - startDate) / (1000 * 60 * 60 * 24);
+          const timeEfficiency = (daysUsed / availableDays) * 100;
+
+          return {
+            orderId: order.id,
+            employee: order.employee,
+            student: order.student,
+            uniformType: order.uniform_type,
+            availableDays: availableDays.toFixed(1),
+            daysUsed: daysUsed.toFixed(1),
+            timeEfficiency: timeEfficiency.toFixed(1),
+            orderDate: startDate,
+            completedDate: completedDate,
+            dueDate: dueDate
+          };
+        })
+        .reduce((fastest, current) => {
+          return !fastest || parseFloat(current.timeEfficiency) < parseFloat(fastest.timeEfficiency) 
+            ? current 
+            : fastest;
+        }, null);
+    });
+
+    // Sort by efficiency (ascending - lower is better)
+    return fastestPerEmployee
+      .filter(record => record !== null)
+      .sort((a, b) => parseFloat(a.timeEfficiency) - parseFloat(b.timeEfficiency));
+  }
+
+  $: fastestCompletions = calculateFastestCompletions(data.performanceData || []);
+
+  // Add these new functions before the script end
+  function calculateMostCompletedOrders(orders) {
+    const completedByEmployee = orders
+      .filter(order => order.status === 'completed' && order.employee)
+      .reduce((acc, order) => {
+        const empId = order.employee.id;
+        if (!acc[empId]) {
+          acc[empId] = {
+            employee: order.employee,
+            totalOrders: 0,
+            completedOrders: []
+          };
+        }
+        acc[empId].totalOrders++;
+        acc[empId].completedOrders.push(order);
+        return acc;
+      }, {});
+
+    return Object.values(completedByEmployee)
+      .sort((a, b) => b.totalOrders - a.totalOrders);
+  }
+
+  function calculateOneDayCompletions(orders) {
+    const quickCompletions = orders
+      .filter(order => {
+        if (!order.status === 'completed' || !order.employee) return false;
+        const startDate = new Date(order.created_at);
+        const completedDate = new Date(order.updated_at);
+        const daysDiff = (completedDate - startDate) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 1;
+      })
+      .reduce((acc, order) => {
+        const empId = order.employee.id;
+        if (!acc[empId]) {
+          acc[empId] = {
+            employee: order.employee,
+            totalQuickOrders: 0,
+            orders: []
+          };
+        }
+        acc[empId].totalQuickOrders++;
+        acc[empId].orders.push(order);
+        return acc;
+      }, {});
+
+    return Object.values(quickCompletions)
+      .sort((a, b) => b.totalQuickOrders - a.totalQuickOrders);
+  }
+
+  $: mostCompletedOrders = calculateMostCompletedOrders(data.performanceData || []);
+  $: oneDayCompletions = calculateOneDayCompletions(data.performanceData || []);
+
 </script>
 
 <div class="p-6 space-y-6">
@@ -537,362 +646,503 @@
     </div>
   </div>
 
-  <!-- Replace the Filters Card section -->
-  <div class="bg-white p-4 rounded-lg shadow-md">
-    <div class="flex flex-row flex-nowrap gap-4 w-full">
-      <!-- Order Date Range -->
-      <div class="w-full">
-        <label class="block text-sm font-medium text-gray-700 mb-1"
-          >Order Date Range</label
-        >
-        <div class="flex items-center gap-2">
-          <input
-            type="date"
-            id="order-date-start"
-            bind:value={orderDateRange.start}
-            on:change={validateDateRanges}
-            class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-          />
-          <span class="text-gray-400">to</span>
-          <input
-            type="date"
-            id="order-date-end"
-            bind:value={orderDateRange.end}
-            on:change={validateDateRanges}
-            class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-          />
-        </div>
-      </div>
-
-      <!-- Due Date Range -->
-      <div class="w-full">
-        <label class="block text-sm font-medium text-gray-700 mb-1"
-          >Due Date Range</label
-        >
-        <div class="flex items-center gap-2">
-          <input
-            type="date"
-            id="due-date-start"
-            bind:value={dueDateRange.start}
-            on:change={validateDateRanges}
-            class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-          />
-          <span class="text-gray-400">to</span>
-          <input
-            type="date"
-            id="due-date-end"
-            bind:value={dueDateRange.end}
-            on:change={validateDateRanges}
-            class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-          />
-        </div>
-      </div>
-
-      <!-- Tailor Select -->
-      <div class="w-full flex justify-end flex-col">
-        <select
-          bind:value={selectedEmployee}
-          class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-        >
-          <option value="all">All Tailors</option>
-          {#each data.employees as employee}
-            <option value={employee.id}>
-              {formatName(employee.first_name, employee.last_name)}
-            </option>
-          {/each}
-        </select>
-      </div>
-
-      <!-- Status Select -->
-      <div class="w-full flex justify-end flex-col">
-        <select
-          bind:value={selectedStatus}
-          class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-
-      <!-- Clear Filters Button -->
-      <div class="w-full flex justify-end flex-col">
-        <button
-          on:click={clearFilters}
-          class="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-        >
-          Clear All
-        </button>
-      </div>
-    </div>
+  <!-- Add Tab Navigation -->
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8">
+      <button
+        class="py-4 px-1 {activeTab === 'overview' ? 'border-b-2 border-primary text-primary' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        on:click={() => activeTab = 'overview'}
+      >
+        Overview
+      </button>
+      <button
+        class="py-4 px-1 {activeTab === 'rankings' ? 'border-b-2 border-primary text-primary' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        on:click={() => activeTab = 'rankings'}
+      >
+        Rankings
+      </button>
+    </nav>
   </div>
 
-  <!-- Replace the Orders Table and Metrics Cards sections with this new layout -->
-  <div class="space-y-4">
-    <!-- Top row: Key Metrics Overview -->
-    <div class="grid grid-cols-4 gap-4">
-      <!-- Quick Stats -->
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="text-lg font-semibold text-gray-900">{metrics.totalOrders}</div>
-        <div class="text-sm text-gray-500">Total Orders</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="text-lg font-semibold text-green-600">{metrics.completedOrders}</div>
-        <div class="text-sm text-gray-500">Completed Orders</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="text-lg font-semibold text-red-600">{metrics.lateOrders}</div>
-        <div class="text-sm text-gray-500">Late Orders</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="text-lg font-semibold text-primary">{metrics.efficiencyRate}%</div>
-        <div class="text-sm text-gray-500">On-Time Rate</div>
+  {#if activeTab === 'overview'}
+    <!-- Existing Overview Content -->
+    <!-- Replace the Filters Card section -->
+    <div class="bg-white p-4 rounded-lg shadow-md">
+      <div class="flex flex-row flex-nowrap gap-4 w-full">
+        <!-- Order Date Range -->
+        <div class="w-full">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Order Date Range</label
+          >
+          <div class="flex items-center gap-2">
+            <input
+              type="date"
+              id="order-date-start"
+              bind:value={orderDateRange.start}
+              on:change={validateDateRanges}
+              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+            <span class="text-gray-400">to</span>
+            <input
+              type="date"
+              id="order-date-end"
+              bind:value={orderDateRange.end}
+              on:change={validateDateRanges}
+              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+          </div>
+        </div>
+
+        <!-- Due Date Range -->
+        <div class="w-full">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Due Date Range</label
+          >
+          <div class="flex items-center gap-2">
+            <input
+              type="date"
+              id="due-date-start"
+              bind:value={dueDateRange.start}
+              on:change={validateDateRanges}
+              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+            <span class="text-gray-400">to</span>
+            <input
+              type="date"
+              id="due-date-end"
+              bind:value={dueDateRange.end}
+              on:change={validateDateRanges}
+              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+          </div>
+        </div>
+
+        <!-- Tailor Select -->
+        <div class="w-full flex justify-end flex-col">
+          <select
+            bind:value={selectedEmployee}
+            class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+          >
+            <option value="all">All Tailors</option>
+            {#each data.employees as employee}
+              <option value={employee.id}>
+                {formatName(employee.first_name, employee.last_name)}
+              </option>
+            {/each}
+          </select>
+        </div>
+
+        <!-- Status Select -->
+        <div class="w-full flex justify-end flex-col">
+          <select
+            bind:value={selectedStatus}
+            class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="in progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        <div class="w-full flex justify-end flex-col">
+          <button
+            on:click={clearFilters}
+            class="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+          >
+            Clear All
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Middle row: Employee Performance and Analysis -->
-    <div class="grid grid-cols-3 gap-4">
-      <!-- Employee Ranking Card - Larger and more prominent -->
-      <div class="bg-white p-4 rounded-lg shadow-md col-span-1">
-        <h3 class="text-sm font-semibold text-gray-800 mb-3">Top Performers</h3>
-        <div class="space-y-3">
-          {#each (metrics.employeeComparison || []).slice(0, 5) as employee, i}
-            <div class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="font-medium">{employee.name}</div>
-                  <div class="text-xs text-gray-600">
-                    {employee.metrics.totalOrders} orders • {employee.metrics.onTimeDeliveryRate}% on-time
+    <!-- Replace the Orders Table and Metrics Cards sections with this new layout -->
+    <div class="space-y-4">
+      <!-- Top row: Key Metrics Overview -->
+      <div class="grid grid-cols-4 gap-4">
+        <!-- Quick Stats -->
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <div class="text-lg font-semibold text-gray-900">{metrics.totalOrders}</div>
+          <div class="text-sm text-gray-500">Total Orders</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <div class="text-lg font-semibold text-green-600">{metrics.completedOrders}</div>
+          <div class="text-sm text-gray-500">Completed Orders</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <div class="text-lg font-semibold text-red-600">{metrics.lateOrders}</div>
+          <div class="text-sm text-gray-500">Late Orders</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <div class="text-lg font-semibold text-primary">{metrics.efficiencyRate}%</div>
+          <div class="text-sm text-gray-500">On-Time Rate</div>
+        </div>
+      </div>
+
+      <!-- Middle row: Employee Performance and Analysis -->
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Employee Ranking Card - Larger and more prominent -->
+        <div class="bg-white p-4 rounded-lg shadow-md col-span-1">
+          <h3 class="text-sm font-semibold text-gray-800 mb-3">Top Performers</h3>
+          <div class="space-y-3">
+            {#each (metrics.employeeComparison || []).slice(0, 5) as employee, i}
+              <div class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="font-medium">{employee.name}</div>
+                    <div class="text-xs text-gray-600">
+                      {employee.metrics.totalOrders} orders • {employee.metrics.onTimeDeliveryRate}% on-time
+                    </div>
+                  </div>
+                  <div class="text-sm font-semibold {i === 0 ? 'text-green-600' : 'text-gray-600'}">
+                    {employee.metrics.avgCompletionTime}d avg
                   </div>
                 </div>
-                <div class="text-sm font-semibold {i === 0 ? 'text-green-600' : 'text-gray-600'}">
-                  {employee.metrics.avgCompletionTime}d avg
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Time Analysis and Workload Cards -->
+        <div class="space-y-4 col-span-2">
+          <!-- Time Analysis -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white p-4 rounded-lg shadow-md">
+              <h3 class="text-sm font-semibold text-gray-800 mb-3">Completion Times</h3>
+              <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Fastest</span>
+                  <span class="font-semibold text-green-600">{metrics.fastestCompletion}d</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Average</span>
+                  <span class="font-semibold text-blue-600">{metrics.averageCompletionTime}d</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Slowest</span>
+                  <span class="font-semibold text-red-600">{metrics.slowestCompletion}d</span>
                 </div>
               </div>
             </div>
-          {/each}
-        </div>
-      </div>
 
-      <!-- Time Analysis and Workload Cards -->
-      <div class="space-y-4 col-span-2">
-        <!-- Time Analysis -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-white p-4 rounded-lg shadow-md">
-            <h3 class="text-sm font-semibold text-gray-800 mb-3">Completion Times</h3>
-            <div class="space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">Fastest</span>
-                <span class="font-semibold text-green-600">{metrics.fastestCompletion}d</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">Average</span>
-                <span class="font-semibold text-blue-600">{metrics.averageCompletionTime}d</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">Slowest</span>
-                <span class="font-semibold text-red-600">{metrics.slowestCompletion}d</span>
+            <!-- Workload Distribution -->
+            <div class="bg-white p-4 rounded-lg shadow-md">
+              <h3 class="text-sm font-semibold text-gray-800 mb-3">Weekly Distribution</h3>
+              <div class="space-y-2">
+                {#each Object.entries(metrics.workloadDistribution || {}) as [day, count]}
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">{day}</span>
+                    <span class="font-semibold">{count}</span>
+                  </div>
+                {/each}
               </div>
             </div>
           </div>
 
-          <!-- Workload Distribution -->
+          <!-- Uniform Type Analysis -->
           <div class="bg-white p-4 rounded-lg shadow-md">
-            <h3 class="text-sm font-semibold text-gray-800 mb-3">Weekly Distribution</h3>
-            <div class="space-y-2">
-              {#each Object.entries(metrics.workloadDistribution || {}) as [day, count]}
-                <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600">{day}</span>
-                  <span class="font-semibold">{count}</span>
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Uniform Type Analysis</h3>
+            <div class="grid grid-cols-3 gap-4">
+              {#each ['upper', 'lower', 'both'] as type}
+                <div class="p-3 bg-gray-50 rounded-lg">
+                  <div class="text-sm font-medium capitalize">{type}</div>
+                  <div class="text-lg font-semibold text-blue-600">
+                    {metrics.averageTimePerUniform?.[type] || '0'}d
+                  </div>
+                  <div class="text-xs text-gray-500">avg. completion</div>
                 </div>
               {/each}
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Uniform Type Analysis -->
-        <div class="bg-white p-4 rounded-lg shadow-md">
-          <h3 class="text-sm font-semibold text-gray-800 mb-3">Uniform Type Analysis</h3>
-          <div class="grid grid-cols-3 gap-4">
-            {#each ['upper', 'lower', 'both'] as type}
-              <div class="p-3 bg-gray-50 rounded-lg">
-                <div class="text-sm font-medium capitalize">{type}</div>
-                <div class="text-lg font-semibold text-blue-600">
-                  {metrics.averageTimePerUniform?.[type] || '0'}d
-                </div>
-                <div class="text-xs text-gray-500">avg. completion</div>
-              </div>
-            {/each}
+      <!-- Bottom row: Orders Table -->
+      <div class="bg-white rounded-lg shadow-md">
+        <div class="p-4 border-b">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Order Details</h2>
+            <input 
+              type="text"
+              bind:value={searchQuery}
+              placeholder="Search orders..."
+              class="px-4 py-2 border rounded-lg w-64"
+            />
           </div>
+        </div>
+        <!-- Existing table code with the new columns -->
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="bg-muted">
+                <th
+                  class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
+                  on:click={() => toggleSort("created_at")}
+                >
+                  Order Date {#if sortState.column === "created_at"}
+                    <span class="ml-1"
+                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
+                    >
+                  {/if}
+                </th>
+                <th
+                  class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
+                  on:click={() => toggleSort("due_date")}
+                >
+                  Due Date {#if sortState.column === "due_date"}
+                    <span class="ml-1"
+                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
+                    >
+                  {/if}
+                </th>
+                <th
+                  class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
+                  on:click={() => toggleSort("student")}
+                >
+                  Student Details {#if sortState.column === "student"}
+                    <span class="ml-1"
+                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
+                    >
+                  {/if}
+                </th>
+                <th
+                  class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
+                  on:click={() => toggleSort("employee")}
+                >
+                  Assigned Tailor {#if sortState.column === "employee"}
+                    <span class="ml-1"
+                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
+                    >
+                  {/if}
+                </th>
+                <th class="p-3 text-left font-semibold">
+                  Days to Complete / Estimated
+                </th>
+                <th class="p-3 text-left font-semibold">Order Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each filteredOrders as order}
+                {@const workInfo = calculateWorkDuration(order)}
+                <tr class="border-b hover:bg-gray-50">
+                  <td class="p-3">
+                    <div class="space-y-1">
+                      <div class="font-medium">
+                        {formatDate(order.created_at)}
+                      </div>
+                      <div class="text-xs text-gray-500">Order #{order.id}</div>
+                    </div>
+                  </td>
+                  <td class="p-3">
+                    <div class="space-y-1">
+                      <div class="font-medium">{formatDate(order.due_date)}</div>
+                      {#if order.status === 'completed' && order.updated_at}
+                        <div class="text-xs text-gray-500">
+                          Completed: {formatDate(order.updated_at)}
+                        </div>
+                      {/if}
+                    </div>
+                  </td>
+                  <td class="p-3">
+                    <div class="space-y-1">
+                      <div class="font-medium">
+                        {formatName(
+                          order.student?.first_name,
+                          order.student?.last_name
+                        )}
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        {order.student?.course?.course_code || "No course"}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-3">
+                    {#if order.employee}
+                      <div class="font-medium">
+                        {formatName(
+                          order.employee.first_name,
+                          order.employee.last_name
+                        )}
+                      </div>
+                    {:else}
+                      <div class="text-gray-500">Unassigned</div>
+                    {/if}
+                  </td>
+                  <td class="p-3">
+                    {#if order.status === 'completed'}
+                      {#if order.updated_at}
+                        {@const days = (new Date(order.updated_at) - new Date(order.created_at)) / (1000 * 60 * 60 * 24)}
+                        <div class="text-sm">
+                          <span class="font-medium">{days.toFixed(1)} days</span>
+                        </div>
+                      {/if}
+                    {:else}
+                      {#if metrics.predictedCompletions[order.id]}
+                        <div class="text-sm">
+                          <span class="text-gray-600">Est. {metrics.predictedCompletions[order.id].days} days</span>
+                          <span class="text-xs text-gray-400 block">
+                            Based on {order.status === 'pending' ? 'general' : `${order.employee.first_name}'s`} 
+                            {order.uniform_type} wear average
+                          </span>
+                        </div>
+                      {:else}
+                        <div class="text-sm text-gray-400">
+                          No data to estimate
+                        </div>
+                      {/if}
+                    {/if}
+                  </td>
+                  <td class="p-3">
+                    {#if order}
+                      {@const status = getStatusDetails(order)}
+                      <div class="space-y-1">
+                        <span
+                          class={`px-2 py-1 text-xs font-medium rounded-full
+                                                ${
+                                                  status.mainStatus ===
+                                                  "completed"
+                                                    ? "bg-green-100 text-green-800"
+                                                    : status.mainStatus ===
+                                                        "in progress"
+                                                      ? "bg-blue-100 text-blue-800"
+                                                      : "bg-gray-100 text-gray-800"
+                                                }`}
+                        >
+                          {status.mainStatus}
+                        </span>
+                        <div class={`text-xs ${status.statusClass}`}>
+                          {status.statusMessage}
+                        </div>
+                      </div>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
+  {/if}
 
-    <!-- Bottom row: Orders Table -->
-    <div class="bg-white rounded-lg shadow-md">
-      <div class="p-4 border-b">
-        <div class="flex justify-between items-center">
-          <h2 class="text-lg font-semibold">Order Details</h2>
-          <input 
-            type="text"
-            bind:value={searchQuery}
-            placeholder="Search orders..."
-            class="px-4 py-2 border rounded-lg w-64"
-          />
-        </div>
+  {#if activeTab === 'rankings'}
+  <div class="grid grid-cols-3 gap-6">
+    <!-- Left Column: Fastest Completions -->
+    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
+      <p class="text-xs text-gray-500 mb-4">Best time efficiency per tailor</p>
+      <div class="space-y-3 overflow-auto flex-1">
+        {#each fastestCompletions as completion, i}
+          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2 py-1 rounded-full text-sm font-bold 
+                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
+                 i === 1 ? 'bg-gray-100 text-gray-700' : 
+                 i === 2 ? 'bg-amber-100 text-amber-700' : 
+                 'bg-gray-50 text-gray-600'}">
+                #{i + 1}
+              </span>
+              <div class="font-medium text-gray-900">
+                {completion.employee?.first_name} {completion.employee?.last_name}
+              </div>
+            </div>
+            <div class="text-xs text-gray-500 mb-2 capitalize">{completion.uniformType} uniform</div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span class="text-gray-500">Time Given</span>
+                <span class="float-right font-medium">{completion.availableDays}d</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Used</span>
+                <span class="float-right font-medium text-primary">{completion.daysUsed}d</span>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-t text-right">
+              <span class="font-bold {
+                parseFloat(completion.timeEfficiency) <= 50 ? 'text-green-600' : 
+                parseFloat(completion.timeEfficiency) <= 75 ? 'text-blue-600' : 
+                'text-gray-600'
+              }">
+                {completion.timeEfficiency}% of time used
+              </span>
+            </div>
+          </div>
+        {/each}
       </div>
-      <!-- Existing table code with the new columns -->
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead>
-            <tr class="bg-muted">
-              <th
-                class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
-                on:click={() => toggleSort("created_at")}
-              >
-                Order Date {#if sortState.column === "created_at"}
-                  <span class="ml-1"
-                    >{sortState.direction === "asc" ? "↑" : "↓"}</span
-                  >
-                {/if}
-              </th>
-              <th
-                class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
-                on:click={() => toggleSort("due_date")}
-              >
-                Due Date {#if sortState.column === "due_date"}
-                  <span class="ml-1"
-                    >{sortState.direction === "asc" ? "↑" : "↓"}</span
-                  >
-                {/if}
-              </th>
-              <th
-                class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
-                on:click={() => toggleSort("student")}
-              >
-                Student Details {#if sortState.column === "student"}
-                  <span class="ml-1"
-                    >{sortState.direction === "asc" ? "↑" : "↓"}</span
-                  >
-                {/if}
-              </th>
-              <th
-                class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
-                on:click={() => toggleSort("employee")}
-              >
-                Assigned Tailor {#if sortState.column === "employee"}
-                  <span class="ml-1"
-                    >{sortState.direction === "asc" ? "↑" : "↓"}</span
-                  >
-                {/if}
-              </th>
-              <th class="p-3 text-left font-semibold">
-                Days to Complete / Estimated
-              </th>
-              <th class="p-3 text-left font-semibold">Order Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each filteredOrders as order}
-              {@const workInfo = calculateWorkDuration(order)}
-              <tr class="border-b hover:bg-gray-50">
-                <td class="p-3">
-                  <div class="space-y-1">
-                    <div class="font-medium">
-                      {formatDate(order.created_at)}
-                    </div>
-                    <div class="text-xs text-gray-500">Order #{order.id}</div>
-                  </div>
-                </td>
-                <td class="p-3">
-                  <div class="space-y-1">
-                    <div class="font-medium">{formatDate(order.due_date)}</div>
-                    {#if order.status === 'completed' && order.updated_at}
-                      <div class="text-xs text-gray-500">
-                        Completed: {formatDate(order.updated_at)}
-                      </div>
-                    {/if}
-                  </div>
-                </td>
-                <td class="p-3">
-                  <div class="space-y-1">
-                    <div class="font-medium">
-                      {formatName(
-                        order.student?.first_name,
-                        order.student?.last_name
-                      )}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {order.student?.course?.course_code || "No course"}
-                    </div>
-                  </div>
-                </td>
-                <td class="p-3">
-                  {#if order.employee}
-                    <div class="font-medium">
-                      {formatName(
-                        order.employee.first_name,
-                        order.employee.last_name
-                      )}
-                    </div>
-                  {:else}
-                    <div class="text-gray-500">Unassigned</div>
-                  {/if}
-                </td>
-                <td class="p-3">
-                  {#if order.status === 'completed'}
-                    {#if order.updated_at}
-                      {@const days = (new Date(order.updated_at) - new Date(order.created_at)) / (1000 * 60 * 60 * 24)}
-                      <div class="text-sm">
-                        <span class="font-medium">{days.toFixed(1)} days</span>
-                      </div>
-                    {/if}
-                  {:else}
-                    {#if metrics.predictedCompletions[order.id]}
-                      <div class="text-sm">
-                        <span class="text-gray-600">Est. {metrics.predictedCompletions[order.id].days} days</span>
-                        <span class="text-xs text-gray-400 block">
-                          Based on {order.status === 'pending' ? 'general' : `${order.employee.first_name}'s`} 
-                          {order.uniform_type} wear average
-                        </span>
-                      </div>
-                    {:else}
-                      <div class="text-sm text-gray-400">
-                        No data to estimate
-                      </div>
-                    {/if}
-                  {/if}
-                </td>
-                <td class="p-3">
-                  {#if order}
-                    {@const status = getStatusDetails(order)}
-                    <div class="space-y-1">
-                      <span
-                        class={`px-2 py-1 text-xs font-medium rounded-full
-                                              ${
-                                                status.mainStatus ===
-                                                "completed"
-                                                  ? "bg-green-100 text-green-800"
-                                                  : status.mainStatus ===
-                                                      "in progress"
-                                                    ? "bg-blue-100 text-blue-800"
-                                                    : "bg-gray-100 text-gray-800"
-                                              }`}
-                      >
-                        {status.mainStatus}
-                      </span>
-                      <div class={`text-xs ${status.statusClass}`}>
-                        {status.statusMessage}
-                      </div>
-                    </div>
-                  {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+    </div>
+
+    <!-- Center Column: Most Orders Completed -->
+    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <h2 class="text-lg font-semibold mb-4">Most Orders Completed</h2>
+      <p class="text-xs text-gray-500 mb-4">Total completed orders all time</p>
+      <div class="space-y-3 overflow-auto flex-1">
+        {#each mostCompletedOrders as record, i}
+          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2 py-1 rounded-full text-sm font-bold 
+                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
+                 i === 1 ? 'bg-gray-100 text-gray-700' : 
+                 i === 2 ? 'bg-amber-100 text-amber-700' : 
+                 'bg-gray-50 text-gray-600'}">
+                #{i + 1}
+              </span>
+              <div class="font-medium text-gray-900">
+                {record.employee.first_name} {record.employee.last_name}
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
+              <div>
+                <span class="text-gray-500">Total Orders</span>
+                <span class="float-right font-medium text-primary">{record.totalOrders}</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Latest</span>
+                <span class="float-right font-medium">
+                  {formatDate(record.completedOrders[record.completedOrders.length - 1].updated_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Right Column: One Day Champions -->
+    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <h2 class="text-lg font-semibold mb-4">One Day Champions</h2>
+      <p class="text-xs text-gray-500 mb-4">Most orders completed within 24 hours</p>
+      <div class="space-y-3 overflow-auto flex-1">
+        {#each oneDayCompletions as record, i}
+          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2 py-1 rounded-full text-sm font-bold 
+                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
+                 i === 1 ? 'bg-gray-100 text-gray-700' : 
+                 i === 2 ? 'bg-amber-100 text-amber-700' : 
+                 'bg-gray-50 text-gray-600'}">
+                #{i + 1}
+              </span>
+              <div class="font-medium text-gray-900">
+                {record.employee.first_name} {record.employee.last_name}
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
+              <div>
+                <span class="text-gray-500">24h Orders</span>
+                <span class="float-right font-medium text-green-600">{record.totalQuickOrders}</span>
+              </div>
+              <div>
+                <span class="text-gray-500">Latest</span>
+                <span class="float-right font-medium">
+                  {formatDate(record.orders[record.orders.length - 1].updated_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        {/each}
       </div>
     </div>
   </div>
+{/if}
 </div>
