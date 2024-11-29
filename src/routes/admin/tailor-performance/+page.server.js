@@ -39,14 +39,17 @@ export async function load({ locals: { supabase } }) {
 
     // Get historical completion times for prediction
     const getHistoricalMetrics = async () => {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+        // Get ALL completed orders, not just last 30 days
         const { data, error } = await supabase
             .from('orders')
-            .select('uniform_type, created_at, updated_at')
-            .eq('status', 'completed')
-            .gte('created_at', thirtyDaysAgo.toISOString());
+            .select(`
+                uniform_type,
+                created_at,
+                updated_at,
+                employee_id,
+                status
+            `)
+            .eq('status', 'completed');
 
         if (error) throw error(500, error.message);
         return data;

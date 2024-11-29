@@ -125,22 +125,6 @@
       }, {});
   }
 
-  function calculateOrderComplexity(order) {
-    let complexityScore = 0;
-
-    // Base complexity by uniform type
-    const typeScores = { upper: 1, lower: 1, both: 2 };
-    complexityScore += typeScores[order.uniform_type] || 0;
-
-    // Additional complexity for measurements
-    if (order.order_measurements) {
-      const measurementCount = Object.keys(order.order_measurements).length;
-      complexityScore += measurementCount * 0.2;
-    }
-
-    return complexityScore.toFixed(1);
-  }
-
   function calculateEmployeeComparison(orders, employees) {
     return employees
       .map((employee) => {
@@ -161,13 +145,6 @@
               : 0,
             avgCompletionTime: calculateAverageCompletionTime(employeeOrders),
             onTimeDeliveryRate: calculateEfficiencyRate(employeeOrders),
-            complexityScore: employeeOrders
-              .reduce(
-                (acc, order) =>
-                  acc + parseFloat(calculateOrderComplexity(order)),
-                0
-              )
-              .toFixed(1),
           },
         };
       })
@@ -179,21 +156,49 @@
   }
 
   function predictCompletionTime(order, historicalData) {
-    const similarOrders = historicalData.filter(
-      (o) => o.uniform_type === order.uniform_type
-    );
+    // Only use completed orders
+    const completedOrders = historicalData.filter(o => o.status === 'completed');
+    
+    if (order.status === 'pending') {
+        // For pending orders, use general average for this uniform type
+        const typeHistory = completedOrders.filter(
+            o => o.uniform_type === order.uniform_type
+        );
 
-    if (!similarOrders.length) return null;
+        if (typeHistory.length > 0) {
+            const avgTime = typeHistory.reduce((acc, o) => {
+                const days = (new Date(o.updated_at) - new Date(o.created_at)) / (1000 * 60 * 60 * 24);
+                return acc + days;
+            }, 0) / typeHistory.length;
 
-    const avgCompletionTime =
-      similarOrders.reduce((acc, o) => {
-        const days =
-          (new Date(o.updated_at) - new Date(o.created_at)) /
-          (1000 * 60 * 60 * 24);
-        return acc + days;
-      }, 0) / similarOrders.length;
+            return {
+                days: avgTime.toFixed(1),
+                source: 'general'
+            };
+        }
+    }
 
-    return avgCompletionTime.toFixed(1);
+    if (order.status === 'in progress' && order.employee_id) {
+        // For in-progress orders, look at specific employee's history with this uniform type
+        const employeeHistory = completedOrders.filter(
+            o => o.employee_id === order.employee_id && 
+                 o.uniform_type === order.uniform_type
+        );
+
+        if (employeeHistory.length > 0) {
+            const avgTime = employeeHistory.reduce((acc, o) => {
+                const days = (new Date(o.updated_at) - new Date(o.created_at)) / (1000 * 60 * 60 * 24);
+                return acc + days;
+            }, 0) / employeeHistory.length;
+
+            return {
+                days: avgTime.toFixed(1),
+                source: 'employee'
+            };
+        }
+    }
+
+    return null;
   }
 
   // Update calculateMetrics to use both date ranges
@@ -247,13 +252,9 @@
       averageTimePerUniform: calculateAverageTimeByUniformType(filteredOrders),
       workloadDistribution: calculateWorkloadDistribution(filteredOrders),
       employeeComparison: calculateEmployeeComparison(orders, data.employees),
-      orderComplexities: filteredOrders.reduce((acc, order) => {
-        acc[order.id] = calculateOrderComplexity(order);
-        return acc;
-      }, {}),
       predictedCompletions: filteredOrders.reduce((acc, order) => {
         if (order.status !== "completed") {
-          acc[order.id] = predictCompletionTime(order, data.historicalMetrics);
+          acc[order.id] = predictCompletionTime(order, orders);
         }
         return acc;
       }, {}),
@@ -628,21 +629,120 @@
   </div>
 
   <!-- Replace the Orders Table and Metrics Cards sections with this new layout -->
-  <div class="flex gap-4">
-    <!-- Orders Table Card - Takes up more space -->
-    <div class="bg-white p-6 rounded-lg shadow-md flex-1">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold">Order Details</h2>
-        <div class="flex gap-2">
-          <input
-            type="text"
-            bind:value={searchQuery}
-            placeholder="Search across all fields..."
-            class="px-4 py-2 border rounded-lg"
-          />
+  <div class="space-y-4">
+    <!-- Top row: Key Metrics Overview -->
+    <div class="grid grid-cols-4 gap-4">
+      <!-- Quick Stats -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="text-lg font-semibold text-gray-900">{metrics.totalOrders}</div>
+        <div class="text-sm text-gray-500">Total Orders</div>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="text-lg font-semibold text-green-600">{metrics.completedOrders}</div>
+        <div class="text-sm text-gray-500">Completed Orders</div>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="text-lg font-semibold text-red-600">{metrics.lateOrders}</div>
+        <div class="text-sm text-gray-500">Late Orders</div>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="text-lg font-semibold text-primary">{metrics.efficiencyRate}%</div>
+        <div class="text-sm text-gray-500">On-Time Rate</div>
+      </div>
+    </div>
+
+    <!-- Middle row: Employee Performance and Analysis -->
+    <div class="grid grid-cols-3 gap-4">
+      <!-- Employee Ranking Card - Larger and more prominent -->
+      <div class="bg-white p-4 rounded-lg shadow-md col-span-1">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3">Top Performers</h3>
+        <div class="space-y-3">
+          {#each (metrics.employeeComparison || []).slice(0, 5) as employee, i}
+            <div class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium">{employee.name}</div>
+                  <div class="text-xs text-gray-600">
+                    {employee.metrics.totalOrders} orders • {employee.metrics.onTimeDeliveryRate}% on-time
+                  </div>
+                </div>
+                <div class="text-sm font-semibold {i === 0 ? 'text-green-600' : 'text-gray-600'}">
+                  {employee.metrics.avgCompletionTime}d avg
+                </div>
+              </div>
+            </div>
+          {/each}
         </div>
       </div>
 
+      <!-- Time Analysis and Workload Cards -->
+      <div class="space-y-4 col-span-2">
+        <!-- Time Analysis -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white p-4 rounded-lg shadow-md">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Completion Times</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Fastest</span>
+                <span class="font-semibold text-green-600">{metrics.fastestCompletion}d</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Average</span>
+                <span class="font-semibold text-blue-600">{metrics.averageCompletionTime}d</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Slowest</span>
+                <span class="font-semibold text-red-600">{metrics.slowestCompletion}d</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workload Distribution -->
+          <div class="bg-white p-4 rounded-lg shadow-md">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Weekly Distribution</h3>
+            <div class="space-y-2">
+              {#each Object.entries(metrics.workloadDistribution || {}) as [day, count]}
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">{day}</span>
+                  <span class="font-semibold">{count}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+
+        <!-- Uniform Type Analysis -->
+        <div class="bg-white p-4 rounded-lg shadow-md">
+          <h3 class="text-sm font-semibold text-gray-800 mb-3">Uniform Type Analysis</h3>
+          <div class="grid grid-cols-3 gap-4">
+            {#each ['upper', 'lower', 'both'] as type}
+              <div class="p-3 bg-gray-50 rounded-lg">
+                <div class="text-sm font-medium capitalize">{type}</div>
+                <div class="text-lg font-semibold text-blue-600">
+                  {metrics.averageTimePerUniform?.[type] || '0'}d
+                </div>
+                <div class="text-xs text-gray-500">avg. completion</div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom row: Orders Table -->
+    <div class="bg-white rounded-lg shadow-md">
+      <div class="p-4 border-b">
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-semibold">Order Details</h2>
+          <input 
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Search orders..."
+            class="px-4 py-2 border rounded-lg w-64"
+          />
+        </div>
+      </div>
+      <!-- Existing table code with the new columns -->
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
@@ -687,8 +787,9 @@
                   >
                 {/if}
               </th>
-              <th class="p-3 text-left font-semibold">Complexity</th>
-              <th class="p-3 text-left font-semibold">Predicted</th>
+              <th class="p-3 text-left font-semibold">
+                Days to Complete / Estimated
+              </th>
               <th class="p-3 text-left font-semibold">Order Status</th>
             </tr>
           </thead>
@@ -705,7 +806,14 @@
                   </div>
                 </td>
                 <td class="p-3">
-                  <div class="font-medium">{formatDate(order.due_date)}</div>
+                  <div class="space-y-1">
+                    <div class="font-medium">{formatDate(order.due_date)}</div>
+                    {#if order.status === 'completed' && order.updated_at}
+                      <div class="text-xs text-gray-500">
+                        Completed: {formatDate(order.updated_at)}
+                      </div>
+                    {/if}
+                  </div>
                 </td>
                 <td class="p-3">
                   <div class="space-y-1">
@@ -733,15 +841,27 @@
                   {/if}
                 </td>
                 <td class="p-3">
-                  <div class="text-sm font-medium">
-                    Score: {metrics.orderComplexities[order.id]}
-                  </div>
-                </td>
-                <td class="p-3">
-                  {#if order.status !== "completed" && metrics.predictedCompletions[order.id]}
-                    <div class="text-sm text-gray-600">
-                      Est. {metrics.predictedCompletions[order.id]} days
-                    </div>
+                  {#if order.status === 'completed'}
+                    {#if order.updated_at}
+                      {@const days = (new Date(order.updated_at) - new Date(order.created_at)) / (1000 * 60 * 60 * 24)}
+                      <div class="text-sm">
+                        <span class="font-medium">{days.toFixed(1)} days</span>
+                      </div>
+                    {/if}
+                  {:else}
+                    {#if metrics.predictedCompletions[order.id]}
+                      <div class="text-sm">
+                        <span class="text-gray-600">Est. {metrics.predictedCompletions[order.id].days} days</span>
+                        <span class="text-xs text-gray-400 block">
+                          Based on {order.status === 'pending' ? 'general' : `${order.employee.first_name}'s`} 
+                          {order.uniform_type} wear average
+                        </span>
+                      </div>
+                    {:else}
+                      <div class="text-sm text-gray-400">
+                        No data to estimate
+                      </div>
+                    {/if}
                   {/if}
                 </td>
                 <td class="p-3">
@@ -772,160 +892,6 @@
             {/each}
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- Replace just the metrics cards section -->
-    <div class="w-[300px] space-y-3">
-      <!-- Reduced width and gap -->
-      <!-- Performance Overview Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[150px] overflow-y-auto"
-      >
-        <!-- Reduced padding and height -->
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          <!-- Smaller text and margin -->
-          Performance Overview • {getSelectedEmployeeName()}
-        </h3>
-        <div class="space-y-2 text-sm">
-          <!-- Reduced spacing and text size -->
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Total Orders</span>
-            <span class="font-semibold text-gray-800"
-              >{metrics.totalOrders}</span
-            >
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Completed</span>
-            <span class="font-semibold text-green-600"
-              >{metrics.completedOrders}</span
-            >
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Pending</span>
-            <span class="font-semibold text-orange-600"
-              >{metrics.pendingOrders}</span
-            >
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">In Progress</span>
-            <span class="font-semibold text-blue-600"
-              >{metrics.inProgressOrders}</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- Efficiency Metrics Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[150px] overflow-y-auto"
-      >
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          Efficiency Metrics • {getSelectedEmployeeName()}
-        </h3>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Completed On Time Rate</span>
-            <span class="font-semibold text-primary"
-              >{metrics.efficiencyRate}%</span
-            >
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Late Orders</span>
-            <span class="font-semibold text-red-600">{metrics.lateOrders}</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Avg. Completion Time</span>
-            <span class="font-semibold text-gray-800"
-              >{metrics.averageCompletionTime} days</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- Daily Workload Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[150px] overflow-y-auto"
-      >
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          Daily Workload • {getSelectedEmployeeName()}
-        </h3>
-        <div class="space-y-2 text-sm">
-          {#each Object.entries(metrics.ordersByDay || {}).sort( (a, b) => b[0].localeCompare(a[0]) ) as [date, count]}
-            <div class="flex justify-between items-center">
-              <span class="text-gray-600">{formatDate(date)}</span>
-              <span class="font-semibold text-gray-800">{count} orders</span>
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      <!-- Time Analysis Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[150px] overflow-y-auto"
-      >
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          Time Analysis • {getSelectedEmployeeName()}
-        </h3>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Fastest Completion</span>
-            <span class="font-semibold text-green-600"
-              >{metrics.fastestCompletion} days</span
-            >
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-600">Slowest Completion</span>
-            <span class="font-semibold text-red-600"
-              >{metrics.slowestCompletion} days</span
-            >
-          </div>
-          {#if metrics.averageTimePerUniform}
-            {#each Object.entries(metrics.averageTimePerUniform) as [type, avg]}
-              <div class="flex justify-between items-center">
-                <span class="text-gray-600">Avg. {type}</span>
-                <span class="font-semibold text-blue-600">{avg} days</span>
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </div>
-      <!-- Workload Distribution Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[150px] overflow-y-auto"
-      >
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          Workload Distribution
-        </h3>
-        <div class="space-y-2 text-sm">
-          {#each Object.entries(metrics.workloadDistribution || {}) as [day, count]}
-            <div class="flex justify-between items-center">
-              <span class="text-gray-600">{day}</span>
-              <span class="font-semibold text-gray-800">{count} orders</span>
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      <!-- Employee Comparison Card -->
-      <div
-        class="bg-gray-50 p-3 rounded-lg border border-gray-100 h-[200px] overflow-y-auto"
-      >
-        <h3 class="text-xs font-medium text-gray-700 mb-2">
-          Employee Performance Ranking
-        </h3>
-        <div class="space-y-2 text-sm">
-          {#each metrics.employeeComparison || [] as employee, i}
-            <div class="p-2 {i === 0 ? 'bg-green-50' : ''} rounded">
-              <div class="font-medium">{employee.name}</div>
-              <div class="text-xs text-gray-600">
-                On-time: {employee.metrics.onTimeDeliveryRate}% • Avg: {employee
-                  .metrics.avgCompletionTime} days • Load: {employee.metrics
-                  .totalOrders} orders
-              </div>
-            </div>
-          {/each}
-        </div>
       </div>
     </div>
   </div>
