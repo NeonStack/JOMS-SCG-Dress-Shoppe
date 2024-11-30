@@ -1034,42 +1034,11 @@
       </div>
 
       <!-- Middle row: Employee Performance and Analysis -->
-      <div class="grid grid-cols-3 gap-4">
-        <!-- Employee Ranking Card - Larger and more prominent -->
-        <div class="bg-white p-4 rounded-lg shadow-md col-span-1">
-          <h3 class="text-sm font-semibold text-gray-800 mb-3">
-            Top Performers
-          </h3>
-          <div class="space-y-3">
-            {#each (metrics.employeeComparison || []).slice(0, 5) as employee, i}
-              <div
-                class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg"
-              >
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="font-medium">{employee.name}</div>
-                    <div class="text-xs text-gray-600">
-                      {employee.metrics.totalOrders} orders • {employee.metrics
-                        .onTimeDeliveryRate}% on-time
-                    </div>
-                  </div>
-                  <div
-                    class="text-sm font-semibold {i === 0
-                      ? 'text-green-600'
-                      : 'text-gray-600'}"
-                  >
-                    {employee.metrics.avgCompletionTime}d avg
-                  </div>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-
+      <div class="grid grid-cols-2 gap-4">
         <!-- Time Analysis and Workload Cards -->
         <div class="space-y-4 col-span-2">
           <!-- Time Analysis -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-lg shadow-md">
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Completion Times
@@ -1110,23 +1079,22 @@
                 {/each}
               </div>
             </div>
-          </div>
-
-          <!-- Uniform Type Analysis -->
-          <div class="bg-white p-4 rounded-lg shadow-md">
-            <h3 class="text-sm font-semibold text-gray-800 mb-3">
-              Uniform Type Analysis
-            </h3>
-            <div class="grid grid-cols-3 gap-4">
-              {#each ["upper", "lower", "both"] as type}
-                <div class="p-3 bg-gray-50 rounded-lg">
-                  <div class="text-sm font-medium capitalize">{type}</div>
-                  <div class="text-lg font-semibold text-blue-600">
-                    {metrics.averageTimePerUniform?.[type] || "0"}d
+            <!-- Uniform Type Analysis -->
+            <div class="bg-white p-4 rounded-lg shadow-md">
+              <h3 class="text-sm font-semibold text-gray-800 mb-3">
+                Uniform Type Analysis
+              </h3>
+              <div class="grid grid-cols-3 gap-4">
+                {#each ["upper", "lower", "both"] as type}
+                  <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-sm font-medium capitalize">{type}</div>
+                    <div class="text-lg font-semibold text-blue-600">
+                      {metrics.averageTimePerUniform?.[type] || "0"}d
+                    </div>
+                    <div class="text-xs text-gray-500">avg. completion</div>
                   </div>
-                  <div class="text-xs text-gray-500">avg. completion</div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
           </div>
         </div>
