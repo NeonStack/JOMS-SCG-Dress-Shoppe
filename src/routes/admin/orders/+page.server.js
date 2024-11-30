@@ -283,9 +283,9 @@ export const actions = {
         const orderId = formData.get('orderId');
         const amountPaid = parseFloat(formData.get('amountPaid'));
 
-        if (!orderId || !amountPaid) {
+        if (!orderId || isNaN(amountPaid)) {
             return fail(400, {
-                error: 'Order ID and amount are required'
+                error: 'Order ID and valid amount are required'
             });
         }
 
@@ -302,7 +302,25 @@ export const actions = {
             });
         }
 
-        const newAmountPaid = order.amount_paid + amountPaid;
+        // Validate payment amount
+        if (order.amount_paid === 0 && amountPaid < 0) {
+            return fail(400, {
+                error: 'Cannot record negative payment for unpaid orders'
+            });
+        }
+
+        if (amountPaid < -order.amount_paid) {
+            return fail(400, {
+                error: 'Cannot deduct more than the amount paid'
+            });
+        }
+
+        // Calculate new amount paid, ensuring it doesn't exceed total amount
+        let newAmountPaid = Math.min(
+            order.amount_paid + amountPaid,
+            order.total_amount
+        );
+
         const paymentStatus = 
             newAmountPaid === 0 ? 'not paid' :
             newAmountPaid >= order.total_amount ? 'fully paid' : 'partial';

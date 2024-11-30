@@ -69,6 +69,7 @@
   };
 
   let selectedTimeFrame = "day";
+  let selectedRevenueType = "order"; // Add this new state
   const timeFrames = ["day", "week", "month", "year"];
 
   // Add chart instance variables
@@ -100,27 +101,30 @@
     if (revenueChart) revenueChart.destroy();
     if (!revenueChartEl) return;
 
-    const labels = Object.keys(
-      data.financialMetrics.revenueOverTime[selectedTimeFrame]
-    ).sort();
+    const timeData = data.financialMetrics.revenueOverTime[selectedTimeFrame];
+    const labels = Object.keys(timeData).sort();
+    
+    const datasets = [
+      {
+        label: `Revenue by ${selectedRevenueType === 'order' ? 'Order Date' : 'Payment Date'}`,
+        data: labels.map(key => {
+          const orderAmount = timeData[key];
+          if (selectedRevenueType === 'payment') {
+            // Use payment_date for revenue when payment type is selected
+            return orderAmount.paymentRevenue || 0;
+          }
+          return orderAmount.orderRevenue || 0;
+        }),
+        borderColor: "#B73233",
+        backgroundColor: "rgba(183, 50, 51, 0.1)",
+        fill: true,
+        tension: 0.4,
+      }
+    ];
+
     revenueChart = new Chart(revenueChartEl, {
       type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: `Revenue (${selectedTimeFrame})`,
-            data: labels.map(
-              (key) =>
-                data.financialMetrics.revenueOverTime[selectedTimeFrame][key]
-            ),
-            borderColor: "#B73233",
-            backgroundColor: "rgba(183, 50, 51, 0.1)",
-            fill: true,
-            tension: 0.4,
-          },
-        ],
-      },
+      data: { labels, datasets },
       options: {
         ...commonOptions,
         scales: {
@@ -388,7 +392,7 @@
     if (completionPerformanceChart) completionPerformanceChart.destroy();
   });
 
-  $: if (selectedTimeFrame) {
+  $: if (selectedTimeFrame || selectedRevenueType) {
     updateCharts(); // Update charts when time frame changes
   }
 </script>
@@ -514,6 +518,7 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-800">Time-Based Analytics</h2>
+        <!-- Keep only the time frame selector in the header -->
         <select
           bind:value={selectedTimeFrame}
           class="px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
@@ -527,11 +532,18 @@
       </div>
 
       <div class="grid grid-cols-12 gap-6">
-        <!-- Time-dependent charts -->
-        <div
-          class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
-        >
-          <h3 class="text-xl font-bold mb-6">Revenue Trend</h3>
+        <!-- Revenue Trend card with internal toggle -->
+        <div class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold">Revenue Trend</h3>
+            <select
+              bind:value={selectedRevenueType}
+              class="px-3 py-1 text-sm border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+            >
+              <option value="order">By Order Date</option>
+              <option value="payment">By Payment Date</option>
+            </select>
+          </div>
           <div class="h-80">
             <canvas bind:this={revenueChartEl}></canvas>
           </div>

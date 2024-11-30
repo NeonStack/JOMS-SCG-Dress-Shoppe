@@ -171,7 +171,7 @@
         const avgTime =
           typeHistory.reduce((acc, o) => {
             const days =
-              (new Date(o.updated_at) - new Date(o.created_at)) /
+              (new Date(o.completed_at) - new Date(o.created_at)) /
               (1000 * 60 * 60 * 24);
             return acc + days;
           }, 0) / typeHistory.length;
@@ -195,7 +195,7 @@
         const avgTime =
           employeeHistory.reduce((acc, o) => {
             const days =
-              (new Date(o.updated_at) - new Date(o.created_at)) /
+              (new Date(o.completed_at) - new Date(o.created_at)) /
               (1000 * 60 * 60 * 24);
             return acc + days;
           }, 0) / employeeHistory.length;
@@ -247,7 +247,7 @@
         .length,
       lateOrders: filteredOrders.filter((o) => {
         if (o.status === "completed") {
-          return new Date(o.updated_at) > new Date(o.due_date);
+          return new Date(o.completed_at) > new Date(o.due_date);
         } else if (o.status === "in progress" || o.status === "pending") {
           return now > new Date(o.due_date);
         }
@@ -274,7 +274,7 @@
     const completedOrders = orders.filter((o) => o.status === "completed");
     const totalDays = completedOrders.reduce((acc, order) => {
       const start = new Date(order.created_at);
-      const end = new Date(order.updated_at);
+      const end = new Date(order.completed_at);
       return acc + (end - start) / (1000 * 60 * 60 * 24);
     }, 0);
     return completedOrders.length
@@ -293,7 +293,7 @@
   function calculateEfficiencyRate(orders) {
     const completed = orders.filter((o) => o.status === "completed");
     const onTime = completed.filter(
-      (o) => new Date(o.updated_at) <= new Date(o.due_date)
+      (o) => new Date(o.completed_at) <= new Date(o.due_date)
     );
     return completed.length
       ? ((onTime.length / completed.length) * 100).toFixed(1)
@@ -305,7 +305,7 @@
     let fastest = Infinity;
     completed.forEach((order) => {
       const days =
-        (new Date(order.updated_at) - new Date(order.created_at)) /
+        (new Date(order.completed_at) - new Date(order.created_at)) /
         (1000 * 60 * 60 * 24);
       if (days < fastest) fastest = days;
     });
@@ -317,7 +317,7 @@
     let slowest = 0;
     completed.forEach((order) => {
       const days =
-        (new Date(order.updated_at) - new Date(order.created_at)) /
+        (new Date(order.completed_at) - new Date(order.created_at)) /
         (1000 * 60 * 60 * 24);
       if (days > slowest) slowest = days;
     });
@@ -328,7 +328,7 @@
     const completed = orders.filter((o) => o.status === "completed");
     const byType = completed.reduce((acc, order) => {
       const days =
-        (new Date(order.updated_at) - new Date(order.created_at)) /
+        (new Date(order.completed_at) - new Date(order.created_at)) /
         (1000 * 60 * 60 * 24);
       if (!acc[order.uniform_type]) {
         acc[order.uniform_type] = { total: 0, count: 0 };
@@ -362,7 +362,7 @@
   function calculateWorkDuration(order) {
     const start = new Date(order.created_at);
     const end =
-      order.status === "completed" ? new Date(order.updated_at) : new Date();
+      order.status === "completed" ? new Date(order.completed_at) : new Date();
     const dueDate = new Date(order.due_date);
     const daysTaken = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     const daysOverdue = Math.ceil((end - dueDate) / (1000 * 60 * 60 * 24));
@@ -460,7 +460,7 @@
     const now = new Date();
     const dueDate = new Date(order.due_date);
     const completedDate =
-      order.status === "completed" ? new Date(order.updated_at) : null;
+      order.status === "completed" ? new Date(order.completed_at) : null;
 
     // Calculate days difference
     const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
@@ -538,7 +538,7 @@
         return orders
           .map((order) => {
             const startDate = new Date(order.created_at);
-            const completedDate = new Date(order.updated_at);
+            const completedDate = new Date(order.completed_at);
             const dueDate = new Date(order.due_date);
 
             const availableDays = (dueDate - startDate) / (1000 * 60 * 60 * 24);
@@ -609,7 +609,7 @@
       .filter((order) => {
         if (!order.status === "completed" || !order.employee) return false;
         const startDate = new Date(order.created_at);
-        const completedDate = new Date(order.updated_at);
+        const completedDate = new Date(order.completed_at);
         const daysDiff = (completedDate - startDate) / (1000 * 60 * 60 * 24);
         return daysDiff <= 1;
       })
@@ -643,7 +643,7 @@
       .filter((order) => order.status === "completed" && order.employee)
       .reduce((acc, order) => {
         const empId = order.employee.id;
-        const date = new Date(order.updated_at).toISOString().split("T")[0];
+        const date = new Date(order.completed_at).toISOString().split("T")[0];
 
         if (!acc[empId]) {
           acc[empId] = {
@@ -683,8 +683,8 @@
             (o) =>
               o.employee?.id === record.employee.id && o.status === "completed"
           )
-          .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0]
-          ?.updated_at,
+          .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0]
+          ?.completed_at,
       }))
       .sort((a, b) => b.bestDay.count - a.bestDay.count);
   }
@@ -698,7 +698,7 @@
         (order) =>
           order.status === "completed" &&
           order.employee &&
-          new Date(order.updated_at) <= new Date(order.due_date)
+          new Date(order.completed_at) <= new Date(order.due_date)
       )
       .reduce((acc, order) => {
         const empId = order.employee.id;
@@ -714,14 +714,14 @@
 
         acc[empId].totalCompleted++;
 
-        if (new Date(order.updated_at) <= new Date(order.due_date)) {
+        if (new Date(order.completed_at) <= new Date(order.due_date)) {
           acc[empId].onTimeCount++;
           acc[empId].recentOnTimeOrders.push(order);
           if (
             !acc[empId].lastOnTime ||
-            new Date(order.updated_at) > new Date(acc[empId].lastOnTime)
+            new Date(order.completed_at) > new Date(acc[empId].lastOnTime)
           ) {
-            acc[empId].lastOnTime = order.updated_at;
+            acc[empId].lastOnTime = order.completed_at;
           }
         }
 
@@ -1181,9 +1181,9 @@
                       <div class="font-medium">
                         {formatDate(order.due_date)}
                       </div>
-                      {#if order.status === "completed" && order.updated_at}
+                      {#if order.status === "completed" && order.completed_at}
                         <div class="text-xs text-gray-500">
-                          Completed: {formatDate(order.updated_at)}
+                          Completed: {formatDate(order.completed_at)}
                         </div>
                       {/if}
                     </div>
@@ -1215,9 +1215,9 @@
                   </td>
                   <td class="p-3">
                     {#if order.status === "completed"}
-                      {#if order.updated_at}
+                      {#if order.completed_at}
                         {@const days =
-                          (new Date(order.updated_at) -
+                          (new Date(order.completed_at) -
                             new Date(order.created_at)) /
                           (1000 * 60 * 60 * 24)}
                         <div class="text-sm">

@@ -3,7 +3,6 @@
   import { format } from "date-fns";
   import { invalidate } from "$app/navigation";
   import { browser } from "$app/environment";
-  import { onMount } from "svelte";
 
   export let data;
   let showModal = false;
@@ -29,6 +28,14 @@
   let isEmployeeDropdownOpen = false;
   let employeeSearchTerm = "";
   let isLoading = false;
+
+  $: {
+    if (activeTab === "payments") {
+      sortField = "payment_date";
+    } else {
+      sortField = "created_at";
+    }
+  }
 
   $: filteredEmployees = data.employees.filter((employee) =>
     `${employee.first_name} ${employee.last_name}`
@@ -631,7 +638,7 @@
                                 >
                                   <path
                                     fill-rule="evenodd"
-                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
+                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
                                     clip-rule="evenodd"
                                   />
                                 </svg>
@@ -922,12 +929,7 @@
       </div>
 
       <!-- Payment Form Section -->
-      <form
-        method="POST"
-        action="?/updatePayment"
-        use:enhance={handlePayment}
-        class="px-8 py-6 space-y-6"
-      >
+      <form method="POST" action="?/updatePayment" use:enhance={handlePayment} class="px-8 py-6 space-y-6">
         <input type="hidden" name="orderId" value={orderToPayment.id} />
 
         <div>
@@ -935,47 +937,52 @@
             Payment Amount
           </label>
           <div class="relative">
-            <span
-              class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-              >₱</span
-            >
+            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₱</span>
             <input
               type="number"
               name="amountPaid"
               bind:value={paymentAmount}
-              step="0.01"
+              step="1"
+              min={orderToPayment.amount_paid === 0 ? 0 : -orderToPayment.amount_paid}
               class="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-              placeholder="Enter amount (can be negative)"
+              placeholder="Enter amount"
               required
             />
           </div>
-          <p class="mt-2 text-sm text-gray-500">
-            Use negative values for refunds or corrections
-          </p>
-        </div>
-
-        <!-- Progress Bar -->
-        {#if orderToPayment.total_amount > 0}
-          <div class="space-y-2">
-            <div class="flex justify-between text-sm">
-              <span>Payment Progress</span>
-              <span
-                >{Math.round(
-                  (orderToPayment.amount_paid / orderToPayment.total_amount) *
-                    100
-                )}%</span
-              >
+          
+          <!-- Add payment summary section -->
+          <div class="mt-4 p-4 bg-gray-50 rounded-lg space-y-2">
+            <div class="flex justify-between">
+              <span>Current Amount Paid:</span>
+              <span>₱{orderToPayment.amount_paid}</span>
             </div>
-            <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                class="h-full bg-primary transition-all duration-500"
-                style="width: {(orderToPayment.amount_paid /
-                  orderToPayment.total_amount) *
-                  100}%"
-              ></div>
+            <div class="flex justify-between">
+              <span>New Payment:</span>
+              <span>₱{paymentAmount || 0}</span>
             </div>
+            <div class="flex justify-between">
+              <span>Total Amount:</span>
+              <span>₱{orderToPayment.total_amount}</span>
+            </div>
+            
+            <!-- Show projected balance or change -->
+            {#if paymentAmount}
+              {@const newTotal = orderToPayment.amount_paid + parseFloat(paymentAmount)}
+              {#if newTotal > orderToPayment.total_amount}
+                <div class="flex justify-between text-primary font-semibold border-t pt-2">
+                  <span>Change:</span>
+                  <span>₱{(newTotal - orderToPayment.total_amount).toFixed(2)}</span>
+                </div>
+                <p class="text-sm text-primary">Note: Only ₱{(orderToPayment.total_amount - orderToPayment.amount_paid).toFixed(2)} will be recorded</p>
+              {:else}
+                <div class="flex justify-between font-semibold border-t pt-2">
+                  <span>Remaining Balance:</span>
+                  <span>₱{(orderToPayment.total_amount - newTotal).toFixed(2)}</span>
+                </div>
+              {/if}
+            {/if}
           </div>
-        {/if}
+        </div>
 
         <!-- Action Buttons -->
         <div class="flex justify-end gap-3 pt-4 border-t">
@@ -1017,11 +1024,6 @@
       on:click={handleCreateClick}
       disabled={isLoading}
     >
-      {#if isLoading}
-        <div
-          class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
-        ></div>
-      {/if}
       Create New Order
     </button>
   </div>
@@ -1147,7 +1149,7 @@
                           >
                             <path
                               fill-rule="evenodd"
-                              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
                               clip-rule="evenodd"
                             />
                           </svg>
@@ -1197,19 +1199,12 @@
         <table class="w-full">
           <thead>
             <tr class="bg-muted">
-              {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status"] as field}
+              {#each ["Id", "Student", "Order Status", "Total", "Paid", "Balance", "Payment Date", "Payment Status"] as field}
                 <th
                   class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                   on:click={() => sort(field)}
                 >
-                  {field === "payment_date"
-                    ? "Last Payment"
-                    : field === "payment_status"
-                      ? "Payment Status"
-                      : field === "id"
-                        ? "Order ID"
-                        : field.charAt(0).toUpperCase() +
-                          field.slice(1).replace("_", " ")}
+                  {field}
                   {#if sortField === field}
                     <span class="ml-1"
                       >{sortDirection === "asc" ? "↑" : "↓"}</span

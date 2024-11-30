@@ -1,3 +1,7 @@
+-- Changed timezone to Asia Singapore (Philippines time)
+alter database postgres
+set timezone to 'Asia/Singapore';
+
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
@@ -10,13 +14,13 @@ create table profiles (
     contact_number text,
     address text,
     position text,
-    created_at timestamptz default timezone('utc'::text, now()) not null
+    created_at timestamptz default now() not null
 );
 
 create table measurement_types (
     id serial primary key,
     name text not null,
-    created_at timestamptz default timezone('utc'::text, now()) not null,
+    created_at timestamptz default now() not null,
     unique(name)
 );
 
@@ -24,7 +28,7 @@ create table courses (
     id serial primary key,
     course_code text not null,
     description text,
-    created_at timestamptz default timezone('utc'::text, now()) not null,
+    created_at timestamptz default now() not null,
     unique(course_code)
 );
 
@@ -36,7 +40,7 @@ CREATE TABLE uniform_configuration (
     measurement_specs jsonb not null default '[]', 
     --eg. [{"measurement_type_id": 1, "base_cm": 40, "additional_cost_per_cm": 2.50}, {"measurement_type_id": 2, "base_cm": 90, "additional_cost_per_cm": 3.00}]
     base_price numeric(10, 2) not null,
-    created_at timestamptz default timezone('utc'::text, now()) not null,
+    created_at timestamptz default now() not null,
     unique(course_id, gender, wear_type)
 );
 
@@ -52,7 +56,7 @@ create table students (
     contact_number text,
     address text,
     measurements jsonb, -- New column for measurements
-    created_at timestamptz default timezone('utc'::text, now()) not null
+    created_at timestamptz default now() not null
 );
 
 create table orders (
@@ -69,8 +73,8 @@ create table orders (
     completed_at timestamptz,
     payment_status text not null check (payment_status in ('not paid', 'partial', 'fully paid')) default 'not paid',
     order_measurements jsonb, -- New column to store measurements at order time
-    created_at timestamptz default timezone('utc'::text, now()) not null,
-    updated_at timestamptz default timezone('utc'::text, now()) not null,
+    created_at timestamptz default now() not null,
+    updated_at timestamptz default now() not null,
     
 );
 

@@ -180,6 +180,8 @@ export const load = async ({ locals }) => {
                 balance,
                 payment_status,
                 created_at,
+                completed_at,
+                payment_date,
                 due_date,
                 updated_at,
                 students!inner(
@@ -207,7 +209,7 @@ export const load = async ({ locals }) => {
                 balance,
                 due_date,
                 created_at,
-                updated_at,
+                completed_at,
                 students(
                     courses(course_code)
                 )
@@ -392,12 +394,15 @@ export const load = async ({ locals }) => {
 
 function calculateAverageCompletionTime(orders) {
     if (!orders?.length) return 0;
-    const completedOrders = orders.filter(o => o.status === 'completed');
+    const completedOrders = orders.filter(o => o.status === 'completed' && o.completed_at);
+    if (!completedOrders.length) return 0;
+    
     const totalDays = completedOrders.reduce((sum, order) => {
         const created = new Date(order.created_at);
-        const completed = new Date(order.updated_at);
+        const completed = new Date(order.completed_at);
         return sum + (completed - created) / (1000 * 60 * 60 * 24);
     }, 0);
+    
     return (totalDays / completedOrders.length).toFixed(1);
 }
 
@@ -418,11 +423,15 @@ function calculateQuarterlyRevenue(orders) {
 }
 
 function calculateProcessingTimes(orders) {
-    const completed = orders?.filter(o => o.status === 'completed') || [];
+    const completed = orders?.filter(o => o.status === 'completed' && o.completed_at) || [];
+    if (!completed.length) return { average: 0, fastest: 0, slowest: 0 };
+    
+    const processingTimes = completed.map(o => getDateDiff(o.created_at, o.completed_at));
+    
     return {
         average: calculateAverageCompletionTime(completed),
-        fastest: Math.min(...completed.map(o => getDateDiff(o.created_at, o.updated_at))),
-        slowest: Math.max(...completed.map(o => getDateDiff(o.created_at, o.updated_at)))
+        fastest: Math.min(...processingTimes),
+        slowest: Math.max(...processingTimes)
     };
 }
 
@@ -440,11 +449,16 @@ function getRecentOrders(orders) {
 }
 
 function calculateDeliveryPerformance(orders) {
-    const completed = orders?.filter(o => o.status === 'completed') || [];
+    const completed = orders?.filter(o => o.status === 'completed' && o.completed_at) || [];
+    if (!completed.length) return { onTime: 0, late: 0, percentOnTime: "0.00" };
+    
+    const onTime = completed.filter(o => new Date(o.completed_at) <= new Date(o.due_date)).length;
+    const late = completed.length - onTime;
+    
     return {
-        onTime: completed.filter(o => new Date(o.updated_at) <= new Date(o.due_date)).length,
-        late: completed.filter(o => new Date(o.updated_at) > new Date(o.due_date)).length,
-        percentOnTime: ((completed.filter(o => new Date(o.updated_at) <= new Date(o.due_date)).length / completed.length) * 100).toFixed(2)
+        onTime,
+        late,
+        percentOnTime: ((onTime / completed.length) * 100).toFixed(2)
     };
 }
 
@@ -545,57 +559,83 @@ function calculateRevenueOverTime(orders) {
     const now = new Date();
     const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    // Initialize with zero values for continuous data
+    // Initialize timeframes
     for (let i = 29; i >= 0; i--) {
         const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
         const dayKey = date.toISOString().split('T')[0];
-        timeFrames.day[dayKey] = 0;
+        timeFrames.day[dayKey] = { orderRevenue: 0, paymentRevenue: 0 };
     }
 
     for (let i = 11; i >= 0; i--) {
         const weekDate = new Date(now.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
         const weekKey = `${weekDate.getFullYear()}-W${getWeekNumber(weekDate)}`;
-        timeFrames.week[weekKey] = 0;
+        timeFrames.week[weekKey] = { orderRevenue: 0, paymentRevenue: 0 };
     }
 
     for (let i = 11; i >= 0; i--) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthKey = monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-        timeFrames.month[monthKey] = 0;
+        timeFrames.month[monthKey] = { orderRevenue: 0, paymentRevenue: 0 };
     }
 
     const currentYear = now.getFullYear();
     for (let year = currentYear - 4; year <= currentYear; year++) {
-        timeFrames.year[year.toString()] = 0;
+        timeFrames.year[year.toString()] = { orderRevenue: 0, paymentRevenue: 0 };
     }
 
     // Process orders
     orders.forEach(order => {
         const orderDate = new Date(order.created_at);
         const amount = Number(order.amount_paid) || 0;
-        
+
+        // Add order revenue
         const dayKey = orderDate.toISOString().split('T')[0];
-        if (timeFrames.day.hasOwnProperty(dayKey)) {
-            timeFrames.day[dayKey] += amount;
+        if (timeFrames.day[dayKey]) {
+            timeFrames.day[dayKey].orderRevenue += amount;
         }
 
         const weekKey = `${orderDate.getFullYear()}-W${getWeekNumber(orderDate)}`;
-        if (timeFrames.week.hasOwnProperty(weekKey)) {
-            timeFrames.week[weekKey] += amount;
+        if (timeFrames.week[weekKey]) {
+            timeFrames.week[weekKey].orderRevenue += amount;
         }
 
         const monthKey = orderDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-        if (timeFrames.month.hasOwnProperty(monthKey)) {
-            timeFrames.month[monthKey] += amount;
+        if (timeFrames.month[monthKey]) {
+            timeFrames.month[monthKey].orderRevenue += amount;
         }
 
         const yearKey = orderDate.getFullYear().toString();
-        if (timeFrames.year.hasOwnProperty(yearKey)) {
-            timeFrames.year[yearKey] += amount;
+        if (timeFrames.year[yearKey]) {
+            timeFrames.year[yearKey].orderRevenue += amount;
+        }
+
+        // Add payment revenue if payment exists
+        if (amount > 0 && order.payment_date) {
+            const paymentDate = new Date(order.payment_date);
+            
+            const paymentDayKey = paymentDate.toISOString().split('T')[0];
+            if (timeFrames.day[paymentDayKey]) {
+                timeFrames.day[paymentDayKey].paymentRevenue += amount;
+            }
+
+            const paymentWeekKey = `${paymentDate.getFullYear()}-W${getWeekNumber(paymentDate)}`;
+            if (timeFrames.week[paymentWeekKey]) {
+                timeFrames.week[paymentWeekKey].paymentRevenue += amount;
+            }
+
+            const paymentMonthKey = paymentDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+            if (timeFrames.month[paymentMonthKey]) {
+                timeFrames.month[paymentMonthKey].paymentRevenue += amount;
+            }
+
+            const paymentYearKey = paymentDate.getFullYear().toString();
+            if (timeFrames.year[paymentYearKey]) {
+                timeFrames.year[paymentYearKey].paymentRevenue += amount;
+            }
         }
     });
 
-    // Sort months correctly
+    // Sort months
     const sortedMonth = {};
     Object.entries(timeFrames.month)
         .sort((a, b) => {

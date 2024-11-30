@@ -67,6 +67,7 @@ export const load = async ({ locals }) => {
                 paymentStatus: order.payment_status,
                 createdAt: order.created_at,
                 updatedAt: order.updated_at,
+                completed_at: order.completed_at, // Add this line
                 daysUntilDue: Math.ceil((new Date(order.due_date) - new Date()) / (1000 * 60 * 60 * 24)),
                 uniformConfigs: uniformConfigsForStudent,
                 completedInTime:
@@ -95,13 +96,15 @@ export const actions = {
 
         const formData = await request.formData();
         const orderId = formData.get('orderId');
+        const now = new Date().toISOString();
 
         try {
             const { error: err } = await supabase
                 .from('orders')
                 .update({ 
                     status: 'completed',
-                    updated_at: new Date().toISOString()
+                    updated_at: now,
+                    completed_at: now
                 })
                 .eq('id', orderId)
                 .eq('employee_id', locals.session.user.id);

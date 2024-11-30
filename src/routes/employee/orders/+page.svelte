@@ -220,12 +220,12 @@
                         <!-- Order header -->
                         <div class="flex justify-between items-start mb-3">
                             <div>
-                                <h3 class="font-semibold text-lg">{order.studentName}</h3>
-                                <p class="text-sm text-gray-600">{order.course}</p>
+                                <h3 class="font-semibold text-base truncate max-w-[200px]">{order.studentName}</h3>
+                                <p class="text-xs text-gray-600">{order.course}</p>
                             </div>
-                            <span class="px-3 py-1 {activeTab === 'urgent' ? 'bg-red-100 text-red-800' :
+                            <span class="px-2 py-1 text-xs {activeTab === 'urgent' ? 'bg-red-100 text-red-800' :
                                                     activeTab === 'inProgress' ? 'bg-blue-100 text-blue-800' : 
-                                                    order.completedInTime ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} rounded-full text-sm font-medium">
+                                                    order.completedInTime ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} rounded-full font-medium">
                                 {#if activeTab === 'completed'}
                                     {getCompletionLabel(order)}
                                 {:else}
@@ -235,7 +235,7 @@
                         </div>
 
                         <!-- Order details -->
-                        <div class="space-y-2 text-sm border-t border-b py-3 my-3">
+                        <div class="space-y-2 text-xs border-t border-b py-3 my-3">
                             <p class="flex justify-between">
                                 <span class="text-gray-600">Order ID:</span>
                                 <span class="font-medium">#{order.id}</span>
@@ -248,6 +248,12 @@
                                 <span class="text-gray-600">Due Date:</span>
                                 <span class="font-medium">{new Date(order.dueDate).toLocaleDateString()}</span>
                             </p>
+                            {#if order.completed_at}
+                                <p class="flex justify-between">
+                                    <span class="text-gray-600">Completed:</span>
+                                    <span class="font-medium">{new Date(order.completed_at).toLocaleDateString()}</span>
+                                </p>
+                            {/if}
                             <p class="flex justify-between">
                                 <span class="text-gray-600">Amount:</span>
                                 <span class="font-medium">₱{order.totalAmount}</span>
