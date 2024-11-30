@@ -631,7 +631,7 @@
                                 >
                                   <path
                                     fill-rule="evenodd"
-                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
                                     clip-rule="evenodd"
                                   />
                                 </svg>
@@ -1361,11 +1361,14 @@
           </thead>
           <tbody>
             {#if activeTab === "pending"}
-              {#each pendingOrders.filter((order) => order.student?.first_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) || order.student?.last_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase())) as order}
+              {#each pendingOrders.filter((order) => {
+                const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
+                const employeeName = `${order.employee?.first_name} ${order.employee?.last_name}`.toLowerCase();
+                const totalAmount = order.total_amount.toString();
+                return studentName.includes(searchTerm.toLowerCase()) ||
+                       employeeName.includes(searchTerm.toLowerCase()) ||
+                       totalAmount.includes(searchTerm);
+              }) as order}
                 <tr class="border-b hover:bg-muted">
                   <td class="p-2">
                     <input
@@ -1424,11 +1427,14 @@
                 </tr>
               {/each}
             {:else if activeTab === "in_progress"}
-              {#each inProgressOrders.filter((order) => order.student?.first_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) || order.student?.last_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase())) as order}
+              {#each inProgressOrders.filter((order) => {
+                const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
+                const employeeName = `${order.employee?.first_name} ${order.employee?.last_name}`.toLowerCase();
+                const totalAmount = order.total_amount.toString();
+                return studentName.includes(searchTerm.toLowerCase()) ||
+                       employeeName.includes(searchTerm.toLowerCase()) ||
+                       totalAmount.includes(searchTerm);
+              }) as order}
                 <tr class="border-b hover:bg-muted">
                   <td class="p-2">{order.id}</td>
                   <td class="p-2">
@@ -1473,11 +1479,14 @@
                 </tr>
               {/each}
             {:else if activeTab === "completed"}
-              {#each completedOrders.filter((order) => order.student?.first_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) || order.student?.last_name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase())) as order}
+              {#each completedOrders.filter((order) => {
+                const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
+                const employeeName = `${order.employee?.first_name} ${order.employee?.last_name}`.toLowerCase();
+                const totalAmount = order.total_amount.toString();
+                return studentName.includes(searchTerm.toLowerCase()) ||
+                       employeeName.includes(searchTerm.toLowerCase()) ||
+                       totalAmount.includes(searchTerm);
+              }) as order}
                 <tr class="border-b hover:bg-muted">
                   <td class="p-2">{order.id}</td>
                   <td class="p-2">
