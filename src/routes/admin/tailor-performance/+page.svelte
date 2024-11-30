@@ -157,45 +157,54 @@
 
   function predictCompletionTime(order, historicalData) {
     // Only use completed orders
-    const completedOrders = historicalData.filter(o => o.status === 'completed');
-    
-    if (order.status === 'pending') {
-        // For pending orders, use general average for this uniform type
-        const typeHistory = completedOrders.filter(
-            o => o.uniform_type === order.uniform_type
-        );
+    const completedOrders = historicalData.filter(
+      (o) => o.status === "completed"
+    );
 
-        if (typeHistory.length > 0) {
-            const avgTime = typeHistory.reduce((acc, o) => {
-                const days = (new Date(o.updated_at) - new Date(o.created_at)) / (1000 * 60 * 60 * 24);
-                return acc + days;
-            }, 0) / typeHistory.length;
+    if (order.status === "pending") {
+      // For pending orders, use general average for this uniform type
+      const typeHistory = completedOrders.filter(
+        (o) => o.uniform_type === order.uniform_type
+      );
 
-            return {
-                days: avgTime.toFixed(1),
-                source: 'general'
-            };
-        }
+      if (typeHistory.length > 0) {
+        const avgTime =
+          typeHistory.reduce((acc, o) => {
+            const days =
+              (new Date(o.updated_at) - new Date(o.created_at)) /
+              (1000 * 60 * 60 * 24);
+            return acc + days;
+          }, 0) / typeHistory.length;
+
+        return {
+          days: avgTime.toFixed(1),
+          source: "general",
+        };
+      }
     }
 
-    if (order.status === 'in progress' && order.employee_id) {
-        // For in-progress orders, look at specific employee's history with this uniform type
-        const employeeHistory = completedOrders.filter(
-            o => o.employee_id === order.employee_id && 
-                 o.uniform_type === order.uniform_type
-        );
+    if (order.status === "in progress" && order.employee_id) {
+      // For in-progress orders, look at specific employee's history with this uniform type
+      const employeeHistory = completedOrders.filter(
+        (o) =>
+          o.employee_id === order.employee_id &&
+          o.uniform_type === order.uniform_type
+      );
 
-        if (employeeHistory.length > 0) {
-            const avgTime = employeeHistory.reduce((acc, o) => {
-                const days = (new Date(o.updated_at) - new Date(o.created_at)) / (1000 * 60 * 60 * 24);
-                return acc + days;
-            }, 0) / employeeHistory.length;
+      if (employeeHistory.length > 0) {
+        const avgTime =
+          employeeHistory.reduce((acc, o) => {
+            const days =
+              (new Date(o.updated_at) - new Date(o.created_at)) /
+              (1000 * 60 * 60 * 24);
+            return acc + days;
+          }, 0) / employeeHistory.length;
 
-            return {
-                days: avgTime.toFixed(1),
-                source: 'employee'
-            };
-        }
+        return {
+          days: avgTime.toFixed(1),
+          source: "employee",
+        };
+      }
     }
 
     return null;
@@ -508,13 +517,13 @@
   };
 
   // Add tab state
-  let activeTab = 'overview';
+  let activeTab = "overview";
 
   // Modified ranking calculation to get fastest completion per employee
   function calculateFastestCompletions(orders) {
     // Group orders by employee
     const employeeOrders = orders
-      .filter(order => order.status === 'completed' && order.employee)
+      .filter((order) => order.status === "completed" && order.employee)
       .reduce((acc, order) => {
         if (!acc[order.employee.id]) {
           acc[order.employee.id] = [];
@@ -524,56 +533,65 @@
       }, {});
 
     // Find fastest completion for each employee
-    const fastestPerEmployee = Object.entries(employeeOrders).map(([employeeId, orders]) => {
-      return orders
-        .map(order => {
-          const startDate = new Date(order.created_at);
-          const completedDate = new Date(order.updated_at);
-          const dueDate = new Date(order.due_date);
-          
-          const availableDays = (dueDate - startDate) / (1000 * 60 * 60 * 24);
-          const daysUsed = (completedDate - startDate) / (1000 * 60 * 60 * 24);
-          const timeEfficiency = (daysUsed / availableDays) * 100;
+    const fastestPerEmployee = Object.entries(employeeOrders).map(
+      ([employeeId, orders]) => {
+        return orders
+          .map((order) => {
+            const startDate = new Date(order.created_at);
+            const completedDate = new Date(order.updated_at);
+            const dueDate = new Date(order.due_date);
 
-          return {
-            orderId: order.id,
-            employee: order.employee,
-            student: order.student,
-            uniformType: order.uniform_type,
-            availableDays: availableDays.toFixed(1),
-            daysUsed: daysUsed.toFixed(1),
-            timeEfficiency: timeEfficiency.toFixed(1),
-            orderDate: startDate,
-            completedDate: completedDate,
-            dueDate: dueDate
-          };
-        })
-        .reduce((fastest, current) => {
-          return !fastest || parseFloat(current.timeEfficiency) < parseFloat(fastest.timeEfficiency) 
-            ? current 
-            : fastest;
-        }, null);
-    });
+            const availableDays = (dueDate - startDate) / (1000 * 60 * 60 * 24);
+            const daysUsed =
+              (completedDate - startDate) / (1000 * 60 * 60 * 24);
+            const timeEfficiency = (daysUsed / availableDays) * 100;
+
+            return {
+              orderId: order.id,
+              employee: order.employee,
+              student: order.student,
+              uniformType: order.uniform_type,
+              availableDays: availableDays.toFixed(1),
+              daysUsed: daysUsed.toFixed(1),
+              timeEfficiency: timeEfficiency.toFixed(1),
+              orderDate: startDate,
+              completedDate: completedDate,
+              dueDate: dueDate,
+            };
+          })
+          .reduce((fastest, current) => {
+            return !fastest ||
+              parseFloat(current.timeEfficiency) <
+                parseFloat(fastest.timeEfficiency)
+              ? current
+              : fastest;
+          }, null);
+      }
+    );
 
     // Sort by efficiency (ascending - lower is better)
     return fastestPerEmployee
-      .filter(record => record !== null)
-      .sort((a, b) => parseFloat(a.timeEfficiency) - parseFloat(b.timeEfficiency));
+      .filter((record) => record !== null)
+      .sort(
+        (a, b) => parseFloat(a.timeEfficiency) - parseFloat(b.timeEfficiency)
+      );
   }
 
-  $: fastestCompletions = calculateFastestCompletions(data.performanceData || []);
+  $: fastestCompletions = calculateFastestCompletions(
+    data.performanceData || []
+  );
 
   // Add these new functions before the script end
   function calculateMostCompletedOrders(orders) {
     const completedByEmployee = orders
-      .filter(order => order.status === 'completed' && order.employee)
+      .filter((order) => order.status === "completed" && order.employee)
       .reduce((acc, order) => {
         const empId = order.employee.id;
         if (!acc[empId]) {
           acc[empId] = {
             employee: order.employee,
             totalOrders: 0,
-            completedOrders: []
+            completedOrders: [],
           };
         }
         acc[empId].totalOrders++;
@@ -581,14 +599,15 @@
         return acc;
       }, {});
 
-    return Object.values(completedByEmployee)
-      .sort((a, b) => b.totalOrders - a.totalOrders);
+    return Object.values(completedByEmployee).sort(
+      (a, b) => b.totalOrders - a.totalOrders
+    );
   }
 
   function calculateOneDayCompletions(orders) {
     const quickCompletions = orders
-      .filter(order => {
-        if (!order.status === 'completed' || !order.employee) return false;
+      .filter((order) => {
+        if (!order.status === "completed" || !order.employee) return false;
         const startDate = new Date(order.created_at);
         const completedDate = new Date(order.updated_at);
         const daysDiff = (completedDate - startDate) / (1000 * 60 * 60 * 24);
@@ -600,7 +619,7 @@
           acc[empId] = {
             employee: order.employee,
             totalQuickOrders: 0,
-            orders: []
+            orders: [],
           };
         }
         acc[empId].totalQuickOrders++;
@@ -608,13 +627,235 @@
         return acc;
       }, {});
 
-    return Object.values(quickCompletions)
-      .sort((a, b) => b.totalQuickOrders - a.totalQuickOrders);
+    return Object.values(quickCompletions).sort(
+      (a, b) => b.totalQuickOrders - a.totalQuickOrders
+    );
   }
 
-  $: mostCompletedOrders = calculateMostCompletedOrders(data.performanceData || []);
+  $: mostCompletedOrders = calculateMostCompletedOrders(
+    data.performanceData || []
+  );
   $: oneDayCompletions = calculateOneDayCompletions(data.performanceData || []);
 
+  function calculateDailyCompletions(orders) {
+    // Group completions by employee and date
+    const dailyCompletions = orders
+      .filter((order) => order.status === "completed" && order.employee)
+      .reduce((acc, order) => {
+        const empId = order.employee.id;
+        const date = new Date(order.updated_at).toISOString().split("T")[0];
+
+        if (!acc[empId]) {
+          acc[empId] = {
+            employee: order.employee,
+            bestDay: { date: null, count: 0 },
+            totalOrders: 0,
+            dailyBreakdown: {},
+          };
+        }
+
+        if (!acc[empId].dailyBreakdown[date]) {
+          acc[empId].dailyBreakdown[date] = [];
+        }
+
+        acc[empId].dailyBreakdown[date].push(order);
+        acc[empId].totalOrders++;
+
+        // Update best day if current date has more completions
+        const currentDayCount = acc[empId].dailyBreakdown[date].length;
+        if (currentDayCount > acc[empId].bestDay.count) {
+          acc[empId].bestDay = {
+            date: date,
+            count: currentDayCount,
+          };
+        }
+
+        return acc;
+      }, {});
+
+    return Object.values(dailyCompletions)
+      .map((record) => ({
+        employee: record.employee,
+        totalOrders: record.totalOrders,
+        bestDay: record.bestDay,
+        lastCompleted: orders
+          .filter(
+            (o) =>
+              o.employee?.id === record.employee.id && o.status === "completed"
+          )
+          .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0]
+          ?.updated_at,
+      }))
+      .sort((a, b) => b.bestDay.count - a.bestDay.count);
+  }
+
+  let completionSortType = "all-time"; // or 'best-day'
+  $: completionStats = calculateDailyCompletions(data.performanceData || []);
+
+  function calculateOnTimeCompletions(orders) {
+    const onTimeByEmployee = orders
+      .filter(
+        (order) =>
+          order.status === "completed" &&
+          order.employee &&
+          new Date(order.updated_at) <= new Date(order.due_date)
+      )
+      .reduce((acc, order) => {
+        const empId = order.employee.id;
+        if (!acc[empId]) {
+          acc[empId] = {
+            employee: order.employee,
+            onTimeCount: 0,
+            totalCompleted: 0,
+            lastOnTime: null,
+            recentOnTimeOrders: [],
+          };
+        }
+
+        acc[empId].totalCompleted++;
+
+        if (new Date(order.updated_at) <= new Date(order.due_date)) {
+          acc[empId].onTimeCount++;
+          acc[empId].recentOnTimeOrders.push(order);
+          if (
+            !acc[empId].lastOnTime ||
+            new Date(order.updated_at) > new Date(acc[empId].lastOnTime)
+          ) {
+            acc[empId].lastOnTime = order.updated_at;
+          }
+        }
+
+        return acc;
+      }, {});
+
+    return Object.values(onTimeByEmployee)
+      .map((record) => ({
+        ...record,
+        onTimeRate: (
+          (record.onTimeCount / record.totalCompleted) *
+          100
+        ).toFixed(1),
+      }))
+      .sort(
+        (a, b) =>
+          // First sort by on-time count
+          b.onTimeCount - a.onTimeCount ||
+          // Then by on-time rate if counts are equal
+          parseFloat(b.onTimeRate) - parseFloat(a.onTimeRate)
+      );
+  }
+
+  $: onTimeStats = calculateOnTimeCompletions(data.performanceData || []);
+
+  function calculateOverallRankings(
+    fastestCompletions,
+    completionStats,
+    onTimeStats
+  ) {
+    const employeeRanks = {};
+
+    // Helper function to add rank to employee
+    const addRankToEmployee = (employeeId, category, rank) => {
+      if (!employeeRanks[employeeId]) {
+        employeeRanks[employeeId] = {
+          employee: null,
+          rankDetails: [],
+          categories: {},
+          avgRank: 0,
+        };
+      }
+      employeeRanks[employeeId].categories[category] = rank + 1; // +1 because array index starts at 0
+    };
+
+    // Record ranks for fastest completions
+    fastestCompletions.forEach((record, index) => {
+      const empId = record.employee.id;
+      employeeRanks[empId] = employeeRanks[empId] || {
+        employee: record.employee,
+        rankDetails: [],
+        categories: {},
+        avgRank: 0,
+      };
+      addRankToEmployee(empId, "fastest", index);
+      employeeRanks[empId].rankDetails.push({
+        category: "Fastest Completion",
+        rank: index + 1,
+        detail: `${record.timeEfficiency}% time efficiency`,
+      });
+    });
+
+    // Record ranks for completion stats (all-time)
+    const allTimeStats = completionStats.sort(
+      (a, b) => b.totalOrders - a.totalOrders
+    );
+    allTimeStats.forEach((record, index) => {
+      const empId = record.employee.id;
+      employeeRanks[empId] = employeeRanks[empId] || {
+        employee: record.employee,
+        rankDetails: [],
+        categories: {},
+        avgRank: 0,
+      };
+      addRankToEmployee(empId, "allTime", index);
+      employeeRanks[empId].rankDetails.push({
+        category: "Total Completions",
+        rank: index + 1,
+        detail: `${record.totalOrders} orders completed`,
+      });
+    });
+
+    // Record ranks for best day
+    const bestDayStats = completionStats.sort(
+      (a, b) => b.bestDay.count - a.bestDay.count
+    );
+    bestDayStats.forEach((record, index) => {
+      const empId = record.employee.id;
+      employeeRanks[empId] = employeeRanks[empId] || {
+        employee: record.employee,
+        rankDetails: [],
+        categories: {},
+        avgRank: 0,
+      };
+      addRankToEmployee(empId, "bestDay", index);
+      employeeRanks[empId].rankDetails.push({
+        category: "Best Day Record",
+        rank: index + 1,
+        detail: `${record.bestDay.count} orders in one day`,
+      });
+    });
+
+    // Record ranks for on-time completion
+    onTimeStats.forEach((record, index) => {
+      const empId = record.employee.id;
+      employeeRanks[empId] = employeeRanks[empId] || {
+        employee: record.employee,
+        rankDetails: [],
+        categories: {},
+        avgRank: 0,
+      };
+      addRankToEmployee(empId, "onTime", index);
+      employeeRanks[empId].rankDetails.push({
+        category: "On-Time Delivery",
+        rank: index + 1,
+        detail: `${record.onTimeCount} on-time orders`,
+      });
+    });
+
+    // Calculate average rank for each employee
+    return Object.values(employeeRanks)
+      .map((record) => {
+        const ranks = Object.values(record.categories);
+        record.avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length;
+        return record;
+      })
+      .sort((a, b) => a.avgRank - b.avgRank); // Lower average rank is better
+  }
+
+  $: overallRankings = calculateOverallRankings(
+    fastestCompletions,
+    completionStats,
+    onTimeStats
+  );
 </script>
 
 <div class="p-6 space-y-6">
@@ -650,21 +891,25 @@
   <div class="border-b border-gray-200">
     <nav class="-mb-px flex space-x-8">
       <button
-        class="py-4 px-1 {activeTab === 'overview' ? 'border-b-2 border-primary text-primary' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        on:click={() => activeTab = 'overview'}
+        class="py-4 px-1 {activeTab === 'overview'
+          ? 'border-b-2 border-primary text-primary'
+          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        on:click={() => (activeTab = "overview")}
       >
         Overview
       </button>
       <button
-        class="py-4 px-1 {activeTab === 'rankings' ? 'border-b-2 border-primary text-primary' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        on:click={() => activeTab = 'rankings'}
+        class="py-4 px-1 {activeTab === 'rankings'
+          ? 'border-b-2 border-primary text-primary'
+          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        on:click={() => (activeTab = "rankings")}
       >
         Rankings
       </button>
     </nav>
   </div>
 
-  {#if activeTab === 'overview'}
+  {#if activeTab === "overview"}
     <!-- Existing Overview Content -->
     <!-- Replace the Filters Card section -->
     <div class="bg-white p-4 rounded-lg shadow-md">
@@ -763,19 +1008,27 @@
       <div class="grid grid-cols-4 gap-4">
         <!-- Quick Stats -->
         <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <div class="text-lg font-semibold text-gray-900">{metrics.totalOrders}</div>
+          <div class="text-lg font-semibold text-gray-900">
+            {metrics.totalOrders}
+          </div>
           <div class="text-sm text-gray-500">Total Orders</div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <div class="text-lg font-semibold text-green-600">{metrics.completedOrders}</div>
+          <div class="text-lg font-semibold text-green-600">
+            {metrics.completedOrders}
+          </div>
           <div class="text-sm text-gray-500">Completed Orders</div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <div class="text-lg font-semibold text-red-600">{metrics.lateOrders}</div>
+          <div class="text-lg font-semibold text-red-600">
+            {metrics.lateOrders}
+          </div>
           <div class="text-sm text-gray-500">Late Orders</div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <div class="text-lg font-semibold text-primary">{metrics.efficiencyRate}%</div>
+          <div class="text-lg font-semibold text-primary">
+            {metrics.efficiencyRate}%
+          </div>
           <div class="text-sm text-gray-500">On-Time Rate</div>
         </div>
       </div>
@@ -784,18 +1037,27 @@
       <div class="grid grid-cols-3 gap-4">
         <!-- Employee Ranking Card - Larger and more prominent -->
         <div class="bg-white p-4 rounded-lg shadow-md col-span-1">
-          <h3 class="text-sm font-semibold text-gray-800 mb-3">Top Performers</h3>
+          <h3 class="text-sm font-semibold text-gray-800 mb-3">
+            Top Performers
+          </h3>
           <div class="space-y-3">
             {#each (metrics.employeeComparison || []).slice(0, 5) as employee, i}
-              <div class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg">
+              <div
+                class="p-3 {i === 0 ? 'bg-green-50' : 'bg-gray-50'} rounded-lg"
+              >
                 <div class="flex items-center justify-between">
                   <div>
                     <div class="font-medium">{employee.name}</div>
                     <div class="text-xs text-gray-600">
-                      {employee.metrics.totalOrders} orders • {employee.metrics.onTimeDeliveryRate}% on-time
+                      {employee.metrics.totalOrders} orders • {employee.metrics
+                        .onTimeDeliveryRate}% on-time
                     </div>
                   </div>
-                  <div class="text-sm font-semibold {i === 0 ? 'text-green-600' : 'text-gray-600'}">
+                  <div
+                    class="text-sm font-semibold {i === 0
+                      ? 'text-green-600'
+                      : 'text-gray-600'}"
+                  >
                     {employee.metrics.avgCompletionTime}d avg
                   </div>
                 </div>
@@ -809,26 +1071,36 @@
           <!-- Time Analysis -->
           <div class="grid grid-cols-2 gap-4">
             <div class="bg-white p-4 rounded-lg shadow-md">
-              <h3 class="text-sm font-semibold text-gray-800 mb-3">Completion Times</h3>
+              <h3 class="text-sm font-semibold text-gray-800 mb-3">
+                Completion Times
+              </h3>
               <div class="space-y-2">
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Fastest</span>
-                  <span class="font-semibold text-green-600">{metrics.fastestCompletion}d</span>
+                  <span class="font-semibold text-green-600"
+                    >{metrics.fastestCompletion}d</span
+                  >
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Average</span>
-                  <span class="font-semibold text-blue-600">{metrics.averageCompletionTime}d</span>
+                  <span class="font-semibold text-blue-600"
+                    >{metrics.averageCompletionTime}d</span
+                  >
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Slowest</span>
-                  <span class="font-semibold text-red-600">{metrics.slowestCompletion}d</span>
+                  <span class="font-semibold text-red-600"
+                    >{metrics.slowestCompletion}d</span
+                  >
                 </div>
               </div>
             </div>
 
             <!-- Workload Distribution -->
             <div class="bg-white p-4 rounded-lg shadow-md">
-              <h3 class="text-sm font-semibold text-gray-800 mb-3">Weekly Distribution</h3>
+              <h3 class="text-sm font-semibold text-gray-800 mb-3">
+                Weekly Distribution
+              </h3>
               <div class="space-y-2">
                 {#each Object.entries(metrics.workloadDistribution || {}) as [day, count]}
                   <div class="flex justify-between items-center">
@@ -842,13 +1114,15 @@
 
           <!-- Uniform Type Analysis -->
           <div class="bg-white p-4 rounded-lg shadow-md">
-            <h3 class="text-sm font-semibold text-gray-800 mb-3">Uniform Type Analysis</h3>
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">
+              Uniform Type Analysis
+            </h3>
             <div class="grid grid-cols-3 gap-4">
-              {#each ['upper', 'lower', 'both'] as type}
+              {#each ["upper", "lower", "both"] as type}
                 <div class="p-3 bg-gray-50 rounded-lg">
                   <div class="text-sm font-medium capitalize">{type}</div>
                   <div class="text-lg font-semibold text-blue-600">
-                    {metrics.averageTimePerUniform?.[type] || '0'}d
+                    {metrics.averageTimePerUniform?.[type] || "0"}d
                   </div>
                   <div class="text-xs text-gray-500">avg. completion</div>
                 </div>
@@ -863,7 +1137,7 @@
         <div class="p-4 border-b">
           <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold">Order Details</h2>
-            <input 
+            <input
               type="text"
               bind:value={searchQuery}
               placeholder="Search orders..."
@@ -936,8 +1210,10 @@
                   </td>
                   <td class="p-3">
                     <div class="space-y-1">
-                      <div class="font-medium">{formatDate(order.due_date)}</div>
-                      {#if order.status === 'completed' && order.updated_at}
+                      <div class="font-medium">
+                        {formatDate(order.due_date)}
+                      </div>
+                      {#if order.status === "completed" && order.updated_at}
                         <div class="text-xs text-gray-500">
                           Completed: {formatDate(order.updated_at)}
                         </div>
@@ -970,27 +1246,33 @@
                     {/if}
                   </td>
                   <td class="p-3">
-                    {#if order.status === 'completed'}
+                    {#if order.status === "completed"}
                       {#if order.updated_at}
-                        {@const days = (new Date(order.updated_at) - new Date(order.created_at)) / (1000 * 60 * 60 * 24)}
+                        {@const days =
+                          (new Date(order.updated_at) -
+                            new Date(order.created_at)) /
+                          (1000 * 60 * 60 * 24)}
                         <div class="text-sm">
-                          <span class="font-medium">{days.toFixed(1)} days</span>
+                          <span class="font-medium">{days.toFixed(1)} days</span
+                          >
                         </div>
                       {/if}
+                    {:else if metrics.predictedCompletions[order.id]}
+                      <div class="text-sm">
+                        <span class="text-gray-600"
+                          >Est. {metrics.predictedCompletions[order.id].days} days</span
+                        >
+                        <span class="text-xs text-gray-400 block">
+                          Based on {order.status === "pending"
+                            ? "general"
+                            : `${order.employee.first_name}'s`}
+                          {order.uniform_type} wear average
+                        </span>
+                      </div>
                     {:else}
-                      {#if metrics.predictedCompletions[order.id]}
-                        <div class="text-sm">
-                          <span class="text-gray-600">Est. {metrics.predictedCompletions[order.id].days} days</span>
-                          <span class="text-xs text-gray-400 block">
-                            Based on {order.status === 'pending' ? 'general' : `${order.employee.first_name}'s`} 
-                            {order.uniform_type} wear average
-                          </span>
-                        </div>
-                      {:else}
-                        <div class="text-sm text-gray-400">
-                          No data to estimate
-                        </div>
-                      {/if}
+                      <div class="text-sm text-gray-400">
+                        No data to estimate
+                      </div>
                     {/if}
                   </td>
                   <td class="p-3">
@@ -1026,123 +1308,244 @@
     </div>
   {/if}
 
-  {#if activeTab === 'rankings'}
-  <div class="grid grid-cols-3 gap-6">
-    <!-- Left Column: Fastest Completions -->
-    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
-      <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
-      <p class="text-xs text-gray-500 mb-4">Best time efficiency per tailor</p>
-      <div class="space-y-3 overflow-auto flex-1">
-        {#each fastestCompletions as completion, i}
-          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 rounded-full text-sm font-bold 
-                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
-                 i === 1 ? 'bg-gray-100 text-gray-700' : 
-                 i === 2 ? 'bg-amber-100 text-amber-700' : 
-                 'bg-gray-50 text-gray-600'}">
-                #{i + 1}
-              </span>
-              <div class="font-medium text-gray-900">
-                {completion.employee?.first_name} {completion.employee?.last_name}
+  {#if activeTab === "rankings"}
+    <!-- Overall Rankings Card -->
+    <div class="mb-6">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold mb-4">Overall Performance Rankings</h2>
+        <div class="grid grid-cols-3 gap-6">
+          {#each overallRankings.slice(0, 3) as record, i}
+            <div
+              class="p-4 rounded-lg border {i === 0
+                ? 'bg-gradient-to-br from-yellow-50 to-white border-yellow-200'
+                : i === 1
+                  ? 'bg-gradient-to-br from-gray-50 to-white border-gray-200'
+                  : 'bg-gradient-to-br from-amber-50 to-white border-amber-200'}"
+            >
+              <div class="flex items-center gap-3 mb-4">
+                <div
+                  class="w-12 h-12 rounded-full flex items-center justify-center
+                  {i === 0
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : i === 1
+                      ? 'bg-gray-100 text-gray-700'
+                      : 'bg-amber-100 text-amber-700'}"
+                >
+                  <span class="text-2xl font-bold">#{i + 1}</span>
+                </div>
+                <div>
+                  <div class="font-semibold text-lg">
+                    {record.employee.first_name}
+                    {record.employee.last_name}
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    Average Rank: {record.avgRank.toFixed(1)}
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-2">
+                {#each record.rankDetails.sort((a, b) => a.rank - b.rank) as detail}
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-600">{detail.category}</span>
+                    <span class="font-medium"
+                      >#{detail.rank} ({detail.detail})</span
+                    >
+                  </div>
+                {/each}
               </div>
             </div>
-            <div class="text-xs text-gray-500 mb-2 capitalize">{completion.uniformType} uniform</div>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span class="text-gray-500">Time Given</span>
-                <span class="float-right font-medium">{completion.availableDays}d</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Used</span>
-                <span class="float-right font-medium text-primary">{completion.daysUsed}d</span>
-              </div>
-            </div>
-            <div class="mt-2 pt-2 border-t text-right">
-              <span class="font-bold {
-                parseFloat(completion.timeEfficiency) <= 50 ? 'text-green-600' : 
-                parseFloat(completion.timeEfficiency) <= 75 ? 'text-blue-600' : 
-                'text-gray-600'
-              }">
-                {completion.timeEfficiency}% of time used
-              </span>
-            </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
     </div>
-
-    <!-- Center Column: Most Orders Completed -->
-    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
-      <h2 class="text-lg font-semibold mb-4">Most Orders Completed</h2>
-      <p class="text-xs text-gray-500 mb-4">Total completed orders all time</p>
-      <div class="space-y-3 overflow-auto flex-1">
-        {#each mostCompletedOrders as record, i}
-          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 rounded-full text-sm font-bold 
-                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
-                 i === 1 ? 'bg-gray-100 text-gray-700' : 
-                 i === 2 ? 'bg-amber-100 text-amber-700' : 
-                 'bg-gray-50 text-gray-600'}">
-                #{i + 1}
-              </span>
-              <div class="font-medium text-gray-900">
-                {record.employee.first_name} {record.employee.last_name}
+    <div class="grid grid-cols-3 gap-6">
+      <!-- Left Column: Fastest Completions -->
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+        <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
+        <p class="text-xs text-gray-500 mb-4">
+          Best time efficiency per tailor
+        </p>
+        <div class="space-y-3 overflow-auto flex-1">
+          {#each fastestCompletions as completion, i}
+            <div
+              class="p-3 rounded-lg border {i < 3
+                ? 'bg-gradient-to-br from-white to-gray-50'
+                : 'bg-white'} hover:shadow-sm transition-shadow"
+            >
+              <div class="flex items-center gap-2 mb-2">
+                <span
+                  class="px-2 py-1 rounded-full text-sm font-bold
+                {i === 0
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : i === 1
+                      ? 'bg-gray-100 text-gray-700'
+                      : i === 2
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-50 text-gray-600'}"
+                >
+                  #{i + 1}
+                </span>
+                <div class="font-medium text-gray-900">
+                  {completion.employee?.first_name}
+                  {completion.employee?.last_name}
+                </div>
               </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
-              <div>
-                <span class="text-gray-500">Total Orders</span>
-                <span class="float-right font-medium text-primary">{record.totalOrders}</span>
+              <div class="text-xs text-gray-500 mb-2 capitalize">
+                {completion.uniformType} uniform
               </div>
-              <div>
-                <span class="text-gray-500">Latest</span>
-                <span class="float-right font-medium">
-                  {formatDate(record.completedOrders[record.completedOrders.length - 1].updated_at)}
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span class="text-gray-500">Time Given</span>
+                  <span class="float-right font-medium"
+                    >{completion.availableDays}d</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500">Used</span>
+                  <span class="float-right font-medium text-primary"
+                    >{completion.daysUsed}d</span
+                  >
+                </div>
+              </div>
+              <div class="mt-2 pt-2 border-t text-right">
+                <span
+                  class="font-bold {parseFloat(completion.timeEfficiency) <= 50
+                    ? 'text-green-600'
+                    : parseFloat(completion.timeEfficiency) <= 75
+                      ? 'text-blue-600'
+                      : 'text-gray-600'}"
+                >
+                  {completion.timeEfficiency}% of time used
                 </span>
               </div>
             </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
-    </div>
 
-    <!-- Right Column: One Day Champions -->
-    <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
-      <h2 class="text-lg font-semibold mb-4">One Day Champions</h2>
-      <p class="text-xs text-gray-500 mb-4">Most orders completed within 24 hours</p>
-      <div class="space-y-3 overflow-auto flex-1">
-        {#each oneDayCompletions as record, i}
-          <div class="p-3 rounded-lg border {i < 3 ? 'bg-gradient-to-br from-white to-gray-50' : 'bg-white'} hover:shadow-sm transition-shadow">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 rounded-full text-sm font-bold 
-                {i === 0 ? 'bg-yellow-100 text-yellow-700' : 
-                 i === 1 ? 'bg-gray-100 text-gray-700' : 
-                 i === 2 ? 'bg-amber-100 text-amber-700' : 
-                 'bg-gray-50 text-gray-600'}">
-                #{i + 1}
-              </span>
-              <div class="font-medium text-gray-900">
-                {record.employee.first_name} {record.employee.last_name}
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
-              <div>
-                <span class="text-gray-500">24h Orders</span>
-                <span class="float-right font-medium text-green-600">{record.totalQuickOrders}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Latest</span>
-                <span class="float-right font-medium">
-                  {formatDate(record.orders[record.orders.length - 1].updated_at)}
-                </span>
-              </div>
-            </div>
+      <!-- Middle Column: Completion Records -->
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="text-lg font-semibold">Completion Records</h2>
+            <p class="text-xs text-gray-500">Tailor completion statistics</p>
           </div>
-        {/each}
+          <select
+            bind:value={completionSortType}
+            class="border rounded-md px-3 py-1 text-sm"
+          >
+            <option value="all-time">All Time</option>
+            <option value="best-day">Within a Day</option>
+          </select>
+        </div>
+        <div class="space-y-3 overflow-auto flex-1">
+          {#each completionStats.sort((a, b) => {
+            if (completionSortType === "all-time") {
+              return b.totalOrders - a.totalOrders;
+            } else {
+              return b.bestDay.count - a.bestDay.count;
+            }
+          }) as record, i}
+            <div
+              class="p-4 rounded-lg border hover:shadow-sm transition-shadow"
+            >
+              <div class="flex items-center gap-2 mb-3">
+                <span
+                  class="px-2 py-1 rounded-full text-sm font-bold
+                {i === 0
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : i === 1
+                      ? 'bg-gray-100 text-gray-700'
+                      : i === 2
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-50 text-gray-600'}"
+                >
+                  #{i + 1}
+                </span>
+                <div class="font-medium text-gray-900">
+                  {record.employee.first_name}
+                  {record.employee.last_name}
+                </div>
+              </div>
+
+              {#if completionSortType === "all-time"}
+                <div class="mt-2">
+                  <div class="text-sm text-gray-500">
+                    Total Completed Orders
+                  </div>
+                  <div class="text-xl font-bold text-primary">
+                    {record.totalOrders}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-2">
+                    Last completed: {formatDate(record.lastCompleted)}
+                  </div>
+                </div>
+              {:else}
+                <div class="mt-2">
+                  <div class="text-sm text-gray-500">
+                    Most Orders in One Day
+                  </div>
+                  <div class="text-xl font-bold text-green-600">
+                    {record.bestDay.count}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-2">
+                    Achieved on {formatDate(record.bestDay.date)}
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Right Column: On-Time Rankings -->
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+        <h2 class="text-lg font-semibold mb-4">On-Time Completion</h2>
+        <p class="text-xs text-gray-500 mb-4">
+          Most orders completed before deadline
+        </p>
+        <div class="space-y-3 overflow-auto flex-1">
+          {#each onTimeStats as record, i}
+            <div
+              class="p-4 rounded-lg border hover:shadow-sm transition-shadow"
+            >
+              <div class="flex items-center gap-2 mb-3">
+                <span
+                  class="px-2 py-1 rounded-full text-sm font-bold
+                    {i === 0
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : i === 1
+                      ? 'bg-gray-100 text-gray-700'
+                      : i === 2
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-50 text-gray-600'}"
+                >
+                  #{i + 1}
+                </span>
+                <div class="font-medium text-gray-900">
+                  {record.employee.first_name}
+                  {record.employee.last_name}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-2">
+                <div>
+                  <div class="text-sm text-gray-500">On-Time Orders</div>
+                  <div class="text-xl font-bold text-green-600">
+                    {record.onTimeCount}
+                  </div>
+                </div>
+              </div>
+
+              {#if record.lastOnTime}
+                <div class="text-xs text-gray-400 mt-2">
+                  Last on-time: {formatDate(record.lastOnTime)}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
       </div>
     </div>
-  </div>
-{/if}
+  {/if}
 </div>
