@@ -28,8 +28,8 @@
 
     // Initialize sort state
     let sortState = {
-        column: 'course_code',
-        direction: 'asc'
+        column: 'created_at',
+        direction: 'desc'
     };
 
     // Updated toggle sort function
@@ -48,15 +48,7 @@
             };
         }
     };
-
-    // Updated getSortIcon function
-    function getSortIcon(column) {
-        if (sortState.column !== column) {
-            return '⋮⋮';
-        }
-        return sortState.direction === 'asc' ? '△' : '▽';
-    }
-
+    
     // Modified filtered courses with new sorting logic
     $: filteredCourses = courses
         ?.filter(c => 
@@ -107,7 +99,7 @@
                 resetForms();
                 window.location.reload();
             } else if (result.type === 'failure') {
-                showError(result.error || result.data?.error || 'Failed to create courses');
+                showError(result.data?.error || 'An unexpected error occurred');
             }
             isLoading = false;
         };
@@ -120,7 +112,7 @@
                 resetForms();
                 window.location.reload();
             } else if (result.type === 'failure') {
-                showError(result.error || 'Failed to update course');
+                showError(result.data?.error || 'An unexpected error occurred');
             }
             isLoading = false;
         };
@@ -133,7 +125,7 @@
                 resetForms();
                 window.location.reload();
             } else if (result.type === 'failure') {
-                showError(result.error || 'Failed to delete course');
+                showError(result.data?.error || 'An unexpected error occurred');
             }
             isLoading = false;
         };
@@ -163,6 +155,8 @@
                 comparison = (a.description || '').localeCompare(b.description || '');
             } else if (field === 'created_at') {
                 comparison = new Date(a.created_at) - new Date(b.created_at);
+            } else if (field === 'student_count') {
+                comparison = a.student_count - b.student_count;
             }
             return sortDirection === 'asc' ? comparison : -comparison;
         });
@@ -232,6 +226,15 @@
                             {/if}
                         </th>
                         <th 
+                            class="p-2 cursor-pointer hover:bg-gray-200 text-center"
+                            on:click={() => sort('student_count')}
+                        >
+                            No. of Students
+                            {#if sortField === 'student_count'}
+                                <span class="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                            {/if}
+                        </th>
+                        <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => sort('created_at')}
                         >
@@ -290,6 +293,11 @@
                                 {#if editingId !== course.id}
                                     {course.description || '-'}
                                 {/if}
+                            </td>
+                            <td class="p-2 text-center">
+                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                                    {course.student_count} students
+                                </span>
                             </td>
                             <td class="p-2">
                                 {new Date(course.created_at).toLocaleDateString()}
@@ -483,7 +491,7 @@
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg w-full max-w-md">
             <h2 class="text-xl font-bold mb-4 text-red-600">Error</h2>
-            <p class="mb-4">{errorMessage}</p>
+            <p class="mb-4 whitespace-pre-line">{errorMessage}</p>
             <div class="flex justify-end">
                 <button 
                     class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"

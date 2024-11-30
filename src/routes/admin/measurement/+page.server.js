@@ -1,6 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
+const toSentenceCase = (str) => {
+    return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
+};
+
 export const load = async ({ locals }) => {
     try {
         // First get all measurement types
@@ -43,7 +47,7 @@ export const actions = {
     create: async ({ request }) => {
         const formData = await request.formData();
         const names = formData.getAll('names')
-            .map(name => name.toString().trim())
+            .map(name => toSentenceCase(name.toString().trim()))
             .filter(name => name.length > 0);
 
         if (names.length === 0) {
@@ -53,7 +57,7 @@ export const actions = {
         }
 
         try {
-            // First check for existing measurements
+            // First check for existing measurements with sentence case names
             const { data: existingMeasurements } = await supabase
                 .from('measurement_types')
                 .select('name')
@@ -84,7 +88,7 @@ export const actions = {
     update: async ({ request }) => {
         const formData = await request.formData();
         const id = formData.get('id');
-        const name = formData.get('name')?.toString().trim();
+        const name = toSentenceCase(formData.get('name')?.toString().trim() || '');
 
         if (!id || !name) {
             return fail(400, {
@@ -93,6 +97,20 @@ export const actions = {
         }
 
         try {
+            // Check if the new name already exists (excluding current record)
+            const { data: existing } = await supabase
+                .from('measurement_types')
+                .select('id')
+                .eq('name', name)
+                .neq('id', id)
+                .maybeSingle();
+
+            if (existing) {
+                return fail(400, {
+                    error: `A measurement type with name "${name}" already exists`
+                });
+            }
+
             const { error: updateError } = await supabase
                 .from('measurement_types')
                 .update({ name })

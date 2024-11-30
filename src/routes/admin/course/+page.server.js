@@ -3,15 +3,25 @@ import { supabase } from '$lib/supabaseClient';
 
 export const load = async () => {
     try {
+        // Get courses with student count
         const { data: courses, error: fetchError } = await supabase
             .from('courses')
-            .select('*')
+            .select(`
+                *,
+                students:students(count)
+            `)
             .order('created_at', { ascending: false });
 
         if (fetchError) throw fetchError;
 
+        // Transform the data to include student_count
+        const coursesWithCount = courses.map(course => ({
+            ...course,
+            student_count: course.students[0].count
+        }));
+
         return {
-            courses
+            courses: coursesWithCount
         };
     } catch (err) {
         console.error('Error:', err);
@@ -42,17 +52,30 @@ export const actions = {
         }
 
         try {
-            // Check for existing courses
-            const { data: existingCourses } = await supabase
+            // Check for existing courses and descriptions
+            const { data: existingData } = await supabase
                 .from('courses')
-                .select('course_code')
-                .in('course_code', courses.map(c => c.course_code));
+                .select('course_code, description')
+                .or(`course_code.in.(${courses.map(c => `'${c.course_code}'`).join(',')}),description.in.(${courses.filter(c => c.description).map(c => `'${c.description}'`).join(',')})`);
 
-            if (existingCourses && existingCourses.length > 0) {
-                const duplicates = existingCourses.map(c => c.course_code).join(', ');
-                return fail(400, {
-                    error: `Course codes already exist: ${duplicates}`
-                });
+            if (existingData && existingData.length > 0) {
+                const duplicateCodes = existingData
+                    .filter(e => courses.some(c => c.course_code === e.course_code))
+                    .map(e => e.course_code);
+                const duplicateDescs = existingData
+                    .filter(e => courses.some(c => c.description === e.description))
+                    .map(e => e.description);
+
+                let errorMessage = '';
+                if (duplicateCodes.length > 0) {
+                    errorMessage += `Course code already exists:\r\n${duplicateCodes.join('\r\n')}`;
+                }
+                if (duplicateDescs.length > 0) {
+                    if (duplicateCodes.length > 0) errorMessage += '\r\n\r\n';
+                    errorMessage += `Course description already exists:\r\n${duplicateDescs.join('\r\n')}`;
+                }
+
+                return fail(400, { error: errorMessage });
             }
 
             const { error: insertError } = await supabase
@@ -87,14 +110,46 @@ export const actions = {
             });
         }
 
+        const sentenceCaseDesc = description ? 
+            description.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) 
+            : null;
+
         try {
+            // Check for existing courses with the same code or description
+            const { data: existingData } = await supabase
+                .from('courses')
+                .select('course_code, description')
+                .or(`course_code.eq.${course_code.toUpperCase()},description.eq.${sentenceCaseDesc}`)
+                .neq('id', id);
+
+            if (existingData && existingData.length > 0) {
+                const duplicateCodes = existingData
+                    .filter(e => e.course_code === course_code.toUpperCase())
+                    .map(e => e.course_code);
+                const duplicateDescs = existingData
+                    .filter(e => e.description === sentenceCaseDesc)
+                    .map(e => e.description);
+
+                let errorMessage = '';
+                if (duplicateCodes.length > 0) {
+                    errorMessage += `Course code already exists:\r\n${duplicateCodes[0]}`;
+                }
+                if (duplicateDescs.length > 0) {
+                    if (duplicateCodes.length > 0) errorMessage += '\r\n\r\n';
+                    errorMessage += `Course description already exists:\r\n${duplicateDescs[0]}`;
+                }
+
+                return fail(400, { 
+                    type: 'failure',
+                    error: errorMessage
+                });
+            }
+
             const { error: updateError } = await supabase
                 .from('courses')
                 .update({ 
                     course_code: course_code.toUpperCase(),
-                    description: description ? 
-                        description.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) 
-                        : null
+                    description: sentenceCaseDesc
                 })
                 .eq('id', id);
 
@@ -108,7 +163,7 @@ export const actions = {
             console.error('Error:', err);
             return fail(500, {
                 type: 'failure',
-                error: err.message || 'Failed to update course'
+                error: err.message || 'An unexpected error occurred while updating the course'
             });
         }
     },

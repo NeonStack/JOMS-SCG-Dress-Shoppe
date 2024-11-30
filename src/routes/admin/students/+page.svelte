@@ -15,6 +15,12 @@
       courses = data.courses || [];
       uniformConfigs = data.uniformConfigs || {};
       measurementTypes = data.measurementTypes || {};
+      
+      // Apply initial sorting
+      students = students.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      students = [...students]; // Trigger reactivity
     } catch (err) {
       error = "Error loading data. Please refresh the page.";
       console.error("Error in component:", err);
@@ -344,6 +350,15 @@
                 {/if}
               </th>
               <th class="p-2 text-left">Contact Number</th>
+              <th
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                on:click={() => sort("created_at")}
+              >
+                Created At
+                {#if sortField === "created_at"}
+                  <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                {/if}
+              </th>
               <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -370,6 +385,7 @@
                   </span>
                 </td>
                 <td class="p-2">{student.contact_number || "-"}</td>
+                <td class="p-2">{new Date(student.created_at).toLocaleDateString()}</td>
                 <td class="p-2 text-right">
                   <button
                     class="text-blue-600 hover:text-blue-800 mr-2"

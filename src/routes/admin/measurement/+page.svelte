@@ -13,8 +13,8 @@
     let newMeasurementName = '';
     let isLoading = false;
     let measurementToDelete = null;
-    let sortColumn = 'name';
-    let sortDirection = 'asc';
+    let sortColumn = 'created_at';
+    let sortDirection = 'desc';
     let newMeasurements = [''];  // Array to hold multiple measurement names
 
     // Filter and sort measurements
