@@ -248,6 +248,8 @@
     showModal = false; // Also close the student search modal
     isEditing = false;
     orderToEdit = null;
+    searchTerm = ""; // Add this to clear the search term
+    isStudentDropdownOpen = false; // Add this to ensure dropdown is closed
   }
 
   // Modify the toggleOrderSelection to handle individual selections
@@ -377,6 +379,7 @@
     selectedStudent = data.students.find((s) => s.id === order.student.id);
     selectedUniformType = order.uniform_type;
     selectedDueDate = order.due_date;
+    searchTerm = `${order.student.first_name} ${order.student.last_name} (${order.student.course?.course_code})`; // Add this to show student name
     showCreateModal = true;
   }
 
