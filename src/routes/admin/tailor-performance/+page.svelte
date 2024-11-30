@@ -1007,25 +1007,25 @@
       <!-- Top row: Key Metrics Overview -->
       <div class="grid grid-cols-4 gap-4">
         <!-- Quick Stats -->
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all">
           <div class="text-lg font-semibold text-gray-900">
             {metrics.totalOrders}
           </div>
           <div class="text-sm text-gray-500">Total Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-green-100 hover:border-green-200 transition-all">
           <div class="text-lg font-semibold text-green-600">
             {metrics.completedOrders}
           </div>
           <div class="text-sm text-gray-500">Completed Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-red-100 hover:border-red-200 transition-all">
           <div class="text-lg font-semibold text-red-600">
             {metrics.lateOrders}
           </div>
           <div class="text-sm text-gray-500">Late Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all">
           <div class="text-lg font-semibold text-primary">
             {metrics.efficiencyRate}%
           </div>
@@ -1039,7 +1039,7 @@
         <div class="space-y-4 col-span-2">
           <!-- Time Analysis -->
           <div class="grid grid-cols-3 gap-4">
-            <div class="bg-white p-4 rounded-lg shadow-md">
+            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-blue-100 hover:border-blue-200 transition-all">
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Completion Times
               </h3>
@@ -1066,7 +1066,7 @@
             </div>
 
             <!-- Workload Distribution -->
-            <div class="bg-white p-4 rounded-lg shadow-md">
+            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-purple-100 hover:border-purple-200 transition-all">
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Weekly Distribution
               </h3>
@@ -1080,7 +1080,7 @@
               </div>
             </div>
             <!-- Uniform Type Analysis -->
-            <div class="bg-white p-4 rounded-lg shadow-md">
+            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-emerald-100 hover:border-emerald-200 transition-all">
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Uniform Type Analysis
               </h3>
@@ -1101,7 +1101,7 @@
       </div>
 
       <!-- Bottom row: Orders Table -->
-      <div class="bg-white rounded-lg shadow-md">
+      <div class="bg-white rounded-lg shadow-md border-2 border-gray-100">
         <div class="p-4 border-b">
           <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold">Order Details</h2>
@@ -1279,7 +1279,7 @@
   {#if activeTab === "rankings"}
     <!-- Overall Rankings Card -->
     <div class="mb-6">
-      <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="bg-white rounded-lg shadow-md p-6 border-2 border-indigo-100">
         <h2 class="text-lg font-semibold mb-4">Overall Performance Rankings</h2>
         <div class="grid grid-cols-3 gap-6">
           {#each overallRankings.slice(0, 3) as record, i}
@@ -1328,7 +1328,7 @@
     </div>
     <div class="grid grid-cols-3 gap-6">
       <!-- Left Column: Fastest Completions -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-cyan-100 hover:border-cyan-200 transition-all">
         <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
         <p class="text-xs text-gray-500 mb-4">
           Best time efficiency per tailor
@@ -1392,7 +1392,7 @@
       </div>
 
       <!-- Middle Column: Completion Records -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-violet-100 hover:border-violet-200 transition-all">
         <div class="flex justify-between items-center mb-4">
           <div>
             <h2 class="text-lg font-semibold">Completion Records</h2>
@@ -1467,7 +1467,7 @@
       </div>
 
       <!-- Right Column: On-Time Rankings -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col">
+      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-amber-100 hover:border-amber-200 transition-all">
         <h2 class="text-lg font-semibold mb-4">On-Time Completion</h2>
         <p class="text-xs text-gray-500 mb-4">
           Most orders completed before deadline
