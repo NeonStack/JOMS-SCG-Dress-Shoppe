@@ -57,8 +57,8 @@
   <!-- Fixed Sidebar -->
   <aside
     class="{showSidebar
-      ? 'fixed inset-0 z-50 w-[60%]'
-      : 'hidden'} lg:relative lg:block lg:w-64 bg-primary text-accent-foreground"
+      ? 'fixed inset-0 z-50 w-[60%] translate-x-0'
+      : 'fixed inset-0 z-50 w-[60%] -translate-x-full'} lg:relative lg:block lg:w-64 lg:translate-x-0 bg-primary text-accent-foreground transition-transform duration-300 ease-in-out"
   >
     <div class="sticky top-0 h-screen overflow-y-auto">
       <div class="p-4 font-bold text-xl">Tailor Panel</div>
