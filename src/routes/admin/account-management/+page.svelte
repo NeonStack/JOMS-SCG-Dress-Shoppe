@@ -222,13 +222,8 @@
     if (!newAccount.password) errors.password = "Password is required";
 
     // Username validation
-    if (newAccount.username) {
-      // Only allow letters, numbers, and underscores
-      if (!/^[a-zA-Z0-9_]+$/.test(newAccount.username)) {
-        errors.username =
-          "Username can only contain letters, numbers, and underscores";
-      }
-    }
+    const usernameError = validateUsername(newAccount.username);
+    if (usernameError) errors.username = usernameError;
 
     if (newAccount.password !== newAccount.confirmPassword) {
       errors.confirmPassword = "Passwords do not match";
@@ -384,6 +379,38 @@
     position = position.trim().replace(/\s+/g, ' '); // Remove extra spaces
     if (position.length < 2 || position.length > 50) return 'Must be between 2-50 characters';
     if (!/^[a-zA-Z\s\-]+$/.test(position)) return 'Only letters, spaces, and hyphens allowed';
+    return null;
+  }
+
+  function validateUsername(username) {
+    if (!username) return 'Username is required';
+    
+    // Only allow letters, numbers, and dots
+    if (!/^[a-zA-Z0-9.]+$/.test(username)) {
+      return 'Username can only contain letters, numbers, and dots';
+    }
+
+    // Check if username already exists
+    const email = `${username.toLowerCase()}${EMAIL_DOMAIN}`;
+    if (data.existingEmails.includes(email)) {
+      return 'This username is already taken';
+    }
+
+    // Username length validation - MODIFIED HERE
+    if (username.length < 2 || username.length > 30) {
+      return 'Username must be between 2 and 30 characters';
+    }
+
+    // Don't allow username to start or end with dot
+    if (username.startsWith('.') || username.endsWith('.')) {
+      return 'Username cannot start or end with a dot';
+    }
+
+    // Don't allow consecutive dots
+    if (username.includes('..')) {
+      return 'Username cannot contain consecutive dots';
+    }
+
     return null;
   }
 

@@ -54,6 +54,9 @@ export const load = async ({ locals }) => {
     const { data: authUsers, error: authError } = await adminClient.auth.admin.listUsers();
     if (authError) throw authError;
 
+    // Get list of emails for validation
+    const existingEmails = authUsers.users.map(user => user.email);
+
     // Combine and enrich data
     const enrichedAccounts = accounts.map(account => {
       const authUser = authUsers.users?.find(u => u.id === account.id);
@@ -83,6 +86,7 @@ export const load = async ({ locals }) => {
 
     return {
       accounts: enrichedAccounts,
+      existingEmails,
       userRole: currentUser.role
     };
   } catch (err) {
