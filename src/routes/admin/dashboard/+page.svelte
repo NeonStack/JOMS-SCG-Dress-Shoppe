@@ -20,21 +20,25 @@
       title: "Total Students",
       value: data.basicStats.totalStudents,
       color: "from-blue-500 to-blue-600",
+      description: "Total number of students registered in the system"
     },
     {
       title: "Total Orders",
       value: data.basicStats.totalOrders,
       color: "from-primary to-primary-dark",
+      description: "Total number of uniform orders placed"
     },
     {
       title: "Completion Rate",
       value: formatPercent(data.basicStats.completionRate),
       color: "from-green-500 to-green-600",
+      description: "Percentage of completed orders out of total orders"
     },
     {
       title: "Total Revenue",
       value: formatCurrency(data.basicStats.totalRevenue),
       color: "from-purple-500 to-purple-600",
+      description: "Total revenue from all paid orders"
     },
   ];
 
@@ -421,15 +425,15 @@
       </div>
     </div>
 
-    <!-- Key Metrics Cards -->
+    <!-- Key Metrics Cards - Update to use flex -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
       {#each metrics as metric}
-        <div class="group relative">
+        <div class="group relative flex">
           <div
             class="absolute inset-0 bg-gradient-to-r {metric.color} rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"
           ></div>
           <div
-            class="relative bg-white p-6 rounded-2xl shadow transition-transform transform hover:scale-105 border border-gray-200"
+            class="relative bg-white p-6 rounded-2xl shadow transition-transform transform hover:scale-105 border border-gray-200 w-full flex flex-col"
           >
             <h3 class="text-gray-600 font-medium">{metric.title}</h3>
             <p
@@ -437,16 +441,42 @@
             >
               {metric.value}
             </p>
+            <p class="text-xs text-gray-500 mt-2">{metric.description}</p>
           </div>
         </div>
       {/each}
-      {#each [{ title: "Overdue Orders", value: data.timeBasedMetrics.overdueOrders, color: "from-red-500 to-red-600" }, { title: "Due This Week", value: data.timeBasedMetrics.upcomingDue, color: "from-yellow-500 to-yellow-600" }, { title: "Avg Completion", value: `${data.timeBasedMetrics.averageCompletionTime} days`, color: "from-blue-500 to-blue-600" }, { title: "Rush Orders", value: data.timeBasedMetrics.rushOrders, color: "from-orange-500 to-orange-600" }] as metric}
-        <div class="group relative">
+      {#each [
+        { 
+          title: "Overdue Orders", 
+          value: data.timeBasedMetrics.overdueOrders, 
+          color: "from-red-500 to-red-600",
+          description: "Orders past their due date and not completed"
+        }, 
+        { 
+          title: "Due Within 7 Days", 
+          value: data.timeBasedMetrics.upcomingDue, 
+          color: "from-yellow-500 to-yellow-600",
+          description: "Orders due in the next 7 days"
+        }, 
+        { 
+          title: "Avg Completion", 
+          value: `${data.timeBasedMetrics.averageCompletionTime} days`, 
+          color: "from-blue-500 to-blue-600",
+          description: "Average time to complete an order"
+        }, 
+        { 
+          title: "Rush Orders", 
+          value: data.timeBasedMetrics.rushOrders, 
+          color: "from-orange-500 to-orange-600",
+          description: "Orders with 3 or fewer days between order and due date"
+        }
+      ] as metric}
+        <div class="group relative flex">
           <div
             class="absolute inset-0 bg-gradient-to-r {metric.color} rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"
           ></div>
           <div
-            class="relative bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white"
+            class="relative bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white w-full flex flex-col"
           >
             <h3 class="text-gray-600 font-medium">{metric.title}</h3>
             <p
@@ -454,6 +484,7 @@
             >
               {metric.value}
             </p>
+            <p class="text-xs text-gray-500 mt-2">{metric.description}</p>
           </div>
         </div>
       {/each}
@@ -534,7 +565,7 @@
       <div class="grid grid-cols-12 gap-6">
         <!-- Revenue Trend card with internal toggle -->
         <div class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border">
-          <div class="flex justify-between items-center mb-6">
+          <div class="flex justify-between items-center mb-2">
             <h3 class="text-xl font-bold">Revenue Trend</h3>
             <select
               bind:value={selectedRevenueType}
@@ -544,6 +575,7 @@
               <option value="payment">By Payment Date</option>
             </select>
           </div>
+          <p class="text-xs text-gray-500 mb-4">Track revenue patterns over time based on order or payment dates</p>
           <div class="h-80">
             <canvas bind:this={revenueChartEl}></canvas>
           </div>
@@ -552,7 +584,8 @@
         <div
           class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-xl font-bold mb-6">Average Order Value</h3>
+          <h3 class="text-xl font-bold mb-2">Average Order Value</h3>
+          <p class="text-xs text-gray-500 mb-4">Average value of order over time</p>
           <div class="h-80">
             <canvas
               bind:this={averageOrderValueChartEl}
@@ -572,7 +605,8 @@
         <div
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Order Status</h3>
+          <h3 class="text-lg font-bold mb-2">Order Status</h3>
+          <p class="text-xs text-gray-500 mb-4">Distribution of orders by their current status</p>
           <div class="h-72">
             <canvas bind:this={orderStatusChartEl}></canvas>
           </div>
@@ -581,7 +615,8 @@
         <div
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Payment Status</h3>
+          <h3 class="text-lg font-bold mb-2">Payment Status</h3>
+          <p class="text-xs text-gray-500 mb-4">Overview of order payment statuses</p>
           <div class="h-72">
             <canvas bind:this={paymentStatusChartEl}></canvas>
           </div>
@@ -590,7 +625,8 @@
         <div
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Completion Rate</h3>
+          <h3 class="text-lg font-bold mb-2">Completion Rate</h3>
+          <p class="text-xs text-gray-500 mb-4">Ratio of orders completed on time vs late</p>
           <div class="h-72">
             <canvas bind:this={completionPerformanceChartEl}></canvas>
           </div>
@@ -602,7 +638,8 @@
         <div
           class="col-span-12 lg:col-span-8 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Course Enrollment</h3>
+          <h3 class="text-lg font-bold mb-2">Student Courses</h3>
+          <p class="text-xs text-gray-500 mb-4">Number of students registered per course</p>
           <div class="h-80">
             <canvas bind:this={courseEnrollmentChartEl}></canvas>
           </div>
@@ -611,7 +648,8 @@
         <div
           class="col-span-12 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Gender Distribution</h3>
+          <h3 class="text-lg font-bold mb-2">Gender Distribution</h3>
+          <p class="text-xs text-gray-500 mb-4">Distribution of students by gender</p>
           <div class="h-80">
             <canvas bind:this={genderChartEl}></canvas>
           </div>
@@ -623,7 +661,8 @@
         <div
           class="col-span-12 md:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Weekly Distribution</h3>
+          <h3 class="text-lg font-bold mb-2">Weekly Distribution</h3>
+          <p class="text-xs text-gray-500 mb-4">Pattern of orders received throughout the week</p>
           <div class="h-72">
             <canvas bind:this={busyDaysChartEl}></canvas>
           </div>
@@ -632,8 +671,9 @@
         <div
           class="col-span-12 md:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-4">Tailor
+          <h3 class="text-lg font-bold mb-2">Tailor
              Performance</h3>
+          <p class="text-xs text-gray-500 mb-4">Number of orders completed by each tailor</p>
           <div class="h-72">
             <canvas bind:this={employeePerformanceChartEl}></canvas>
           </div>

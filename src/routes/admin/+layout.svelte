@@ -80,6 +80,10 @@
     try {
       isNavigating = true;
       await goto(path);
+      // Close sidebar after navigation completes (mobile only)
+      if (window.innerWidth < 1024) {  // 1024px is the lg breakpoint
+        showSidebar = false;
+      }
     } catch (error) {
       console.error("Navigation error:", error);
     } finally {

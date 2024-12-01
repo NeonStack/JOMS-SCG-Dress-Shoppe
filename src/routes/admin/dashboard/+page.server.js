@@ -353,8 +353,8 @@ export const load = async ({ locals }) => {
                 upcomingDue: orderData?.filter(o => {
                     const dueDate = new Date(o.due_date);
                     const now = new Date();
-                    const diff = (dueDate - now) / (1000 * 60 * 60 * 24);
-                    return diff > 0 && diff <= 7;
+                    const diffDays = (dueDate - now) / (1000 * 60 * 60 * 24);
+                    return diffDays >= 0 && diffDays <= 7 && o.status !== 'completed';
                 }).length || 0,
                 averageCompletionTime: calculateAverageCompletionTime(orderData),
                 busyDays: orderData?.reduce((acc, curr) => {
@@ -363,9 +363,10 @@ export const load = async ({ locals }) => {
                     return acc;
                 }, {}),
                 rushOrders: orderData?.filter(o => {
-                    const created = new Date(o.created_at);
-                    const due = new Date(o.due_date);
-                    return (due - created) / (1000 * 60 * 60 * 24) <= 3;
+                    const orderDate = new Date(o.created_at);
+                    const dueDate = new Date(o.due_date);
+                    const diffDays = (dueDate - orderDate) / (1000 * 60 * 60 * 24);
+                    return diffDays <= 3;
                 }).length || 0,
                 processingTimes: calculateProcessingTimes(orderData),
                 seasonalTrends: calculateSeasonalTrends(orderData),
