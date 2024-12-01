@@ -433,23 +433,36 @@
       sortDirection = "asc";
     }
 
-    // Update the sorting logic
     sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
       let comparison = 0;
-      if (field === "id") {
-        comparison = a.id - b.id;
-      } else if (field === "student") {
-        comparison =
-          `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
-            `${b.student?.first_name} ${b.student?.last_name}`
-          );
-      } else if (field === "created_at" || field === "due_date") {
-        comparison = new Date(a[field]) - new Date(b[field]);
-      } else {
-        comparison = (a[field] || "")
-          .toString()
-          .localeCompare((b[field] || "").toString());
+      
+      switch (field) {
+        case 'id':
+          comparison = a.id - b.id;
+          break;
+        case 'student':
+          const aName = `${a.student?.first_name} ${a.student?.last_name}`;
+          const bName = `${b.student?.first_name} ${b.student?.last_name}`;
+          comparison = aName.localeCompare(bName);
+          break;
+        case 'total_amount':
+          comparison = a.total_amount - b.total_amount;
+          break;
+        case 'amount_paid':
+          comparison = a.amount_paid - b.amount_paid;
+          break;
+        case 'balance':
+          comparison = (a.total_amount - a.amount_paid) - (b.total_amount - b.amount_paid);
+          break;
+        case 'payment_date':
+          const aDate = a.payment_date ? new Date(a.payment_date) : new Date(0);
+          const bDate = b.payment_date ? new Date(b.payment_date) : new Date(0);
+          comparison = aDate - bDate;
+          break;
+        default:
+          comparison = String(a[field] || '').localeCompare(String(b[field] || ''));
       }
+      
       return sortDirection === "asc" ? comparison : -comparison;
     });
   }
@@ -1202,16 +1215,18 @@
         <table class="w-full">
           <thead>
             <tr class="bg-muted">
-              {#each ["Id", "Student", "Order Status", "Total", "Paid", "Balance", "Payment Date", "Payment Status"] as field}
+              {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status"] as field}
                 <th
                   class="p-2 cursor-pointer hover:bg-gray-200 text-left"
-                  on:click={() => sort(field)}
+                  on:click={() => sort(field.toLowerCase())}
                 >
-                  {field}
+                  {field === "total_amount" ? "Total" :
+                   field === "amount_paid" ? "Paid" :
+                   field === "payment_date" ? "Payment Date" :
+                   field === "payment_status" ? "Payment Status" :
+                   field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ")}
                   {#if sortField === field}
-                    <span class="ml-1"
-                      >{sortDirection === "asc" ? "↑" : "↓"}</span
-                    >
+                    <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
                   {/if}
                 </th>
               {/each}
@@ -1219,11 +1234,11 @@
             </tr>
           </thead>
           <tbody>
-            {#each sortedOrders.filter((order) => order.student?.first_name
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase()) || order.student?.last_name
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase())) as order}
+            {#each sortedOrders.filter((order) => {
+              const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
+              const searchTermLower = searchTerm.toLowerCase();
+              return studentName.includes(searchTermLower);
+            }) as order}
               <tr class="border-b hover:bg-muted">
                 <td class="p-2">{order.id}</td>
                 <td class="p-2"
