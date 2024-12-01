@@ -253,34 +253,34 @@
 
     <!-- Configuration Form Modal -->
     {#if showForm}
-    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 md:p-4">
         <div class="bg-gradient-to-br from-white via-gray-50 to-muted rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(183,50,51,0.15)] border border-white/50 overflow-hidden animate-scale">
             <!-- Modal Header -->
-            <div class="p-6 bg-gradient-to-r from-primary to-primary-dark border-b border-primary/10">
-                <h2 class="text-2xl font-bold text-white">
+            <div class="p-4 md:p-6 bg-gradient-to-r from-primary to-primary-dark border-b border-primary/10">
+                <h2 class="text-xl md:text-2xl font-bold text-white">
                     {selectedConfig ? 'Edit Configuration' : 'New Configuration'}
                 </h2>
-                <p class="text-muted mt-2">Configure uniform specifications and measurements</p>
+                <p class="text-sm md:text-base text-muted mt-2">Configure uniform specifications and measurements</p>
             </div>
 
             <!-- Modal Body - Scrollable -->
-            <div class="flex-1 flex overflow-hidden"> <!-- Changed to flex and overflow-hidden -->
+            <div class="flex-1 flex overflow-hidden"> 
                 <form
                     id="configForm"
                     method="POST"
                     action={selectedConfig ? '?/update' : '?/create'}
                     use:enhance={handleSubmit}
-                    class="flex-1 flex overflow-hidden"
+                    class="flex-1 flex flex-col md:flex-row overflow-hidden"
                 >
                     {#if selectedConfig}
                         <input type="hidden" name="id" value={selectedConfig.id} />
                     {/if}
 
-                    <div class="flex flex-1 overflow-hidden">
-                        <!-- Left Column - Basic Info (Sticky) -->
-                        <div class="w-1/3 p-6 max-h-[calc(90vh-8rem)] overflow-y-auto">
-                            <div class="bg-white/80 p-6 rounded-xl border border-primary/10 shadow-sm">
-                                <h3 class="text-lg font-semibold text-primary mb-4">Basic Information</h3>
+                    <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
+                        <!-- Left Column - Basic Info -->
+                        <div class="w-full md:w-1/3 p-4 md:p-6 max-h-[30vh] md:max-h-[calc(90vh-8rem)] overflow-y-auto border-b md:border-b-0 md:border-r border-primary/10">
+                            <div class="bg-white/80 p-4 md:p-6 rounded-xl border border-primary/10 shadow-sm">
+                                <h3 class="text-base md:text-lg font-semibold text-primary mb-4">Basic Information</h3>
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="courseId">Course</label>
@@ -317,16 +317,16 @@
                             </div>
                         </div>
 
-                        <!-- Right Column - Measurements (Scrollable) -->
-                        <div class="w-2/3 p-6 overflow-y-auto">
-                            <div class="bg-white/80 p-6 rounded-xl border border-primary/10 shadow-sm space-y-6">
-                                <h3 class="text-lg font-semibold text-primary">Measurement Specifications</h3>
+                        <!-- Right Column - Measurements -->
+                        <div class="w-full md:w-2/3 p-4 md:p-6 flex-1 overflow-y-auto">
+                            <div class="bg-white/80 p-4 md:p-6 rounded-xl border border-primary/10 shadow-sm space-y-4 md:space-y-6">
+                                <h3 class="text-base md:text-lg font-semibold text-primary">Measurement Specifications</h3>
 
                                 <!-- Selected Measurements -->
                                 {#if selectedMeasurements.size > 0}
                                     <div>
-                                        <h4 class="text-sm font-medium text-primary/70 mb-3">Selected Measurements</h4>
-                                        <div class="grid grid-cols-3 gap-3">
+                                        <h4 class="text-xs md:text-sm font-medium text-primary/70 mb-3">Selected Measurements</h4>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                             {#each measurementTypes as measurementType}
                                                 {#if selectedMeasurements.has(measurementType.id)}
                                                     {@const spec = selectedConfig?.measurement_specs?.find(s => s.measurement_type_id === measurementType.id)}
@@ -377,8 +377,8 @@
 
                                 <!-- Available Measurements -->
                                 <div>
-                                    <h4 class="text-sm font-medium text-gray-500 mb-3">Available Measurements</h4>
-                                    <div class="grid grid-cols-3 gap-3">
+                                    <h4 class="text-xs md:text-sm font-medium text-gray-500 mb-3">Available Measurements</h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                         {#each measurementTypes as measurementType}
                                             {#if !selectedMeasurements.has(measurementType.id)}
                                                 <div class="group"
@@ -406,15 +406,15 @@
             </div>
 
             <!-- Modal Footer -->
-            <div class="p-6 border-t border-primary/5 bg-gradient-to-b from-transparent to-white/80">
-                <div class="flex justify-end gap-4">
+            <div class="p-4 md:p-6 border-t border-primary/5 bg-gradient-to-b from-transparent to-white/80">
+                <div class="flex justify-end gap-3 md:gap-4">
                     <button type="button" on:click={resetForm}
-                            class="px-6 py-2 text-gray-600 hover:text-primary font-medium rounded-lg hover:bg-primary/5 transition-all duration-300"
+                            class="px-4 md:px-6 py-2 text-sm md:text-base text-gray-600 hover:text-primary font-medium rounded-lg hover:bg-primary/5 transition-all duration-300"
                             disabled={isLoading}>
                         Cancel
                     </button>
                     <button type="submit" form="configForm"
-                            class="px-8 py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-lg hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+                            class="px-6 md:px-8 py-2 text-sm md:text-base bg-gradient-to-r from-primary to-primary-dark text-white rounded-lg hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
                             disabled={isLoading}>
                         {isLoading ? 'Saving...' : (selectedConfig ? 'Update' : 'Create')}
                     </button>
