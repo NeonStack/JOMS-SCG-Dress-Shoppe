@@ -69,6 +69,12 @@
   // Add 'editErrors' object for validation
   let editErrors = {};
 
+  // Add states for password visibility
+  let showPassword = false;
+  let showConfirmPassword = false;
+  let showEditPassword = false;
+  let showEditConfirmPassword = false;
+
   function openEditModal(account) {
     editForm = {
       id: account.id,
@@ -89,10 +95,11 @@
   async function handleEditSubmit() {
     if (!validateEditForm()) return;
   
-    // Convert names to sentence case
+    // Convert names and address to sentence case
     editForm.firstName = toSentenceCase(editForm.firstName);
     editForm.lastName = toSentenceCase(editForm.lastName);
     editForm.position = toSentenceCase(editForm.position);
+    editForm.address = toSentenceCase(editForm.address);
     
     // Reset errors
     editErrors = {};
@@ -137,10 +144,11 @@
   async function createAccount() {
     if (!validateForm()) return;
     
-    // Convert names to sentence case
+    // Convert names and address to sentence case
     newAccount.firstName = toSentenceCase(newAccount.firstName);
     newAccount.lastName = toSentenceCase(newAccount.lastName);
     newAccount.position = toSentenceCase(newAccount.position);
+    newAccount.address = toSentenceCase(newAccount.address);
     
     loading = true;
     try {
@@ -352,7 +360,7 @@
     if (!name) return 'This field is required';
     name = name.trim().replace(/\s+/g, ' '); // Remove extra spaces
     if (name.length < 2 || name.length > 50) return 'Must be between 2-50 characters';
-    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Only letters and spaces allowed';
+    if (!/^[a-zA-Z\s.]+$/.test(name)) return 'Only letters, spaces, and dots allowed';
     return null;
   }
 
@@ -1005,7 +1013,7 @@
                         bind:value={newAccount.contactNumber}
                         on:input={() => errors.contactNumber = validatePhoneNumber(newAccount.contactNumber)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.contactNumber ? 'border-error' : ''}"
-                        placeholder="+639898938291"
+                        placeholder="09XXXXXXXXX"
                       />
                       {#if errors.contactNumber}
                         <p class="mt-1 text-sm text-error">{errors.contactNumber}</p>
@@ -1063,44 +1071,78 @@
                     </div>
 
                     <div>
-                      <label
-                        for="password"
-                        class="block text-sm font-medium text-gray-700 mb-1"
-                        >Password</label
-                      >
-                      <input
-                        type="password"
-                        id="password"
-                        bind:value={newAccount.password}
-                        on:input={() => errors.password = validatePassword(newAccount.password)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password
-                          ? 'border-error'
-                          : ''}"
-                      />
+                      <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <div class="relative">
+                        {#if showPassword}
+                          <input
+                            type="text"
+                            id="password"
+                            bind:value={newAccount.password}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password ? 'border-error' : ''}"
+                          />
+                        {:else}
+                          <input
+                            type="password"
+                            id="password"
+                            bind:value={newAccount.password}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password ? 'border-error' : ''}"
+                          />
+                        {/if}
+                        <button
+                          type="button"
+                          class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          on:click={() => showPassword = !showPassword}
+                        >
+                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {#if !showPassword}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            {:else}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            {/if}
+                          </svg>
+                        </button>
+                      </div>
                       {#if errors.password}
                         <p class="mt-1 text-sm text-error">{errors.password}</p>
                       {/if}
                     </div>
 
                     <div>
-                      <label
-                        for="confirmPassword"
-                        class="block text-sm font-medium text-gray-700 mb-1"
-                        >Confirm Password</label
-                      >
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        bind:value={newAccount.confirmPassword}
-                        on:input={() => errors.confirmPassword = validateConfirmPassword(newAccount.confirmPassword)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword
-                          ? 'border-error'
-                          : ''}"
-                      />
+                      <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                      <div class="relative">
+                        {#if showConfirmPassword}
+                          <input
+                            type="text"
+                            id="confirmPassword"
+                            bind:value={newAccount.confirmPassword}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword ? 'border-error' : ''}"
+                          />
+                        {:else}
+                          <input
+                            type="password"
+                            id="confirmPassword"
+                            bind:value={newAccount.confirmPassword}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword ? 'border-error' : ''}"
+                          />
+                        {/if}
+                        <button
+                          type="button"
+                          class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          on:click={() => showConfirmPassword = !showConfirmPassword}
+                        >
+                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {#if !showConfirmPassword}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            {:else}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            {/if}
+                          </svg>
+                        </button>
+                      </div>
                       {#if errors.confirmPassword}
-                        <p class="mt-1 text-sm text-error">
-                          {errors.confirmPassword}
-                        </p>
+                        <p class="mt-1 text-sm text-error">{errors.confirmPassword}</p>
                       {/if}
                     </div>
                   </div>
@@ -1336,13 +1378,37 @@
 
                     <div>
                       <label for="edit-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                      <input
-                        type="password"
-                        id="edit-password"
-                        bind:value={editForm.password}
-                        on:input={() => editErrors.password = validatePassword(editForm.password)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
-                      />
+                      <div class="relative">
+                        {#if showEditPassword}
+                          <input
+                            type="text"
+                            id="edit-password"
+                            bind:value={editForm.password}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
+                          />
+                        {:else}
+                          <input
+                            type="password"
+                            id="edit-password"
+                            bind:value={editForm.password}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
+                          />
+                        {/if}
+                        <button
+                          type="button"
+                          class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          on:click={() => showEditPassword = !showEditPassword}
+                        >
+                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {#if !showEditPassword}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            {:else}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            {/if}
+                          </svg>
+                        </button>
+                      </div>
                       {#if editErrors.password}
                         <p class="mt-1 text-sm text-error">{editErrors.password}</p>
                       {/if}
@@ -1350,13 +1416,37 @@
 
                     <div>
                       <label for="edit-confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                      <input
-                        type="password"
-                        id="edit-confirmPassword"
-                        bind:value={editForm.confirmPassword}
-                        on:input={() => editErrors.confirmPassword = validateConfirmPassword(editForm.confirmPassword)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
-                      />
+                      <div class="relative">
+                        {#if showEditConfirmPassword}
+                          <input
+                            type="text"
+                            id="edit-confirmPassword"
+                            bind:value={editForm.confirmPassword}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
+                          />
+                        {:else}
+                          <input
+                            type="password"
+                            id="edit-confirmPassword"
+                            bind:value={editForm.confirmPassword}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
+                          />
+                        {/if}
+                        <button
+                          type="button"
+                          class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          on:click={() => showEditConfirmPassword = !showEditConfirmPassword}
+                        >
+                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {#if !showEditConfirmPassword}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            {:else}
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            {/if}
+                          </svg>
+                        </button>
+                      </div>
                       {#if editErrors.confirmPassword}
                         <p class="mt-1 text-sm text-error">{editErrors.confirmPassword}</p>
                       {/if}

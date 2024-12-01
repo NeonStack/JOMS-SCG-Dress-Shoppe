@@ -6,8 +6,8 @@ const validateInput = {
   name: (name) => {
     if (!name || typeof name !== 'string') return 'Name is required';
     name = name.trim();
-    if (name.length < 2 || name.length > 50) return 'Name must be between 2-50 characters';
-    if (!/^[a-zA-Z\s]+$/.test(name)) return 'Name can only contain letters and spaces';
+    if (name.length < 2 || name.length > 50) return 'Must be between 2-50 characters';
+    if (!/^[a-zA-Z\s.]+$/.test(name)) return 'Only letters, spaces, and dots allowed';
     return null;
   },
   phone: (phone) => {
