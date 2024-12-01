@@ -913,19 +913,19 @@
     <!-- Existing Overview Content -->
     <!-- Replace the Filters Card section -->
     <div class="bg-white p-4 rounded-lg shadow-md">
-      <div class="flex flex-row flex-nowrap gap-4 w-full">
+      <div class="flex flex-col gap-4 w-full">
         <!-- Order Date Range -->
         <div class="w-full">
           <label class="block text-sm font-medium text-gray-700 mb-1"
             >Order Date Range</label
           >
-          <div class="flex items-center gap-2">
+          <div class="flex flex-col sm:flex-row items-center gap-2">
             <input
               type="date"
               id="order-date-start"
               bind:value={orderDateRange.start}
               on:change={validateDateRanges}
-              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
             />
             <span class="text-gray-400">to</span>
             <input
@@ -933,7 +933,7 @@
               id="order-date-end"
               bind:value={orderDateRange.end}
               on:change={validateDateRanges}
-              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
             />
           </div>
         </div>
@@ -943,13 +943,13 @@
           <label class="block text-sm font-medium text-gray-700 mb-1"
             >Due Date Range</label
           >
-          <div class="flex items-center gap-2">
+          <div class="flex flex-col sm:flex-row items-center gap-2">
             <input
               type="date"
               id="due-date-start"
               bind:value={dueDateRange.start}
               on:change={validateDateRanges}
-              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
             />
             <span class="text-gray-400">to</span>
             <input
@@ -957,13 +957,13 @@
               id="due-date-end"
               bind:value={dueDateRange.end}
               on:change={validateDateRanges}
-              class="flex-1 px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
             />
           </div>
         </div>
 
-        <!-- Tailor Select -->
-        <div class="w-full flex justify-end flex-col">
+        <!-- Filters Row -->
+        <div class="flex flex-col sm:flex-row gap-4">
           <select
             bind:value={selectedEmployee}
             class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
@@ -975,10 +975,7 @@
               </option>
             {/each}
           </select>
-        </div>
 
-        <!-- Status Select -->
-        <div class="w-full flex justify-end flex-col">
           <select
             bind:value={selectedStatus}
             class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
@@ -988,13 +985,10 @@
             <option value="in progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
-        </div>
 
-        <!-- Clear Filters Button -->
-        <div class="w-full flex justify-end flex-col">
           <button
             on:click={clearFilters}
-            class="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+            class="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium"
           >
             Clear All
           </button>
@@ -1005,7 +999,7 @@
     <!-- Replace the Orders Table and Metrics Cards sections with this new layout -->
     <div class="space-y-4">
       <!-- Top row: Key Metrics Overview -->
-      <div class="grid grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Quick Stats -->
         <div class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all">
           <div class="text-lg font-semibold text-gray-900">
@@ -1038,7 +1032,7 @@
         <!-- Time Analysis and Workload Cards -->
         <div class="space-y-4 col-span-2">
           <!-- Time Analysis -->
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-lg shadow-md border-2 border-blue-100 hover:border-blue-200 transition-all">
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Completion Times
@@ -1103,18 +1097,18 @@
       <!-- Bottom row: Orders Table -->
       <div class="bg-white rounded-lg shadow-md border-2 border-gray-100">
         <div class="p-4 border-b">
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col sm:flex-row gap-4 justify-between items-center">
             <h2 class="text-lg font-semibold">Order Details</h2>
             <input
               type="text"
               bind:value={searchQuery}
               placeholder="Search orders..."
-              class="px-4 py-2 border rounded-lg w-64"
+              class="w-full sm:w-64 px-4 py-2 border rounded-lg"
             />
           </div>
         </div>
         <!-- Existing table code with the new columns -->
-        <div class="overflow-x-auto">
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full">
             <thead>
               <tr class="bg-muted">
@@ -1272,6 +1266,59 @@
             </tbody>
           </table>
         </div>
+        <div class="md:hidden">
+          {#each filteredOrders as order}
+            {@const workInfo = calculateWorkDuration(order)}
+            {@const status = getStatusDetails(order)}
+            <div class="p-4 border-b last:border-b-0 hover:bg-gray-50">
+              <div class="space-y-4">
+                <!-- Order Info -->
+                <div class="flex justify-between items-start">
+                  <div>
+                    <div class="font-medium">Order #{order.id}</div>
+                    <div class="text-sm text-gray-500">{formatDate(order.created_at)}</div>
+                  </div>
+                  <span class={`px-2 py-1 text-xs font-medium rounded-full
+                    ${status.mainStatus === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : status.mainStatus === "in progress"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-gray-100 text-gray-800"}`}>
+                    {status.mainStatus}
+                  </span>
+                </div>
+
+                <!-- Student & Tailor Info -->
+                <div class="space-y-2">
+                  <div>
+                    <div class="text-sm text-gray-500">Student</div>
+                    <div class="font-medium">{formatName(order.student?.first_name, order.student?.last_name)}</div>
+                    <div class="text-xs text-gray-500">{order.student?.course?.course_code || "No course"}</div>
+                  </div>
+                  <div>
+                    <div class="text-sm text-gray-500">Tailor</div>
+                    <div class="font-medium">
+                      {order.employee 
+                        ? formatName(order.employee.first_name, order.employee.last_name)
+                        : "Unassigned"}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dates & Status -->
+                <div class="space-y-2">
+                  <div>
+                    <div class="text-sm text-gray-500">Due Date</div>
+                    <div class="font-medium">{formatDate(order.due_date)}</div>
+                  </div>
+                  <div class={status.statusClass}>
+                    {status.statusMessage}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
       </div>
     </div>
   {/if}
@@ -1281,7 +1328,7 @@
     <div class="mb-6">
       <div class="bg-white rounded-lg shadow-md p-6 border-2 border-indigo-100">
         <h2 class="text-lg font-semibold mb-4">Overall Performance Rankings</h2>
-        <div class="grid grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           {#each overallRankings.slice(0, 3) as record, i}
             <div
               class="p-4 rounded-lg border {i === 0
@@ -1326,7 +1373,7 @@
         </div>
       </div>
     </div>
-    <div class="grid grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <!-- Left Column: Fastest Completions -->
       <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-cyan-100 hover:border-cyan-200 transition-all">
         <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
