@@ -134,28 +134,28 @@
 <div class="p-6 max-w-7xl mx-auto">
     <div class="bg-white rounded-lg shadow-md">
         <!-- Header with filters -->
-        <div class="border-b p-6 space-y-6">
+        <div class="border-b p-4 md:p-6 space-y-4 md:space-y-6">
             <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-foreground">My Orders</h1>
+                <h1 class="text-xl md:text-2xl font-bold text-foreground">My Orders</h1>
             </div>
             
             <!-- Search and filters in a grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="flex flex-col space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4">
                 <input
                     type="text"
                     placeholder="Search student name or course..."
                     bind:value={searchTerm}
-                    class="px-4 py-2 border rounded-lg bg-white w-full"
+                    class="px-3 md:px-4 py-2 border rounded-lg bg-white w-full text-sm md:text-base"
                 />
                 
                 <div class="flex gap-2">
-                    <select bind:value={sortBy} class="border rounded-lg p-2 flex-1">
+                    <select bind:value={sortBy} class="border rounded-lg p-2 flex-1 text-sm md:text-base">
                         <option value="dueDate">Sort by Due Date</option>
                         <option value="studentName">Sort by Name</option>
                         <option value="amount">Sort by Amount</option>
                     </select>
                     
-                    <select bind:value={sortOrder} class="border rounded-lg p-2 w-32">
+                    <select bind:value={sortOrder} class="border rounded-lg p-2 w-24 md:w-32 text-sm md:text-base">
                         <option value="asc">Ascending</option>
                         <option value="desc">Descending</option>
                     </select>
@@ -166,13 +166,13 @@
                         <input 
                             type="date" 
                             bind:value={startDate}
-                            class="border rounded-lg p-2 flex-1"
+                            class="border rounded-lg p-2 flex-1 text-sm md:text-base"
                             max={endDate || undefined}
                         />
                         <input 
                             type="date" 
                             bind:value={endDate}
-                            class="border rounded-lg p-2 flex-1"
+                            class="border rounded-lg p-2 flex-1 text-sm md:text-base"
                             min={startDate || undefined}
                         />
                     </div>
@@ -189,10 +189,10 @@
                 </div>
             </div>
 
-            <!-- Tabs with better styling -->
-            <div class="flex gap-4">
+            <!-- Tabs with better mobile styling -->
+            <div class="flex flex-wrap gap-2 md:gap-4">
                 <button 
-                    class="px-6 py-2 rounded-lg transition-colors {activeTab === 'urgent' ? 'bg-red-100 text-red-800 font-semibold' : 'hover:bg-gray-100'}"
+                    class="px-3 md:px-6 py-2 rounded-lg transition-colors text-sm md:text-base {activeTab === 'urgent' ? 'bg-red-100 text-red-800 font-semibold' : 'hover:bg-gray-100'}"
                     on:click={() => activeTab = 'urgent'}
                 >
                     Urgent ({filteredUrgentOrders.length})
@@ -212,15 +212,15 @@
             </div>
         </div>
 
-        <!-- Orders Grid with improved card design -->
-        <div class="p-6">
-            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <!-- Orders Grid with improved mobile design -->
+        <div class="p-4 md:p-6">
+            <div class="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                 {#each displayedOrders as order}
-                    <div class="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-gray-50">
+                    <div class="border rounded-lg p-4 md:p-6 hover:shadow-lg transition-shadow bg-gray-50">
                         <!-- Order header -->
                         <div class="flex justify-between items-start mb-3">
                             <div>
-                                <h3 class="font-semibold text-base truncate max-w-[200px]">{order.studentName}</h3>
+                                <h3 class="font-semibold text-sm md:text-base truncate max-w-[160px] md:max-w-[200px]">{order.studentName}</h3>
                                 <p class="text-xs text-gray-600">{order.course}</p>
                             </div>
                             <span class="px-2 py-1 text-xs {activeTab === 'urgent' ? 'bg-red-100 text-red-800' :
@@ -306,12 +306,12 @@
 
 <!-- Measurements Modal -->
 {#if showMeasurements && selectedOrder}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50">
+        <div class="bg-white rounded-lg p-4 md:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start md:items-center mb-4 md:mb-6">
                 <div>
-                    <h3 class="text-xl font-bold">Measurements for {selectedOrder.studentName}</h3>
-                    <p class="text-sm text-gray-600">
+                    <h3 class="text-lg md:text-xl font-bold">{selectedOrder.studentName}</h3>
+                    <p class="text-xs md:text-sm text-gray-600">
                         {selectedOrder.gender} - {selectedOrder.course}
                     </p>
                 </div>
@@ -326,9 +326,9 @@
             </div>
 
             {#if selectedOrder.uniformType === 'upper' || selectedOrder.uniformType === 'both'}
-                <div class="mb-6">
-                    <h4 class="font-semibold text-lg mb-3 text-blue-800">Upper Wear Measurements</h4>
-                    <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div class="mb-4 md:mb-6">
+                    <h4 class="font-semibold text-base md:text-lg mb-2 md:mb-3 text-blue-800">Upper Wear Measurements</h4>
+                    <div class="bg-gray-50 rounded-lg p-3 md:p-4 space-y-2 md:space-y-3">
                         {#each Object.entries(selectedOrder.order_measurements || {}) as [measurementId, value]}
                             {#if selectedOrder.uniformConfigs.some(c => 
                                 c.wear_type === 'upper' && 
@@ -349,8 +349,8 @@
 
             {#if selectedOrder.uniformType === 'lower' || selectedOrder.uniformType === 'both'}
                 <div>
-                    <h4 class="font-semibold text-lg mb-3 text-blue-800">Lower Wear Measurements</h4>
-                    <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <h4 class="font-semibold text-base md:text-lg mb-2 md:mb-3 text-blue-800">Lower Wear Measurements</h4>
+                    <div class="bg-gray-50 rounded-lg p-3 md:p-4 space-y-2 md:space-y-3">
                         {#each Object.entries(selectedOrder.order_measurements || {}) as [measurementId, value]}
                             {#if selectedOrder.uniformConfigs.some(c => 
                                 c.wear_type === 'lower' && 

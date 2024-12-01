@@ -15,6 +15,12 @@
       courses = data.courses || [];
       uniformConfigs = data.uniformConfigs || {};
       measurementTypes = data.measurementTypes || {};
+      
+      // Apply initial sorting
+      students = students.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      students = [...students]; // Trigger reactivity
     } catch (err) {
       error = "Error loading data. Please refresh the page.";
       console.error("Error in component:", err);
@@ -275,23 +281,23 @@
 {:else}
   <div class="p-6">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 mb-6">
       <h1 class="text-2xl font-bold text-foreground">Student Management</h1>
     </div>
 
     <!-- Main content card -->
     <div class="bg-white p-6 rounded-lg shadow-md">
-      <div class="flex justify-between mb-4">
+      <div class="flex flex-col md:flex-row justify-between gap-4 md:gap-0 mb-4">
         <h2 class="text-xl font-semibold">Students List</h2>
-        <div class="flex gap-4">
+        <div class="flex flex-col md:flex-row gap-4">
           <input
             type="text"
             bind:value={searchQuery}
             placeholder="Search students..."
-            class="border rounded p-2"
+            class="w-full md:w-auto border rounded p-2"
           />
           <button
-            class="bg-primary text-white px-4 py-2 rounded-lg"
+            class="w-full md:w-auto bg-primary text-white px-4 py-2 rounded-lg"
             on:click={openCreateModal}
           >
             Add Student
@@ -344,6 +350,15 @@
                 {/if}
               </th>
               <th class="p-2 text-left">Contact Number</th>
+              <th
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                on:click={() => sort("created_at")}
+              >
+                Created At
+                {#if sortField === "created_at"}
+                  <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                {/if}
+              </th>
               <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -370,6 +385,7 @@
                   </span>
                 </td>
                 <td class="p-2">{student.contact_number || "-"}</td>
+                <td class="p-2">{new Date(student.created_at).toLocaleDateString()}</td>
                 <td class="p-2 text-right">
                   <button
                     class="text-blue-600 hover:text-blue-800 mr-2"

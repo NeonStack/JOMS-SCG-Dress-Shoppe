@@ -30,6 +30,10 @@
     try {
       isNavigating = true;
       await goto(path);
+      // Close sidebar after navigation completes (mobile only)
+      if (window.innerWidth < 1024) {  // 1024px is the lg breakpoint
+        showSidebar = false;
+      }
     } catch (error) {
       console.error('Navigation error:', error);
     } finally {
@@ -42,11 +46,19 @@
 
 <!-- Main container with overflow hidden -->
 <div class="flex h-screen overflow-hidden bg-background text-foreground">
+  <!-- Overlay for mobile nav -->
+  {#if showSidebar}
+    <div 
+      class="fixed inset-0 bg-black opacity-20 z-40 lg:hidden" 
+      on:click={() => showSidebar = false}
+    />
+  {/if}
+  
   <!-- Fixed Sidebar -->
   <aside
     class="{showSidebar
-      ? 'fixed inset-0 z-50'
-      : 'hidden'} lg:relative lg:block w-64 bg-primary text-accent-foreground"
+      ? 'fixed inset-0 z-50 w-[60%]'
+      : 'hidden'} lg:relative lg:block lg:w-64 bg-primary text-accent-foreground"
   >
     <div class="sticky top-0 h-screen overflow-y-auto">
       <div class="p-4 font-bold text-xl">Tailor Panel</div>
@@ -61,7 +73,7 @@
                   relative overflow-hidden
                   transition-all duration-200 ease-in-out
                   hover:bg-primary-dark hover:pl-6
-                  {$page.url.pathname === navItem.href ? 'bg-primary-dark pl-6' : ''}
+                  {$page.url.pathname.endsWith(navItem.href) || ($page.url.pathname === navItem.href) ? 'bg-primary-dark pl-6' : ''}
                   {isNavigating ? 'opacity-50 cursor-not-allowed' : ''}"
               >
                 <div class="flex items-center gap-3">
@@ -112,12 +124,12 @@
     <div
       class="lg:hidden flex items-center justify-between bg-primary text-accent-foreground p-4 w-full"
     >
-      <div class="font-bold text-xl">Admin Panel</div>
+      <div class="font-bold text-xl">Tailor Panel</div>
       <button on:click={() => (showSidebar = !showSidebar)}> ☰ </button>
     </div>
 
     <!-- Scrollable content area -->
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto p-6 max-w-[100vw] max-md:px-0">
       <slot />
     </main>
   </div>
