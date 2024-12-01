@@ -101,7 +101,7 @@
   <aside
     class="{showSidebar
       ? 'fixed inset-0 z-50'
-      : 'hidden'} lg:relative lg:block w-64 bg-primary text-accent-foreground"
+      : 'hidden'} lg:relative lg:block w-full md:w-64 bg-primary text-accent-foreground"
   >
     <div class="sticky top-0 h-screen overflow-y-auto">
       <div class="p-4 font-bold text-xl">

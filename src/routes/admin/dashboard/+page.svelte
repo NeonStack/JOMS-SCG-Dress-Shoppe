@@ -106,7 +106,18 @@
     if (!revenueChartEl) return;
 
     const timeData = data.financialMetrics.revenueOverTime[selectedTimeFrame];
-    const labels = Object.keys(timeData).sort();
+    let labels = Object.keys(timeData);
+    
+    // Special sorting for months
+    if (selectedTimeFrame === 'month') {
+      const monthOrder = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+    } else {
+      labels = labels.sort();
+    }
     
     const datasets = [
       {
@@ -401,18 +412,14 @@
   }
 </script>
 
-<div
-  class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200"
->
-  <div class="p-6 space-y-8">
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
+  <div class="p-3 max-md:p-4 space-y-4 max-md:space-y-6">
     <!-- Header -->
-    <div class="flex justify-between items-center">
-      <h1
-        class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark"
-      >
+    <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center">
+      <h1 class="text-3xl max-md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">
         Dashboard Overview
       </h1>
-      <div class="text-sm text-gray-500">
+      <div class="text-sm max-md:text-xs text-gray-500">
         Last updated: {new Date().toLocaleString("en-US", {
           year: "numeric",
           month: "short",
@@ -425,8 +432,8 @@
       </div>
     </div>
 
-    <!-- Key Metrics Cards - Update to use flex -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+    <!-- Key Metrics Cards -->
+    <div class="grid grid-cols-4 max-md:grid-cols-1 gap-6 max-md:gap-3">
       {#each metrics as metric}
         <div class="group relative flex">
           <div
@@ -491,53 +498,34 @@
     </div>
 
     <!-- Recent Orders Table -->
-    <div class="bg-white/90 p-6 rounded-2xl shadow-lg border">
+    <div class="bg-white/90 p-6 max-md:p-3 rounded-2xl shadow-lg border">
       <h3 class="text-lg font-bold mb-4">Recent Orders</h3>
-      <div class="overflow-auto max-h-72">
-        <table class="min-w-full">
+      <div class="overflow-x-auto max-md:-mx-3"> <!-- Added negative margin for mobile -->
+        <table class="min-w-full max-md:text-[11px]"> <!-- Reduced font size further -->
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500"
-                >Student</th
-              >
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500"
-                >Ordered At</th
-              >
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500"
-                >Due Date</th
-              >
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500"
-                >Status</th
-              >
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500"
-                >Amount</th
-              >
+              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Student</th>
+              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500 max-md:hidden">Ordered At</th> <!-- Hide on mobile -->
+              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Due Date</th>
+              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
             {#each data.orderMetrics.recentOrders as order}
               <tr>
-                <td class="px-4 py-2 text-sm">{order.student}</td>
-                <td class="px-4 py-2 text-sm"
-                  >{new Date(order.orderedAt).toLocaleDateString()}</td
-                >
-                <td class="px-4 py-2 text-sm"
-                  >{new Date(order.dueDate).toLocaleDateString()}</td
-                >
-                <td class="px-4 py-2 text-sm">
-                  <span
-                    class="px-2 py-1 rounded-full text-xs
-                                    {order.status === 'completed'
-                      ? 'bg-green-100 text-green-800'
-                      : order.status === 'in progress'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'}"
-                  >
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{order.student}</td>
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px] max-md:hidden">{new Date(order.orderedAt).toLocaleDateString()}</td> <!-- Hide on mobile -->
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{new Date(order.dueDate).toLocaleDateString()}</td>
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">
+                  <span class="px-2 py-1 rounded-full text-xs max-md:text-[10px] max-md:px-1.5 max-md:py-0.5
+                              {order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                               order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
+                               'bg-yellow-100 text-yellow-800'}">
                     {order.status}
                   </span>
                 </td>
-                <td class="px-4 py-2 text-sm">{formatCurrency(order.amount)}</td
-                >
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{formatCurrency(order.amount)}</td>
               </tr>
             {/each}
           </tbody>
@@ -546,13 +534,13 @@
     </div>
 
     <!-- Time-based Charts Section -->
-    <div class="space-y-6">
-      <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-gray-800">Time-Based Analytics</h2>
+    <div class="space-y-6 max-md:space-y-4">
+      <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center">
+        <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">Time-Based Analytics</h2>
         <!-- Keep only the time frame selector in the header -->
         <select
           bind:value={selectedTimeFrame}
-          class="px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          class="px-4 py-2 max-md:w-full border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
         >
           {#each timeFrames as frame}
             <option value={frame}>
@@ -562,31 +550,31 @@
         </select>
       </div>
 
-      <div class="grid grid-cols-12 gap-6">
+      <div class="grid grid-cols-12 gap-6 max-md:gap-4">
         <!-- Revenue Trend card with internal toggle -->
-        <div class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="text-xl font-bold">Revenue Trend</h3>
+        <div class="col-span-12 lg:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border">
+          <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center mb-2">
+            <h3 class="text-xl max-md:text-lg font-bold">Revenue Trend</h3>
             <select
               bind:value={selectedRevenueType}
-              class="px-3 py-1 text-sm border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              class="px-3 py-1 text-sm max-md:w-full border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="order">By Order Date</option>
               <option value="payment">By Payment Date</option>
             </select>
           </div>
           <p class="text-xs text-gray-500 mb-4">Track revenue patterns over time based on order or payment dates</p>
-          <div class="h-80">
+          <div class="h-80 max-md:h-60">
             <canvas bind:this={revenueChartEl}></canvas>
           </div>
         </div>
 
         <div
-          class="col-span-12 lg:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 lg:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-xl font-bold mb-2">Average Order Value</h3>
+          <h3 class="text-xl max-md:text-lg font-bold mb-2">Average Order Value</h3>
           <p class="text-xs text-gray-500 mb-4">Average value of order over time</p>
-          <div class="h-80">
+          <div class="h-80 max-md:h-60">
             <canvas
               bind:this={averageOrderValueChartEl}
               id="averageOrderValueChart"
@@ -597,84 +585,84 @@
     </div>
 
     <!-- Static Analytics Section -->
-    <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-gray-800">Current Status Overview</h2>
+    <div class="space-y-6 max-md:space-y-4">
+      <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">Current Status Overview</h2>
 
       <!-- Order & Payment Stats -->
-      <div class="grid grid-cols-12 gap-6">
+      <div class="grid grid-cols-12 gap-6 max-md:gap-4">
         <div
-          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Order Status</h3>
           <p class="text-xs text-gray-500 mb-4">Distribution of orders by their current status</p>
-          <div class="h-72">
+          <div class="h-72 max-md:h-60">
             <canvas bind:this={orderStatusChartEl}></canvas>
           </div>
         </div>
 
         <div
-          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Payment Status</h3>
           <p class="text-xs text-gray-500 mb-4">Overview of order payment statuses</p>
-          <div class="h-72">
+          <div class="h-72 max-md:h-60">
             <canvas bind:this={paymentStatusChartEl}></canvas>
           </div>
         </div>
 
         <div
-          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Completion Rate</h3>
           <p class="text-xs text-gray-500 mb-4">Ratio of orders completed on time vs late</p>
-          <div class="h-72">
+          <div class="h-72 max-md:h-60">
             <canvas bind:this={completionPerformanceChartEl}></canvas>
           </div>
         </div>
       </div>
 
       <!-- Student Analytics -->
-      <div class="grid grid-cols-12 gap-6">
+      <div class="grid grid-cols-12 gap-6 max-md:gap-4">
         <div
-          class="col-span-12 lg:col-span-8 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 lg:col-span-8 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Student Courses</h3>
           <p class="text-xs text-gray-500 mb-4">Number of students registered per course</p>
-          <div class="h-80">
+          <div class="h-80 max-md:h-60">
             <canvas bind:this={courseEnrollmentChartEl}></canvas>
           </div>
         </div>
 
         <div
-          class="col-span-12 lg:col-span-4 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Gender Distribution</h3>
           <p class="text-xs text-gray-500 mb-4">Distribution of students by gender</p>
-          <div class="h-80">
+          <div class="h-80 max-md:h-60">
             <canvas bind:this={genderChartEl}></canvas>
           </div>
         </div>
       </div>
 
       <!-- Performance Metrics -->
-      <div class="grid grid-cols-12 gap-6">
+      <div class="grid grid-cols-12 gap-6 max-md:gap-4">
         <div
-          class="col-span-12 md:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 md:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Weekly Distribution</h3>
           <p class="text-xs text-gray-500 mb-4">Pattern of orders received throughout the week</p>
-          <div class="h-72">
+          <div class="h-72 max-md:h-60">
             <canvas bind:this={busyDaysChartEl}></canvas>
           </div>
         </div>
 
         <div
-          class="col-span-12 md:col-span-6 bg-white/90 p-6 rounded-2xl shadow-lg border"
+          class="col-span-12 md:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Tailor
              Performance</h3>
           <p class="text-xs text-gray-500 mb-4">Number of orders completed by each tailor</p>
-          <div class="h-72">
+          <div class="h-72 max-md:h-60">
             <canvas bind:this={employeePerformanceChartEl}></canvas>
           </div>
         </div>
@@ -710,5 +698,26 @@
   }
   .hover\:shadow-lg:hover {
     box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Mobile-specific styles */
+  @media (max-width: 768px) {
+    canvas {
+      max-height: 300px;
+    }
+    
+    .chart-container {
+      margin-bottom: 1rem;
+    }
+    
+    /* Add smooth scrolling for table */
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; /* Firefox */
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar {
+      display: none; /* Chrome, Safari and Opera */
+    }
   }
 </style>
