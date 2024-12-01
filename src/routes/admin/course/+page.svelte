@@ -181,10 +181,10 @@
 
 <div class="p-6">
     <!-- Header Section -->
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 mb-6">
         <h1 class="text-2xl font-bold text-foreground">Course Management</h1>
         <button 
-            class="bg-primary text-white px-4 py-2 rounded-lg"
+            class="w-full md:w-auto bg-primary text-white px-4 py-2 rounded-lg"
             on:click={() => showCreateModal = true}
         >
             Add New Course
@@ -193,13 +193,13 @@
 
     <!-- Main content card -->
     <div class="bg-white p-6 rounded-lg shadow-md">
-        <div class="flex justify-between mb-4">
+        <div class="flex flex-col md:flex-row justify-between gap-4 md:gap-0 mb-4">
             <h2 class="text-xl font-semibold">Courses List</h2>
             <input
                 type="text"
                 placeholder="Search courses..."
                 bind:value={searchTerm}
-                class="border rounded p-2"
+                class="w-full md:w-auto border rounded p-2"
             />
         </div>
 
