@@ -46,7 +46,7 @@
 <svelte:head>
   {#if showMeta}
     <title>{metaData?.title}</title>
-    <link rel="icon" href="%sveltekit.assets%/SCGLogo.png" />
+    <link rel="icon" href="%sveltekit.assets%/SCGLogo.ico" />
     <meta name="description" content={metaData?.description} />
     <meta name="keywords" content={metaData?.keywords} />
     <meta property="og:title" content={metaData?.title} />
