@@ -1,54 +1,55 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/SCGLogo.png" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>JOMS | SCG Dress Shoppe - Job Order Monitoring System</title>
-		<meta name="description" content="SCG Dress Shoppe's internal system for uniform order management, tailor task assignments, and admin monitoring. Professional uniform tailoring services." />
-		<meta name="keywords" content="JOMS, Job Online Monitoring System, SCG Dress Shoppe, uniform management, tailor management, order tracking, JOMS SCG Dress Shoppe, JOMS SCG, SCG, uniform tailoring, dress shop" />
-		<meta name="robots" content="index, follow" />
-		<meta name="author" content="SCG Dress Shoppe" />
-		
-		<!-- Open Graph Meta Tags -->
-		<meta property="og:title" content="JOMS | SCG Dress Shoppe - Job Order Monitoring System" />
-		<meta property="og:description" content="Internal job order management system for SCG Dress Shoppe tailors and administrators." />
-		<meta property="og:type" content="website" />
-		<meta property="og:image" content="%sveltekit.assets%/SCGLogo.png" />
-		<meta property="og:url" content="%sveltekit.assets%" />
-		
-		<!-- Twitter Card Meta Tags -->
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="JOMS | SCG Dress Shoppe" />
-		<meta name="twitter:description" content="Professional uniform tailoring and order management system" />
-		
-		<!-- Additional SEO Meta Tags -->
-		<meta name="googlebot" content="index, follow" />
-		<meta name="revisit-after" content="7 days" />
-		<link rel="canonical" href="https://scgjoms.vercel.app/" />
-		
-		<!-- Additional SEO Improvements -->
-		<meta name="theme-color" content="#ffffff"/>
-		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-		<meta name="application-name" content="JOMS SCG" />
-		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		
-		<!-- Structured Data -->
-		<script type="application/ld+json">
-		{
-			"@context": "https://schema.org",
-			"@type": "WebApplication",
-			"name": "JOMS SCG Dress Shoppe",
-			"description": "Job order monitoring system for SCG Dress Shoppe",
-			"applicationCategory": "BusinessApplication",
-			"operatingSystem": "Web Browser",
-			"url": "https://scgjoms.vercel.app"
-		}
-		</script>
-		%sveltekit.head%
-	</head>
-	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/SCGLogo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <!-- Primary Meta Tags -->
+    <title>JOMS | SCG Dress Shoppe - Job Order Monitoring System</title>
+    <meta name="description" content="Professional uniform tailoring and order management system by SCG Dress Shoppe. Track orders, manage measurements, and ensure timely delivery." />
+    <meta name="keywords" content="uniform tailoring, order management, SCG Dress Shoppe, JOMS, school uniforms, professional uniforms" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://scgjoms.vercel.app/" />
+    <meta property="og:image" content="%sveltekit.assets%/SCGLogo.png" />
+    <meta property="og:image:alt" content="SCG Dress Shoppe Logo" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="%sveltekit.assets%/SCGLogo.png" />
+    
+    <!-- Mobile & PWA -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/SCGLogo.png" />
+    
+    <!-- Default Schema.org -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SCG Dress Shoppe",
+      "url": "https://scgjoms.vercel.app",
+      "logo": "https://scgjoms.vercel.app/SCGLogo.png",
+      "description": "Professional uniform tailoring services with advanced order management system",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "PH"
+      },
+      "sameAs": [
+        "https://scgjoms.vercel.app"
+      ]
+    }
+    </script>
+
+    <!-- Allow dynamic meta tags from layout -->
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
 </html>

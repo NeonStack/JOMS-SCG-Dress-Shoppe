@@ -1,6 +1,8 @@
-
 User-agent: *
 Allow: /
+Allow: /employee
+Disallow: /admin/
+Disallow: /api/
 
 # Sitemaps
 Sitemap: https://scgjoms.vercel.app/sitemap.xml
