@@ -561,39 +561,37 @@
 
 <!-- Replace the Create/Edit Order Modal section -->
 {#if showCreateModal}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-  >
-    <div
-      class="bg-white p-6 rounded-lg w-[80%] max-w-5xl max-h-[95vh] overflow-auto"
-    >
-      <div class="flex justify-between mb-6">
-        <h2 class="text-2xl font-bold">
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 md:p-0 overflow-y-auto">
+    <div class="bg-white rounded-lg w-full md:w-[80%] md:max-w-5xl max-h-[90vh] overflow-auto my-4 md:my-0">
+      <!-- Modal Header -->
+      <div class="sticky top-0 bg-white border-b px-4 py-3 md:px-6 md:py-4 flex justify-between items-center z-10">
+        <h2 class="text-xl md:text-2xl font-bold">
           {isEditing ? "Edit Order" : "Create New Order"}
         </h2>
-        <button on:click={resetForm} class="text-gray-500 text-xl"
-          >&times;</button
+        <button 
+          on:click={resetForm} 
+          class="text-gray-500 text-xl p-2 hover:bg-gray-100 rounded-full"
         >
+          &times;
+        </button>
       </div>
 
       <form
         method="POST"
         action={isEditing ? "?/editOrder" : "?/createOrder"}
         use:enhance={isEditing ? handleEditOrder : handleCreateOrder}
-        class="space-y-4"
+        class="p-4 md:p-6"
       >
         {#if isEditing}
           <input type="hidden" name="orderId" value={orderToEdit.id} />
         {/if}
 
-        <!-- Rest of the form remains the same -->
-        <div class="grid grid-cols-2 gap-8">
+        <!-- Form Content -->
+        <div class="flex flex-col md:grid md:grid-cols-2 gap-6">
           <!-- Left Column - Order Details -->
           <div class="space-y-6">
-            <div class="bg-gray-50 p-6 rounded-lg">
-              <h3 class="text-lg font-semibold mb-4 text-primary">
-                Order Information
-              </h3>
+            <div class="bg-gray-50 p-4 md:p-6 rounded-lg">
+              <h3 class="text-lg font-semibold mb-4 text-primary">Order Information</h3>
               <div class="space-y-4">
                 <!-- Student Selection -->
                 <div>
@@ -603,9 +601,7 @@
                       type="text"
                       bind:value={searchTerm}
                       placeholder="Click to search customers..."
-                      class="studentSearch w-full p-2 border rounded {selectedStudent
-                        ? 'bg-gray-50'
-                        : ''}"
+                      class="w-full p-3 border rounded-lg {selectedStudent ? 'bg-gray-50' : ''}"
                       readonly={selectedStudent}
                       on:focus={() => {
                         if (selectedStudent) {
@@ -615,66 +611,39 @@
                         isStudentDropdownOpen = true;
                       }}
                     />
+                    
+                    <!-- Student Dropdown -->
                     {#if isStudentDropdownOpen && !selectedStudent}
-                      <div
-                        class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                      >
-                        {#if data.students.length > 0}
+                      <div class="absolute z-50 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
+                        {#if filteredStudents.length > 0}
                           {#each filteredStudents as student}
                             <div
-                              class="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                              class="p-4 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
                               on:click={() => {
                                 selectedStudent = student;
                                 searchTerm = `${student.first_name} ${student.last_name} (${student.course?.course_code})`;
                                 isStudentDropdownOpen = false;
                               }}
                             >
-                              <div>
-                                <div class="font-semibold">
-                                  {student.first_name}
-                                  {student.last_name}
-                                </div>
-                                <div class="text-sm text-gray-600">
-                                  <span
-                                    class="inline-block bg-gray-100 px-2 py-0.5 rounded"
-                                  >
-                                    {student.course?.course_code}
-                                  </span>
-                                  <span class="ml-2 capitalize"
-                                    >{student.gender}</span
-                                  >
-                                </div>
+                              <div class="font-semibold">
+                                {student.first_name} {student.last_name}
                               </div>
-                              <div class="text-gray-400">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  class="h-5 w-5"
-                                  viewBox="0 0 20 20"
-                                  fill="currentColor"
-                                >
-                                  <path
-                                    fill-rule="evenodd"
-                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
-                                    clip-rule="evenodd"
-                                  />
-                                </svg>
+                              <div class="text-sm text-gray-600 mt-1">
+                                <span class="inline-block bg-gray-100 px-2 py-0.5 rounded">
+                                  {student.course?.course_code}
+                                </span>
+                                <span class="ml-2 capitalize">{student.gender}</span>
                               </div>
                             </div>
                           {/each}
                         {:else}
-                          <p class="text-gray-500 text-center p-3">
+                          <div class="p-4 text-center text-gray-500">
                             No students found
-                          </p>
+                          </div>
                         {/if}
                       </div>
                     {/if}
                   </div>
-                  <input
-                    type="hidden"
-                    name="studentId"
-                    value={selectedStudent?.id}
-                    required
-                  />
                 </div>
 
                 <!-- Uniform Type -->
@@ -683,17 +652,13 @@
                   <select
                     name="uniformType"
                     bind:value={selectedUniformType}
-                    class="w-full p-2 border rounded"
+                    class="w-full p-3 border rounded-lg bg-white"
                     required
                   >
                     <option value="">Select uniform type</option>
                     {#each availableUniformTypes as type}
                       <option value={type}>
-                        {type === "upper"
-                          ? "Upper Wear"
-                          : type === "lower"
-                            ? "Lower Wear"
-                            : "Both"}
+                        {type === "upper" ? "Upper Wear" : type === "lower" ? "Lower Wear" : "Both"}
                       </option>
                     {/each}
                   </select>
@@ -707,30 +672,25 @@
                     name="dueDate"
                     bind:value={selectedDueDate}
                     min={new Date().toISOString().split("T")[0]}
-                    class="w-full p-2 border rounded"
+                    class="w-full p-3 border rounded-lg"
                     required
                   />
                 </div>
               </div>
             </div>
 
+            <!-- Student Details Section -->
             {#if selectedStudent}
-              <div class="bg-gray-50 p-6 rounded-lg">
-                <h3 class="text-lg font-semibold mb-4 text-primary">
-                  Student Details
-                </h3>
-                <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="bg-gray-50 p-4 md:p-6 rounded-lg">
+                <h3 class="text-lg font-semibold mb-4 text-primary">Student Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span class="text-gray-600">Course:</span>
-                    <p class="font-medium">
-                      {selectedStudent.course?.course_code}
-                    </p>
+                    <p class="font-medium">{selectedStudent.course?.course_code}</p>
                   </div>
                   <div>
                     <span class="text-gray-600">Gender:</span>
-                    <p class="font-medium capitalize">
-                      {selectedStudent.gender}
-                    </p>
+                    <p class="font-medium capitalize">{selectedStudent.gender}</p>
                   </div>
                 </div>
               </div>
@@ -738,7 +698,7 @@
           </div>
 
           <!-- Right Column - Price Breakdown -->
-          <div class="bg-gray-50 p-6 rounded-lg">
+          <div class="bg-gray-50 p-4 md:p-6 rounded-lg">
             <h3 class="text-lg font-semibold mb-4 text-primary">
               Price Breakdown
             </h3>
@@ -779,30 +739,25 @@
         </div>
 
         <!-- Footer with buttons -->
-        <div class="border-t pt-6 mt-6 flex justify-end gap-3">
+        <div class="border-t mt-6 pt-6 flex flex-col-reverse md:flex-row gap-3 md:justify-end">
           <button
             type="button"
-            class="px-6 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+            class="w-full md:w-auto px-6 py-3 border rounded-lg hover:bg-gray-50 transition-colors"
             on:click={resetForm}
           >
             Cancel
           </button>
           <button
             type="submit"
-            class="px-6 py-2 rounded-lg transition-colors flex items-center gap-2
+            class="w-full md:w-auto px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2
               {selectedStudent && selectedUniformType && selectedDueDate
               ? 'bg-primary text-white hover:bg-primary-dark'
               : 'bg-gray-400 text-gray-700 cursor-not-allowed'}
               {isLoading ? 'opacity-50 cursor-not-allowed' : ''}"
-            disabled={!selectedStudent ||
-              !selectedUniformType ||
-              !selectedDueDate ||
-              isLoading}
+            disabled={!selectedStudent || !selectedUniformType || !selectedDueDate || isLoading}
           >
             {#if isLoading}
-              <div
-                class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
-              ></div>
+              <div class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
             {/if}
             {isEditing ? "Save Changes" : "Create Order"}
           </button>
@@ -1163,7 +1118,7 @@
                                     >
                                       <path
                                         fill-rule="evenodd"
-                                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
+                                        d="M7.293 14.707a 1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
                                         clip-rule="evenodd"
                                       />
                                     </svg>
