@@ -72,10 +72,30 @@ export const handle = async ({ event, resolve }) => {
         throw redirect(303, "/employee/dashboard");
       }
     }
-    // Then check role-based access
+    //new
     if (event.url.pathname.startsWith("/admin")) {
       if (!["superadmin", "admin"].includes(event.locals.userRole)) {
         throw redirect(303, "/employee/dashboard");
+      }
+
+      // Skip permission check for superadmin
+      if (event.locals.userRole === "admin") {
+        // Check permissions for admin
+        const { data: permissions } = await event.locals.supabase
+          .from("admin_permissions")
+          .select("route_path")
+          .eq("admin_id", event.locals.session.user.id);
+
+        const allowedPaths = permissions?.map((p) => p.route_path) || [];
+        const currentPath = event.url.pathname;
+
+        // Allow access to dashboard by default
+        if (
+          currentPath !== "/admin/dashboard" &&
+          !allowedPaths.includes(currentPath)
+        ) {
+          throw redirect(303, "/admin/dashboard");
+        }
       }
     }
 

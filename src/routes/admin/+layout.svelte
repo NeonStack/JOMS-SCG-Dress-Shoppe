@@ -72,6 +72,30 @@
     },
   ];
 
+  if (userRole === 'superadmin') {
+        navigation = [
+            ...navigation.slice(0, -1), // Keep all items except Sign Out
+            {
+                name: "Admin Permissions",
+                href: "/admin/permissions",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5zm0 11h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>`
+            },
+            navigation[navigation.length - 1] // Add Sign Out back at the end
+        ];
+    }
+
+    // Filter navigation based on permissions for admin
+    $: if (userRole === 'admin') {
+        const permissions = $page.data.permissions || [];
+        navigation = navigation.filter(item => 
+            item.href === '/admin/dashboard' || // Always show dashboard
+            item.href === '/signout' || // Always show sign out
+            permissions.includes(item.href) // Show if permitted
+        );
+    }
+
   let isNavigating = false;
 
   async function handleNavigation(path) {

@@ -78,6 +78,15 @@ create table orders (
     
 );
 
+create table admin_permissions (
+    id serial primary key,
+    admin_id uuid references profiles(id),
+    route_path text not null,
+    is_permitted boolean default true,
+    created_at timestamptz default now() not null,
+    unique(admin_id, route_path)
+);
+
 -- Create indexes for foreign keys
 create index idx_uniform_config_course on uniform_configuration(course_id);
 create index idx_students_course on students(course_id);
