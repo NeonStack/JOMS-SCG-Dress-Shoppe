@@ -1123,19 +1123,17 @@
             />
           </div>
         </div>
-        <!-- Existing table code with the new columns -->
-        <div class="hidden md:block overflow-x-auto">
-          <table class="w-full">
+        <!-- Replace the existing table section with this -->
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[800px]"> <!-- Added min-width to prevent squishing -->
             <thead>
-              <tr class="bg-muted">
+              <tr class="bg-muted max-md:whitespace-nowrap">
                 <th
                   class="p-3 text-left font-semibold cursor-pointer hover:bg-gray-100"
                   on:click={() => toggleSort("created_at")}
                 >
                   Order Date {#if sortState.column === "created_at"}
-                    <span class="ml-1"
-                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
-                    >
+                    <span class="ml-1">{sortState.direction === "asc" ? "↑" : "↓"}</span>
                   {/if}
                 </th>
                 <th
@@ -1282,62 +1280,6 @@
               {/each}
             </tbody>
           </table>
-        </div>
-        <div class="md:hidden">
-          {#each filteredOrders as order}
-            {@const workInfo = calculateWorkDuration(order)}
-            {@const status = getStatusDetails(order)}
-            <div class="p-4 border-b last:border-b-0 hover:bg-gray-50">
-              <div class="space-y-4">
-                <!-- Order Info -->
-                <div class="flex justify-between items-start">
-                  <div>
-                    <div class="font-medium">Order #{order.id}</div>
-                    <div class="text-sm text-gray-500">{formatDate(order.created_at)}</div>
-                  </div>
-                  <span class={`px-2 py-1 text-xs font-medium rounded-full
-                    ${status.mainStatus === "completed"
-                      ? "bg-green-100 text-green-800"
-                      : status.mainStatus === "in progress"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-gray-100 text-gray-800"}`}>
-                    {status.mainStatus}
-                  </span>
-                </div>
-
-                <!-- Student & Tailor Info -->
-                <div class="space-y-2">
-                  <div>
-                    <div class="text-sm text-gray-500">Student</div>
-                    <div class="font-medium">{formatName(order.student?.first_name, order.student?.last_name)}</div>
-                    <div class="text-xs text-gray-500">
-                      {order.student?.course?.course_code || "No course"} - 
-                      <span class="capitalize">{order.uniform_type}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div class="text-sm text-gray-500">Tailor</div>
-                    <div class="font-medium">
-                      {order.employee 
-                        ? formatName(order.employee.first_name, order.employee.last_name)
-                        : "Unassigned"}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Dates & Status -->
-                <div class="space-y-2">
-                  <div>
-                    <div class="text-sm text-gray-500">Due Date</div>
-                    <div class="font-medium">{formatDate(order.due_date)}</div>
-                  </div>
-                  <div class={status.statusClass}>
-                    {status.statusMessage}
-                  </div>
-                </div>
-              </div>
-            </div>
-          {/each}
         </div>
       </div>
     </div>

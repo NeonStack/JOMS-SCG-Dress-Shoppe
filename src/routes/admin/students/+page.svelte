@@ -202,47 +202,37 @@
     
     switch (field) {
         case 'first_name':
-            if (!value) {
-                formErrors[field] = 'First name is required';
-            } else if (value.length < 2 || value.length > 50) {
-                formErrors[field] = 'First name must be between 2 and 50 characters';
-            } else if (!/^[A-Za-z\s\-']+$/.test(value)) {
-                formErrors[field] = 'First name can only contain letters';
-            } else {
-                delete formErrors[field];
-            }
-            break;
         case 'last_name':
             if (!value) {
-                formErrors[field] = 'Last name is required';
+                formErrors[field] = 'Name is required';
             } else if (value.length < 2 || value.length > 50) {
-                formErrors[field] = 'Last name must be between 2 and 50 characters';
-            } else if (!/^[A-Za-z\s\-']+$/.test(value)) {
-                formErrors[field] = 'Last name can only contain letters';
+                formErrors[field] = 'Must be between 2-50 characters';
+            } else if (!/^[a-zA-Z\s.]+$/.test(value)) {
+                formErrors[field] = 'Only letters, spaces, and dots allowed';
             } else {
                 delete formErrors[field];
             }
             break;
         case 'contact_number':
-            if (value && !/^09\d{9}$/.test(value)) {
-                formErrors[field] = 'Phone number must start with 09 and have 11 digits';
+            if (!value) {
+                formErrors[field] = 'Contact number is required';
+            } else if (!/^09\d{9}$/.test(value)) {
+                formErrors[field] = 'Must be 11 digits starting with 09';
             } else {
                 delete formErrors[field];
             }
             break;
         case 'address':
-          if (value) {
-            if (value.length > 200) {
-              formErrors[field] = 'Address must not exceed 200 characters';
-            } else if (!/^[A-Za-z0-9\s,\.\-'#]+$/.test(value)) {
-              formErrors[field] = 'Address contains invalid characters';
+            if (!value) {
+                formErrors[field] = 'Address is required';
+            } else if (value.length < 5 || value.length > 200) {
+                formErrors[field] = 'Must be between 5-200 characters';
+            } else if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(value)) {
+                formErrors[field] = 'Only letters, numbers, spaces, commas, dots, hyphens, and #';
             } else {
-              delete formErrors[field];
+                delete formErrors[field];
             }
-          } else {
-            delete formErrors[field];
-          }
-          break;
+            break;
         case 'gender':
           if (!value) {
             formErrors[field] = 'Please select a gender';
@@ -308,7 +298,7 @@
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="bg-muted">
+            <tr class="bg-muted max-md:whitespace-nowrap">
               <th
                 class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => sort("first_name")}

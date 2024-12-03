@@ -10,18 +10,17 @@ const toSentenceCase = (str) => {
 
 const isValidPhoneNumber = (phone) => {
     const phoneRegex = /^09\d{9}$/;  // Format: 09 followed by 9 digits
-    return phoneRegex.test(phone);
+    return !phone || phoneRegex.test(phone); // Changed to allow empty values
 };
 
 const isValidName = (name) => {
-    const nameRegex = /^[A-Za-z\s\-']+$/;  // Only letters, spaces, hyphens, and apostrophes
+    const nameRegex = /^[a-zA-Z\s.]+$/;  // Only letters, spaces, and dots
     return nameRegex.test(name) && name.trim().length >= 2 && name.trim().length <= 50;
 };
 
 const isValidAddress = (address) => {
-    if (!address) return true; // Optional field
-    const addressRegex = /^[A-Za-z0-9\s,\.\-'#]+$/;
-    return addressRegex.test(address) && address.trim().length <= 200;
+    const addressRegex = /^[a-zA-Z0-9\s,.\-#]+$/;
+    return address && address.trim().length >= 5 && address.trim().length <= 200 && addressRegex.test(address);
 };
 
 const sanitizeAndValidateInput = (formData) => {
@@ -35,11 +34,23 @@ const sanitizeAndValidateInput = (formData) => {
     const errors = {};
 
     if (!first_name || !isValidName(first_name)) {
-        errors.first_name = 'First name must be 2-50 characters long and contain only letters';
+        if (!first_name) {
+            errors.first_name = 'Name is required';
+        } else if (!/^[a-zA-Z\s.]+$/.test(first_name)) {
+            errors.first_name = 'Only letters, spaces, and dots allowed';
+        } else {
+            errors.first_name = 'Must be between 2-50 characters';
+        }
     }
 
     if (!last_name || !isValidName(last_name)) {
-        errors.last_name = 'Last name must be 2-50 characters long and contain only letters';
+        if (!last_name) {
+            errors.last_name = 'Name is required';
+        } else if (!/^[a-zA-Z\s.]+$/.test(last_name)) {
+            errors.last_name = 'Only letters, spaces, and dots allowed';
+        } else {
+            errors.last_name = 'Must be between 2-50 characters';
+        }
     }
 
     if (!gender) {
@@ -50,12 +61,20 @@ const sanitizeAndValidateInput = (formData) => {
         errors.course_id = 'Please select a course';
     }
 
-    if (contact_number && !isValidPhoneNumber(contact_number)) {
-        errors.contact_number = 'Phone number must start with 09 and have 11 digits total';
+    if (!contact_number) {
+        errors.contact_number = 'Contact number is required';
+    } else if (!isValidPhoneNumber(contact_number)) {
+        errors.contact_number = 'Must be 11 digits starting with 09';
     }
 
-    if (!isValidAddress(address)) {
-        errors.address = 'Address contains invalid characters or exceeds 200 characters';
+    if (!address) {
+        errors.address = 'Address is required';
+    } else if (!isValidAddress(address)) {
+        if (address.length < 5 || address.length > 200) {
+            errors.address = 'Must be between 5-200 characters';
+        } else {
+            errors.address = 'Only letters, numbers, spaces, commas, dots, hyphens, and #';
+        }
     }
 
     return {

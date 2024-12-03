@@ -1322,7 +1322,7 @@
         <table class="w-full">
           {#if activeTab === "payments"}
             <thead>
-              <tr class="bg-muted">
+              <tr class="bg-muted max-md:whitespace-nowrap">
                 {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status"] as field}
                   <th
                     class="p-2 cursor-pointer hover:bg-gray-200 text-left"
@@ -1411,7 +1411,7 @@
             </tbody>
           {:else}
             <thead>
-              <tr class="bg-muted">
+              <tr class="bg-muted max-md:whitespace-nowrap">
                 {#if activeTab === "pending"}
                   <th class="p-2 w-12">Select</th>
                 {/if}

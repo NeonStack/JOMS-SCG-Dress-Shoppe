@@ -20,16 +20,16 @@
 
     // Validation functions
     function validateName(name, field) {
+        if (!name) {
+            errors[field] = 'Name is required';
+            return false;
+        }
         if (name.length < 2 || name.length > 50) {
-            errors[field] = 'Name must be between 2-50 characters';
+            errors[field] = 'Must be between 2-50 characters';
             return false;
         }
-        if (/[0-9]/.test(name)) {
-            errors[field] = 'Name cannot contain numbers';
-            return false;
-        }
-        if (!/^[a-zA-Z\s]*$/.test(name)) {
-            errors[field] = 'Name can only contain letters and spaces';
+        if (!/^[a-zA-Z\s.]+$/.test(name)) {
+            errors[field] = 'Only letters, spaces, and dots allowed';
             return false;
         }
         errors[field] = '';
@@ -37,8 +37,12 @@
     }
 
     function validatePhone(phone) {
+        if (!phone) {
+            errors.contact_number = 'Contact number is required';
+            return false;
+        }
         if (!/^09\d{9}$/.test(phone)) {
-            errors.contact_number = 'Phone number must start with 09 and have 11 digits';
+            errors.contact_number = 'Must be 11 digits starting with 09';
             return false;
         }
         errors.contact_number = '';
@@ -46,8 +50,16 @@
     }
 
     function validateAddress(address) {
-        if (!/^[a-zA-Z0-9\s,\-\.#]+$/.test(address)) {
-            errors.address = 'Address can only contain letters, numbers, and common symbols (,-.#)';
+        if (!address) {
+            errors.address = 'Address is required';
+            return false;
+        }
+        if (address.length < 5 || address.length > 200) {
+            errors.address = 'Must be between 5-200 characters';
+            return false;
+        }
+        if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) {
+            errors.address = 'Only letters, numbers, spaces, commas, dots, hyphens, and #';
             return false;
         }
         errors.address = '';
@@ -59,8 +71,8 @@
     async function handleSubmit(event) {
         const isFirstNameValid = validateName(formData.first_name, 'first_name');
         const isLastNameValid = validateName(formData.last_name, 'last_name');
-        const isPhoneValid = formData.contact_number ? validatePhone(formData.contact_number) : true;
-        const isAddressValid = formData.address ? validateAddress(formData.address) : true;
+        const isPhoneValid = validatePhone(formData.contact_number);
+        const isAddressValid = validateAddress(formData.address);
 
         if (!isFirstNameValid || !isLastNameValid || !isPhoneValid || !isAddressValid) {
             event.preventDefault();

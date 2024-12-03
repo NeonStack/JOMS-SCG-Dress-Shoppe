@@ -370,7 +370,7 @@
     if (!address) return 'Address is required';
     address = address.trim().replace(/\s+/g, ' '); // Remove extra spaces
     if (address.length < 5 || address.length > 200) return 'Must be between 5-200 characters';
-    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) return 'Invalid characters in address';
+    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) return 'Only letters, numbers, spaces, commas, dots, hyphens, and #';
     return null;
   }
 

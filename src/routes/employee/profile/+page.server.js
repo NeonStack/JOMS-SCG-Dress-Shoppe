@@ -41,11 +41,50 @@ export const actions = {
         }
 
         const formData = await request.formData();
+        const first_name = formData.get('first_name');
+        const last_name = formData.get('last_name');
+        const contact_number = formData.get('contact_number');
+        const address = formData.get('address');
+
+        // Name validations
+        if (!first_name) {
+            return { success: false, error: 'Name is required' };
+        }
+        if (!last_name) {
+            return { success: false, error: 'Name is required' };
+        }
+        if (first_name.length < 2 || first_name.length > 50 || 
+            last_name.length < 2 || last_name.length > 50) {
+            return { success: false, error: 'Must be between 2-50 characters' };
+        }
+        if (!/^[a-zA-Z\s.]+$/.test(first_name) || !/^[a-zA-Z\s.]+$/.test(last_name)) {
+            return { success: false, error: 'Only letters, spaces, and dots allowed' };
+        }
+
+        // Phone validation
+        if (!contact_number) {
+            return { success: false, error: 'Contact number is required' };
+        }
+        if (!/^09\d{9}$/.test(contact_number)) {
+            return { success: false, error: 'Must be 11 digits starting with 09' };
+        }
+
+        // Address validation
+        if (!address) {
+            return { success: false, error: 'Address is required' };
+        }
+        if (address.length < 5 || address.length > 200) {
+            return { success: false, error: 'Must be between 5-200 characters' };
+        }
+        if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) {
+            return { success: false, error: 'Only letters, numbers, spaces, commas, dots, hyphens, and #' };
+        }
+
         const updates = {
-            first_name: toSentenceCase(formData.get('first_name')),
-            last_name: toSentenceCase(formData.get('last_name')),
-            contact_number: formData.get('contact_number'),
-            address: toSentenceCase(formData.get('address') || '')
+            first_name: toSentenceCase(first_name),
+            last_name: toSentenceCase(last_name),
+            contact_number,
+            address: toSentenceCase(address)
         };
 
         const { error: updateError } = await locals.supabase

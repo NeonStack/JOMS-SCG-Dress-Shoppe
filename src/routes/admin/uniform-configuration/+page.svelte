@@ -205,7 +205,7 @@
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
-                    <tr class="bg-muted">
+                    <tr class="bg-muted max-md:whitespace-nowrap">
                         <th 
                             class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                             on:click={() => toggleSort('course')}

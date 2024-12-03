@@ -19,3 +19,18 @@
 - Allows letters, numbers, spaces, commas, dots, hyphens, and #
 - Pattern: /^[a-zA-Z0-9\s,.\-#]+$/
 ```
+
+# ERROR MESSAGE TO SHOW FOR FRONTEND AND BACKEND
+Name (First & Last Name)
+Empty: "Name is required"
+Pattern: "Only letters, spaces, and dots allowed" 
+Length: "Must be between 2-50 characters" 
+
+Phone Number
+Empty: "Contact number is required" 
+Pattern: "Must be 11 digits starting with 09" 
+
+Address
+Empty: "Address is required" 
+Length: "Must be between 5-200 characters" 
+Pattern: "Only letters, numbers, spaces, commas, dots, hyphens, and #"
