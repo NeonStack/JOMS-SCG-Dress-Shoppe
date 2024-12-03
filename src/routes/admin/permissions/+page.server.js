@@ -1,9 +1,12 @@
 import { error } from '@sveltejs/kit';
 
-export const load = async ({ locals }) => {
+export const load = async ({ locals, url }) => {
     if (locals.userRole !== 'superadmin') {
         throw error(403, 'Unauthorized');
     }
+
+    // Get selected admin from URL
+    const selectedAdminId = url.searchParams.get('admin');
 
     // Get all admin users
     const { data: admins } = await locals.supabase
@@ -18,7 +21,8 @@ export const load = async ({ locals }) => {
 
     return {
         admins,
-        permissions
+        permissions,
+        selectedAdminId
     };
 };
 

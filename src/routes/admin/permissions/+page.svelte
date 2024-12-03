@@ -1,9 +1,9 @@
 <script>
     import { enhance } from '$app/forms';
+    import { goto } from '$app/navigation';
     export let data;
 
     const routeGroups = {
-        "Main": ["/admin/dashboard"],
         "Reports": ["/admin/tailor-performance"],
         "Configuration": [
             "/admin/course",
@@ -17,13 +17,23 @@
         ]
     };
 
-    let selectedAdmin = null;
+    let selectedAdmin = data.selectedAdminId || null;
     let selectedRoutes = [];
 
     function handleAdminSelect(adminId) {
         selectedAdmin = adminId;
         selectedRoutes = data.permissions
             .filter(p => p.admin_id === adminId)
+            .map(p => p.route_path);
+        
+        // Update URL when admin is selected
+        goto(`?admin=${adminId}`, { keepfocus: true });
+    }
+
+    // Initialize routes if admin is pre-selected
+    if (selectedAdmin) {
+        selectedRoutes = data.permissions
+            .filter(p => p.admin_id === selectedAdmin)
             .map(p => p.route_path);
     }
 
@@ -41,7 +51,8 @@
         return async ({ update }) => {
             isSubmitting = true;
             await update();
-            isSubmitting = false;
+            // Reload the page to refresh data while maintaining the selected admin
+            window.location.reload();
         };
     };
 
@@ -67,6 +78,7 @@
                 <select 
                     class="select w-full max-w-md p-3 rounded-md cursor-pointer transition-all duration-200 border-2"
                     on:change={(e) => handleAdminSelect(e.target.value)}
+                    value={selectedAdmin}
                 >
                     <option value="">Select an admin user...</option>
                     {#each data.admins as admin}
