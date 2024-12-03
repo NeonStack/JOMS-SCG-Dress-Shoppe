@@ -111,9 +111,6 @@ export const actions = {
         try {
             const formData = await request.formData();
             const id = formData.get('id');
-            const gender = formData.get('gender');
-            const courseId = formData.get('courseId');
-            const wearType = formData.get('wearType');
             const basePrice = parseFloat(formData.get('basePrice'));
 
             // Get selected measurement types and their specifications
@@ -124,16 +121,14 @@ export const actions = {
                 additional_cost_per_cm: parseFloat(formData.get(`costPerCm_${typeId}`) || '0')
             }));
 
-            if (!id || !gender || !courseId || !wearType || !basePrice || measurement_specs.length === 0) {
+            if (!id || !basePrice || measurement_specs.length === 0) {
                 throw error(400, 'Missing required fields');
             }
 
+            // Exclude course_id, gender, and wear_type from the update
             const { data, error: updateError } = await supabase
                 .from('uniform_configuration')
                 .update({
-                    gender,
-                    course_id: courseId,
-                    wear_type: wearType,
                     measurement_specs,
                     base_price: basePrice
                 })

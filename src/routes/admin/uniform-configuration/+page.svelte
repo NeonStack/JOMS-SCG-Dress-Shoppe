@@ -130,8 +130,9 @@
     let selectedWearType = '';
 
     // Compute disabled options based on existing configurations
-    $: disabledGenders = selectedCourseId ? getDisabledGenders(selectedCourseId) : [];
-    $: disabledWearTypes = selectedCourseId && selectedGender ? getDisabledWearTypes(selectedCourseId, selectedGender) : [];
+    $: disabledGenders = selectedCourseId && !selectedConfig ? getDisabledGenders(selectedCourseId) : [];
+
+    $: disabledWearTypes = selectedCourseId && selectedGender && !selectedConfig ? getDisabledWearTypes(selectedCourseId, selectedGender) : [];
 
     function getDisabledGenders(courseId) {
         const genders = ['male', 'female'];
@@ -346,21 +347,25 @@
                                                 selectedWearType = '';
                                             }}
                                             class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                                            disabled={selectedConfig ? true : false}
                                             required
                                         >
                                             <option value="">Select Course</option>
                                             {#each courses as course}
                                                 <option
-                                                    value={course.id}
-                                                    disabled={isCourseDisabled(course.id.toString())}
+                                                    value={course.id.toString()}
+                                                    disabled={!selectedConfig && isCourseDisabled(course.id.toString()) && course.id.toString() !== selectedCourseId}
                                                 >
                                                     {course.course_code}
-                                                    {#if isCourseDisabled(course.id.toString())}
+                                                    {#if !selectedConfig && isCourseDisabled(course.id.toString()) && course.id.toString() !== selectedCourseId}
                                                         (All Configurations Set)
                                                     {/if}
                                                 </option>
                                             {/each}
                                         </select>
+                                        {#if selectedConfig}
+                                            <input type="hidden" name="courseId" value={selectedCourseId} />
+                                        {/if}
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="gender">Gender</label>
@@ -369,29 +374,32 @@
                                             bind:value={selectedGender}
                                             on:change={() => selectedWearType = ''}
                                             class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                                            disabled={!selectedCourseId}
+                                            disabled={selectedConfig ? true : false}
                                             required
                                         >
                                             <option value="">Select Gender</option>
                                             <option
                                                 value="male"
-                                                disabled={disabledGenders.includes('male')}
+                                                disabled={!selectedConfig && disabledGenders.includes('male')}
                                             >
                                                 Male
-                                                {#if disabledGenders.includes('male')}
+                                                {#if !selectedConfig && disabledGenders.includes('male')}
                                                     (All Wear Types Configured)
                                                 {/if}
                                             </option>
                                             <option
                                                 value="female"
-                                                disabled={disabledGenders.includes('female')}
+                                                disabled={!selectedConfig && disabledGenders.includes('female')}
                                             >
                                                 Female
-                                                {#if disabledGenders.includes('female')}
+                                                {#if !selectedConfig && disabledGenders.includes('female')}
                                                     (All Wear Types Configured)
                                                 {/if}
                                             </option>
                                         </select>
+                                        {#if selectedConfig}
+                                            <input type="hidden" name="gender" value={selectedGender} />
+                                        {/if}
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="wearType">Wear Type</label>
@@ -399,29 +407,32 @@
                                             name="wearType"
                                             bind:value={selectedWearType}
                                             class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                                            disabled={!selectedGender}
+                                            disabled={selectedConfig ? true : false}
                                             required
                                         >
                                             <option value="">Select Wear Type</option>
                                             <option
                                                 value="upper"
-                                                disabled={disabledWearTypes.includes('upper')}
+                                                disabled={!selectedConfig && disabledWearTypes.includes('upper')}
                                             >
                                                 Upper
-                                                {#if disabledWearTypes.includes('upper')}
+                                                {#if !selectedConfig && disabledWearTypes.includes('upper')}
                                                     (Already Configured)
                                                 {/if}
                                             </option>
                                             <option
                                                 value="lower"
-                                                disabled={disabledWearTypes.includes('lower')}
+                                                disabled={!selectedConfig && disabledWearTypes.includes('lower')}
                                             >
                                                 Lower
-                                                {#if disabledWearTypes.includes('lower')}
+                                                {#if !selectedConfig && disabledWearTypes.includes('lower')}
                                                     (Already Configured)
                                                 {/if}
                                             </option>
                                         </select>
+                                        {#if selectedConfig}
+                                            <input type="hidden" name="wearType" value={selectedWearType} />
+                                        {/if}
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="basePrice">Base Price (₱)</label>
