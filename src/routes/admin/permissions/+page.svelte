@@ -67,9 +67,9 @@
     };
 </script>
 
-<div class="min-h-screen p-6">
-    <div class="max-w-6xl mx-auto">
-        <div class="mb-8 flex items-center gap-8">
+<div class="min-h-screen p-4">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-6 flex items-center gap-6">
             <div>
                 <h1 class="text-3xl font-bold text-primary">Admin Permissions</h1>
                 <p class="text-gray-600 mt-1">Configure access rights</p>
@@ -95,23 +95,23 @@
                 method="POST" 
                 action="?/updatePermissions" 
                 use:enhance={handleSubmit}
-                class="bg-white/80 backdrop-blur rounded-2xl shadow-xl border border-white/50 
+                class="bg-white/80 backdrop-blur rounded-xl shadow-xl border border-white/50 
                        overflow-hidden transition-all duration-300 animate-scale"
             >
                 <input type="hidden" name="adminId" value={selectedAdmin}>
                 <input type="hidden" name="permissions" value={JSON.stringify(selectedRoutes)}>
                 
-                <div class="grid grid-cols-2 gap-6 p-6">
+                <div class="grid grid-cols-3 gap-4 p-4">
                     {#each Object.entries(routeGroups) as [groupName, routes]}
-                        <div class="bg-white/50 rounded-xl p-5 hover:shadow-lg transition-all duration-300
+                        <div class="bg-white/50 rounded-lg p-4 hover:shadow-lg transition-all duration-300
                                   border border-input hover:border-primary/30">
-                            <h3 class="font-medium text-lg mb-3 text-primary flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
+                            <h3 class="font-medium text-base mb-2 text-primary flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>
                                 {groupName}
                             </h3>
-                            <div class="space-y-2">
+                            <div class="space-y-1.5">
                                 {#each routes as route}
-                                    <label class="flex items-center gap-3 p-2 hover:bg-white rounded-lg 
+                                    <label class="flex items-center gap-2 p-1.5 hover:bg-white rounded-md 
                                                 cursor-pointer group transition-all duration-200">
                                         <div class="relative">
                                             <input 
