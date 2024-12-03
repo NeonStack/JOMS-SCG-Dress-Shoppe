@@ -273,7 +273,7 @@
                 <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
               {/if}
             </th>
-            <th class="p-2 text-left">Students</th>
+            <th class="p-2 text-left">Reg. Students</th>
             <th class="p-2 text-right">Actions</th>
           </tr>
         </thead>
@@ -315,7 +315,7 @@
                 <span
                   class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
                 >
-                  {config.student_count}
+                  {config.student_count} student/s
                 </span>
               </td>
               <td class="p-2 text-right">
