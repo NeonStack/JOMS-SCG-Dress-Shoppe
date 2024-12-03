@@ -305,6 +305,15 @@
           ) * modifier
         );
       }
+      if (sortBy.field === "email") {
+        return (a.email || "").localeCompare(b.email || "") * modifier;
+      }
+      if (sortBy.field === "role") {
+        return (a.role || "").localeCompare(b.role || "") * modifier;
+      }
+      if (sortBy.field === "position") {
+        return (a.position || "").localeCompare(b.position || "") * modifier;
+      }
       if (sortBy.field === "created_at") {
         return (new Date(a.created_at) - new Date(b.created_at)) * modifier;
       }
@@ -547,11 +556,40 @@
                   {/if}
                 </div>
               </th>
-              <th class="px-6 py-3 text-left">Email</th>
-              <th class="px-6 py-3 text-left">Role</th>
-              <th class="px-6 py-3 text-left">Position</th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
+                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                on:click={() => handleSort("email")}
+              >
+                <div class="flex items-center space-x-1">
+                  <span class="text-xs font-medium text-gray-500 uppercase">Email</span>
+                  {#if sortBy.field === "email"}
+                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
+                  {/if}
+                </div>
+              </th>
+              <th
+                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                on:click={() => handleSort("role")}
+              >
+                <div class="flex items-center space-x-1">
+                  <span class="text-xs font-medium text-gray-500 uppercase">Role</span>
+                  {#if sortBy.field === "role"}
+                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
+                  {/if}
+                </div>
+              </th>
+              <th
+                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                on:click={() => handleSort("position")}
+              >
+                <div class="flex items-center space-x-1">
+                  <span class="text-xs font-medium text-gray-500 uppercase">Position</span>
+                  {#if sortBy.field === "position"}
+                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
+                  {/if}
+                </div>
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
                 >Actions</th
               >
             </tr>
@@ -647,7 +685,7 @@
         transition:fade
       >
         <div
-          class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full"
+          class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-md:h-[90vh] overflow-y-auto"
           transition:slide
         >
           <!-- Header with gradient background -->
@@ -829,19 +867,10 @@
                 <div class="space-y-6">
                   <div>
                     <div class="flex items-center space-x-3 mb-2">
-                      <svg
-                        class="w-5 h-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 011.21-.502l4.493 1.498a1 1 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                        />
-                      </svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.502 4.257A2 2 0 0 0 7.646 3H4.895A1.895 1.895 0 0 0 3 4.895C3 13.789 10.21 21 19.106 21A1.895 1.895 0 0 0 21 19.105v-2.751a2 2 0 0 0-1.257-1.857l-2.636-1.054a2 2 0 0 0-2.023.32l-.68.568a2 2 0 0 1-2.696-.122L9.792 12.29a2 2 0 0 1-.123-2.694l.567-.68a2 2 0 0 0 .322-2.024z"/></svg>
                       <span class="text-sm font-medium text-gray-900"
                         >Contact Number</span
                       >
