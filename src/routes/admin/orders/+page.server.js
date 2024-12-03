@@ -130,40 +130,7 @@ export const actions = {
         return { success: true };
     },
 
-    filterOrders: async ({ request }) => {
-        const formData = await request.formData();
-        const startDate = formData.get('startDate');
-        const endDate = formData.get('endDate');
-
-        if (!startDate || !endDate) {
-            return fail(400, {
-                error: 'Date range is required'
-            });
-        }
-
-        const { data: orders, error: filterError } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                student:students(*),
-                employee:profiles(first_name, last_name)
-            `)
-            .gte('due_date', startDate)
-            .lte('due_date', endDate)
-            .order('due_date', { ascending: true });
-
-        if (filterError) {
-            console.error('Filter error:', filterError);
-            return fail(500, {
-                error: 'Failed to filter orders'
-            });
-        }
-
-        return {
-            success: true,
-            filteredOrders: orders || []
-        };
-    },
+    // Remove the filterOrders action as it's no longer needed
 
     deleteOrder: async ({ request }) => {
         const formData = await request.formData();
