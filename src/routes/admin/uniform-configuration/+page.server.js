@@ -3,7 +3,7 @@ import { supabase } from '$lib/supabaseClient';
 
 export const load = async ({ locals }) => {
     try {
-        // Fetch uniform configurations with course details
+        // Fetch uniform configurations with course details and count of matching students
         const { data: configs, error: configError } = await supabase
             .from('uniform_configuration')
             .select(`
@@ -19,6 +19,22 @@ export const load = async ({ locals }) => {
             .order('created_at', { ascending: false });
 
         if (configError) throw configError;
+
+        // Fetch student counts for each configuration
+        const { data: students, error: studentError } = await supabase
+            .from('students')
+            .select('id, course_id, gender');
+
+        if (studentError) throw studentError;
+
+        // Add student count to each config
+        const configsWithCount = configs.map(config => ({
+            ...config,
+            student_count: students.filter(student => 
+                student.course_id === config.course_id && 
+                student.gender === config.gender
+            ).length
+        }));
 
         // Fetch all courses for the dropdown
         const { data: courses, error: courseError } = await supabase
@@ -54,7 +70,7 @@ export const load = async ({ locals }) => {
         });
 
         return {
-            configs,
+            configs: configsWithCount,
             courses,
             measurementTypes,
             configurationMap // Add this to be used in the Svelte component
@@ -151,7 +167,38 @@ export const actions = {
             const id = formData.get('id');
 
             if (!id) {
-                throw error(400, 'Configuration ID is required');
+                return {
+                    type: 'error',
+                    data: { error: 'Configuration ID is required' }
+                };
+            }
+
+            // Get configuration details first
+            const { data: config } = await supabase
+                .from('uniform_configuration')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            // Count matching students
+            const { data: students, error: countError } = await supabase
+                .from('students')
+                .select('id')
+                .eq('course_id', config.course_id)
+                .eq('gender', config.gender);
+
+            const studentCount = students?.length || 0;
+
+            if (studentCount > 0) {
+                console.log({
+                    type: 'error',
+                    data: { error: `Cannot delete configuration. There are ${studentCount} registered students that match this uniform configuration.` }
+                });
+                
+                return {
+                    type: 'error',
+                    data: { error: `Cannot delete configuration. There are ${studentCount} registered students that match this uniform configuration.` }
+                };
             }
 
             const { error: deleteError } = await supabase
@@ -159,15 +206,22 @@ export const actions = {
                 .delete()
                 .eq('id', id);
 
-            if (deleteError) throw deleteError;
+            if (deleteError) {
+                return {
+                    type: 'error',
+                    data: { error: deleteError.message }
+                };
+            }
 
             return {
-                success: true,
-                message: 'Uniform configuration deleted successfully'
+                type: 'success',
+                data: { message: 'Uniform configuration deleted successfully' }
             };
         } catch (err) {
-            console.error('Error:', err);
-            throw error(500, err.message);
+            return {
+                type: 'error',
+                data: { error: err.message }
+            };
         }
     }
 };
