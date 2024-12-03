@@ -5,6 +5,9 @@ const toSentenceCase = (str) => {
     return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
 };
 
+const NAME_MAX_LENGTH = 40;
+const NAME_PATTERN = /^[A-Za-z0-9\s-]+$/;
+
 export const load = async ({ locals }) => {
     try {
         // First get all measurement types
@@ -56,6 +59,27 @@ export const actions = {
             });
         }
 
+        // Validate each name
+        const validationErrors = names.flatMap((name, index) => {
+            const errors = [];
+            
+            if (!name) {
+                errors.push(`Measurement name is required for entry ${index + 1}`);
+            } else if (name.length > NAME_MAX_LENGTH) {
+                errors.push(`Name must not exceed ${NAME_MAX_LENGTH} characters for entry ${index + 1}`);
+            } else if (!NAME_PATTERN.test(name)) {
+                errors.push(`Measurement name can only contain letters, numbers, spaces, and dashes for entry ${index + 1}`);
+            }
+
+            return errors;
+        });
+
+        if (validationErrors.length > 0) {
+            return fail(400, {
+                error: validationErrors.join('\n')
+            });
+        }
+
         try {
             // First check for existing measurements with sentence case names
             const { data: existingMeasurements } = await supabase
@@ -93,6 +117,19 @@ export const actions = {
         if (!id || !name) {
             return fail(400, {
                 error: 'Measurement ID and name are required'
+            });
+        }
+
+        // Validate input
+        if (name.length > NAME_MAX_LENGTH) {
+            return fail(400, {
+                error: `Name must not exceed ${NAME_MAX_LENGTH} characters`
+            });
+        }
+
+        if (!NAME_PATTERN.test(name)) {
+            return fail(400, {
+                error: 'Measurement name can only contain letters, numbers, spaces, and dashes'
             });
         }
 

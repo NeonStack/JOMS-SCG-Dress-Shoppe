@@ -1,6 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
+const COURSE_CODE_MAX_LENGTH = 20;
+const DESCRIPTION_MAX_LENGTH = 150;
+const COURSE_CODE_PATTERN = /^[A-Za-z0-9-]+$/;
+
 export const load = async () => {
     try {
         // Get courses with student count
@@ -48,6 +52,31 @@ export const actions = {
         if (courses.length === 0) {
             return fail(400, {
                 error: 'At least one course code is required'
+            });
+        }
+
+        // Validate each course
+        const validationErrors = courses.flatMap((course, index) => {
+            const errors = [];
+            
+            if (!course.course_code) {
+                errors.push(`Course code is required for entry ${index + 1}`);
+            } else if (course.course_code.length > COURSE_CODE_MAX_LENGTH) {
+                errors.push(`Course code must not exceed ${COURSE_CODE_MAX_LENGTH} characters for entry ${index + 1}`);
+            } else if (!COURSE_CODE_PATTERN.test(course.course_code)) {
+                errors.push(`Course code can only contain letters, numbers, and dashes for entry ${index + 1}`);
+            }
+
+            if (course.description && course.description.length > DESCRIPTION_MAX_LENGTH) {
+                errors.push(`Description must not exceed ${DESCRIPTION_MAX_LENGTH} characters for entry ${index + 1}`);
+            }
+
+            return errors;
+        });
+
+        if (validationErrors.length > 0) {
+            return fail(400, {
+                error: validationErrors.join('\n')
             });
         }
 
@@ -113,6 +142,28 @@ export const actions = {
         const sentenceCaseDesc = description ? 
             description.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) 
             : null;
+
+        // Validate input
+        const validationErrors = [];
+        
+        if (!course_code) {
+            validationErrors.push('Course code is required');
+        } else if (course_code.length > COURSE_CODE_MAX_LENGTH) {
+            validationErrors.push(`Course code must not exceed ${COURSE_CODE_MAX_LENGTH} characters`);
+        } else if (!COURSE_CODE_PATTERN.test(course_code)) {
+            validationErrors.push('Course code can only contain letters, numbers, and dashes');
+        }
+
+        if (description && description.length > DESCRIPTION_MAX_LENGTH) {
+            validationErrors.push(`Description must not exceed ${DESCRIPTION_MAX_LENGTH} characters`);
+        }
+
+        if (validationErrors.length > 0) {
+            return fail(400, {
+                type: 'failure',
+                error: validationErrors.join('\n')
+            });
+        }
 
         try {
             // Check for existing courses with the same code or description

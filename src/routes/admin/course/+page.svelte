@@ -79,6 +79,11 @@
         isLoading = false;
         courseToDelete = null;
         newCourses = [{ course_code: '', description: '' }];
+        validationErrors = {
+            course_codes: Array(newCourses.length).fill({}),
+            descriptions: Array(newCourses.length).fill({})
+        };
+        editValidationErrors = { course_code: {}, description: {} };
     };
 
     const showError = (message) => {
@@ -88,6 +93,14 @@
     };
 
     const handleCreateSubmit = () => {
+        let isValid = true;
+        newCourses.forEach((course, index) => {
+            if (!validateCourseCode(course.course_code, index)) isValid = false;
+            if (!validateDescription(course.description, index)) isValid = false;
+        });
+
+        if (!isValid) return () => {}; // Prevent form submission if invalid
+
         isLoading = true;
         // Filter out empty entries
         const validCourses = newCourses.filter(course => 
@@ -177,6 +190,65 @@
     const handleUpdateDescriptionBlur = (event) => {
         event.target.value = toSentenceCase(event.target.value);
     };
+
+    // Validation constants
+    const COURSE_CODE_MAX_LENGTH = 20;
+    const DESCRIPTION_MAX_LENGTH = 150;
+    const COURSE_CODE_PATTERN = /^[A-Za-z0-9-]+$/;
+
+    // Validation state
+    let validationErrors = {
+        course_codes: Array(newCourses.length).fill({}),
+        descriptions: Array(newCourses.length).fill({})
+    };
+    let editValidationErrors = { course_code: {}, description: {} };
+
+    // Validation functions
+    function validateCourseCode(code, index, isEdit = false) {
+        const errors = {};
+        if (!code) {
+            errors.message = 'Course code is required';
+        } else if (code.length > COURSE_CODE_MAX_LENGTH) {
+            errors.message = `Course code must not exceed ${COURSE_CODE_MAX_LENGTH} characters`;
+        } else if (!COURSE_CODE_PATTERN.test(code)) {
+            errors.message = 'Course code can only contain letters, numbers, and dashes';
+        }
+
+        if (isEdit) {
+            editValidationErrors.course_code = errors;
+        } else {
+            validationErrors.course_codes[index] = errors;
+            validationErrors = validationErrors; // Trigger reactivity
+        }
+        return Object.keys(errors).length === 0;
+    }
+
+    function validateDescription(description, index, isEdit = false) {
+        const errors = {};
+        if (description && description.length > DESCRIPTION_MAX_LENGTH) {
+            errors.message = `Description must not exceed ${DESCRIPTION_MAX_LENGTH} characters`;
+        }
+
+        if (isEdit) {
+            editValidationErrors.description = errors;
+        } else {
+            validationErrors.descriptions[index] = errors;
+            validationErrors = validationErrors; // Trigger reactivity
+        }
+        return Object.keys(errors).length === 0;
+    }
+
+    // Add a function to handle course code input
+    const handleCourseCodeBlur = (index) => {
+        if (newCourses[index].course_code) {
+            newCourses[index].course_code = newCourses[index].course_code.toUpperCase();
+            newCourses = [...newCourses]; // Trigger reactivity
+        }
+    };
+
+    const handleUpdateCourseCodeBlur = (event) => {
+        event.target.value = event.target.value.toUpperCase();
+    };
 </script>
 
 <div class="p-6">
@@ -262,18 +334,30 @@
                                             type="text"
                                             name="course_code"
                                             value={course.course_code}
-                                            class="px-2 py-1 border rounded"
+                                            on:input={(e) => validateCourseCode(e.target.value, 0, true)}
+                                            on:blur={handleUpdateCourseCodeBlur}
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {editValidationErrors.course_code?.message ? 'border-red-500' : ''}"
+                                            maxlength={COURSE_CODE_MAX_LENGTH}
                                             disabled={isLoading}
+                                            required
                                         />
+                                        {#if editValidationErrors.course_code?.message}
+                                            <p class="text-red-500 text-sm mt-1">{editValidationErrors.course_code.message}</p>
+                                        {/if}
                                         <input
                                             type="text"
                                             name="description"
                                             value={course.description || ''}
+                                            on:input={(e) => validateDescription(e.target.value, 0, true)}
                                             on:blur={handleUpdateDescriptionBlur}
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {editValidationErrors.description?.message ? 'border-red-500' : ''}"
+                                            maxlength={DESCRIPTION_MAX_LENGTH}
                                             placeholder="Description"
-                                            class="px-2 py-1 border rounded"
                                             disabled={isLoading}
                                         />
+                                        {#if editValidationErrors.description?.message}
+                                            <p class="text-red-500 text-sm mt-1">{editValidationErrors.description.message}</p>
+                                        {/if}
                                         <div class="flex gap-2">
                                             <button type="submit" class="text-blue-600 hover:text-blue-800" disabled={isLoading}>
                                                 Save
@@ -368,7 +452,7 @@
                                         on:click={() => removeCourseField(index)}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
                                     </button>
                                 {/if}
@@ -382,11 +466,18 @@
                                             id="course_code_{index}"
                                             name="course_codes"
                                             bind:value={course.course_code}
-                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                                            on:input={() => validateCourseCode(course.course_code, index)}
+                                            on:blur={() => handleCourseCodeBlur(index)}
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors.course_codes[index]?.message ? 'border-red-500' : ''}"
                                             placeholder="Enter course code"
+                                            maxlength={COURSE_CODE_MAX_LENGTH}
                                             disabled={isLoading}
                                             required
                                         />
+                                        {#if validationErrors.course_codes[index]?.message}
+                                            <p class="text-red-500 text-sm mt-1">{validationErrors.course_codes[index].message}</p>
+                                        {/if}
+                                        <p class="text-gray-500 text-sm mt-1">{course.course_code?.length || 0}/{COURSE_CODE_MAX_LENGTH}</p>
                                     </div>
 
                                     <div>
@@ -397,12 +488,18 @@
                                             id="description_{index}"
                                             name="descriptions"
                                             bind:value={course.description}
+                                            on:input={() => validateDescription(course.description, index)}
                                             on:blur={() => handleDescriptionBlur(index)}
-                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none resize-none"
+                                            class="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none resize-none {validationErrors.descriptions[index]?.message ? 'border-red-500' : ''}"
                                             placeholder="Enter course description"
                                             rows="2"
+                                            maxlength={DESCRIPTION_MAX_LENGTH}
                                             disabled={isLoading}
                                         ></textarea>
+                                        {#if validationErrors.descriptions[index]?.message}
+                                            <p class="text-red-500 text-sm mt-1">{validationErrors.descriptions[index].message}</p>
+                                        {/if}
+                                        <p class="text-gray-500 text-sm mt-1">{course.description?.length || 0}/{DESCRIPTION_MAX_LENGTH}</p>
                                     </div>
                                 </div>
                             </div>
@@ -488,18 +585,47 @@
 
 <!-- Error Modal -->
 {#if showErrorModal}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-bold mb-4 text-red-600">Error</h2>
-            <p class="mb-4 whitespace-pre-line">{errorMessage}</p>
-            <div class="flex justify-end">
-                <button 
-                    class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
-                    on:click={() => showErrorModal = false}
-                >
-                    Close
-                </button>
-            </div>
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    transition:fade={{ duration: 200 }}
+  >
+    <div
+      class="bg-white rounded-xl w-full max-w-md transform transition-all"
+      in:scale={{ duration: 200, start: 0.95 }}
+      out:scale={{ duration: 200, start: 1 }}
+    >
+      <div class="p-6 border-b border-gray-100">
+        <div class="flex items-center gap-4">
+          <div class="bg-red-100 p-3 rounded-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-6 h-6 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">Error</h2>
+            <p class="text-sm text-red-600">{errorMessage}</p>
+          </div>
         </div>
+      </div>
+      <div class="p-6 flex justify-end">
+        <button
+          class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200"
+          on:click={() => (showErrorModal = false)}
+        >
+          Close
+        </button>
+      </div>
     </div>
+  </div>
 {/if}
