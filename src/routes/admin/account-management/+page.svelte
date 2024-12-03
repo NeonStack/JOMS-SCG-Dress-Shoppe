@@ -1,4 +1,5 @@
 <script>
+  import { page } from "$app/stores";
   import { fade, slide } from "svelte/transition";
 
   // Get data from server load function
@@ -16,7 +17,7 @@
 
   // Reactive states
   let loading = false;
-  let activeTab = "employees";
+  $: activeTab = $page.url.searchParams.get("tab") || "employees";
   let showCreateModal = false;
   let searchQuery = "";
   let sortBy = { field: "created_at", order: "desc" };
@@ -43,7 +44,7 @@
   let showToast = false;
   let toastMessage = "";
   let toastType = "success";
-  let showDetailsModal = false;  // Add this line near other modal states
+  let showDetailsModal = false; // Add this line near other modal states
 
   // Modified for role-based access
   $: canCreateAdmin = data.userRole === "superadmin";
@@ -84,7 +85,7 @@
       address: account.address || "",
       position: account.position || "",
       role: account.role,
-      username: account.email.split('@')[0], // Extract username from email
+      username: account.email.split("@")[0], // Extract username from email
       password: "",
       confirmPassword: "",
     };
@@ -94,25 +95,25 @@
 
   async function handleEditSubmit() {
     if (!validateEditForm()) return;
-  
+
     // Convert names and address to sentence case
     editForm.firstName = toSentenceCase(editForm.firstName);
     editForm.lastName = toSentenceCase(editForm.lastName);
     editForm.position = toSentenceCase(editForm.position);
     editForm.address = toSentenceCase(editForm.address);
-    
+
     // Reset errors
     editErrors = {};
 
     // Validate form fields
     if (!editForm.firstName) {
-      editErrors.firstName = 'First name is required';
+      editErrors.firstName = "First name is required";
     }
     if (!editForm.lastName) {
-      editErrors.lastName = 'Last name is required';
+      editErrors.lastName = "Last name is required";
     }
     if (editForm.password && editForm.password !== editForm.confirmPassword) {
-      editErrors.password = 'Passwords do not match';
+      editErrors.password = "Passwords do not match";
     }
 
     // If there are validation errors, stop submission
@@ -126,7 +127,7 @@
     });
 
     if (editForm.password && editForm.password === editForm.confirmPassword) {
-      formData.append('password', editForm.password);
+      formData.append("password", editForm.password);
     }
 
     const result = await fetch("?/updateAccount", {
@@ -143,30 +144,30 @@
 
   async function createAccount() {
     if (!validateForm()) return;
-    
+
     // Convert names and address to sentence case
     newAccount.firstName = toSentenceCase(newAccount.firstName);
     newAccount.lastName = toSentenceCase(newAccount.lastName);
     newAccount.position = toSentenceCase(newAccount.position);
     newAccount.address = toSentenceCase(newAccount.address);
-    
+
     loading = true;
     try {
       const email = `${newAccount.username.toLowerCase()}${EMAIL_DOMAIN}`;
 
       const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', newAccount.password);
-      formData.append('firstName', newAccount.firstName);
-      formData.append('lastName', newAccount.lastName);
-      formData.append('role', newAccount.role);
-      formData.append('position', newAccount.position);
-      formData.append('contactNumber', newAccount.contactNumber);
-      formData.append('address', newAccount.address);
+      formData.append("email", email);
+      formData.append("password", newAccount.password);
+      formData.append("firstName", newAccount.firstName);
+      formData.append("lastName", newAccount.lastName);
+      formData.append("role", newAccount.role);
+      formData.append("position", newAccount.position);
+      formData.append("contactNumber", newAccount.contactNumber);
+      formData.append("address", newAccount.address);
 
-      const response = await fetch('?/createAccount', {
-        method: 'POST',
-        body: formData
+      const response = await fetch("?/createAccount", {
+        method: "POST",
+        body: formData,
       });
 
       const result = await response.json();
@@ -176,16 +177,15 @@
       }
 
       showCreateModal = false;
-      toastMessage = 'Account created successfully';
-      toastType = 'success';
+      toastMessage = "Account created successfully";
+      toastType = "success";
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
       location.reload();
-
     } catch (error) {
-      console.error('Error creating account:', error);
-      toastMessage = error.message || 'Failed to create account';
-      toastType = 'error';
+      console.error("Error creating account:", error);
+      toastMessage = error.message || "Failed to create account";
+      toastType = "error";
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
     } finally {
@@ -195,11 +195,11 @@
 
   function validateForm() {
     errors = {};
-    
+
     // Name validations
     const firstNameError = validateName(newAccount.firstName);
     if (firstNameError) errors.firstName = firstNameError;
-    
+
     const lastNameError = validateName(newAccount.lastName);
     if (lastNameError) errors.lastName = lastNameError;
 
@@ -237,19 +237,19 @@
 
   function validateEditForm() {
     editErrors = {};
-    
+
     const firstNameError = validateName(editForm.firstName);
     if (firstNameError) editErrors.firstName = firstNameError;
-    
+
     const lastNameError = validateName(editForm.lastName);
     if (lastNameError) editErrors.lastName = lastNameError;
-    
+
     const positionError = validatePosition(editForm.position);
     if (positionError) editErrors.position = positionError;
-    
+
     const phoneError = validatePhoneNumber(editForm.contactNumber);
     if (phoneError) editErrors.contactNumber = phoneError;
-    
+
     const addressError = validateAddress(editForm.address);
     if (addressError) editErrors.address = addressError;
 
@@ -311,22 +311,16 @@
       return (a[sortBy.field] > b[sortBy.field] ? 1 : -1) * modifier;
     });
 
-  // Replace the showDetailsModal function with:
-  function handleShowDetails(account) {
-    selectedAccount = account;
-    showDetailsModal = true;
-  }
-
   async function handleDeleteAccount() {
     if (!selectedAccount) return;
 
     const formData = new FormData();
-    formData.append('userId', selectedAccount.id);
+    formData.append("userId", selectedAccount.id);
 
     try {
-      const response = await fetch('?/deleteAccount', {
-        method: 'POST',
-        body: formData
+      const response = await fetch("?/deleteAccount", {
+        method: "POST",
+        body: formData,
       });
 
       const result = await response.json();
@@ -337,88 +331,95 @@
 
       showDeleteModal = false;
       selectedAccount = null;
-      toastMessage = 'Account deleted successfully';
-      toastType = 'success';
+      toastMessage = "Account deleted successfully";
+      toastType = "success";
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
       location.reload();
     } catch (error) {
-      console.error('Error deleting account:', error);
-      toastMessage = error.message || 'Failed to delete account';
-      toastType = 'error';
+      console.error("Error deleting account:", error);
+      toastMessage = error.message || "Failed to delete account";
+      toastType = "error";
       showToast = true;
       setTimeout(() => (showToast = false), 3000);
     }
   }
 
   function validateName(name) {
-    if (!name) return 'This field is required';
-    name = name.trim().replace(/\s+/g, ' '); // Remove extra spaces
-    if (name.length < 2 || name.length > 50) return 'Must be between 2-50 characters';
-    if (!/^[a-zA-Z\s.]+$/.test(name)) return 'Only letters, spaces, and dots allowed';
+    if (!name) return "This field is required";
+    name = name.trim().replace(/\s+/g, " "); // Remove extra spaces
+    if (name.length < 2 || name.length > 50)
+      return "Must be between 2-50 characters";
+    if (!/^[a-zA-Z\s.]+$/.test(name))
+      return "Only letters, spaces, and dots allowed";
     return null;
   }
 
   function validatePhoneNumber(phone) {
-    if (!phone) return 'Contact number is required';
+    if (!phone) return "Contact number is required";
     phone = phone.trim();
-    if (!/^09\d{9}$/.test(phone)) return 'Must be 11 digits starting with 09';
+    if (!/^09\d{9}$/.test(phone)) return "Must be 11 digits starting with 09";
     return null;
   }
 
   function validateAddress(address) {
-    if (!address) return 'Address is required';
-    address = address.trim().replace(/\s+/g, ' '); // Remove extra spaces
-    if (address.length < 5 || address.length > 200) return 'Must be between 5-200 characters';
-    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address)) return 'Only letters, numbers, spaces, commas, dots, hyphens, and #';
+    if (!address) return "Address is required";
+    address = address.trim().replace(/\s+/g, " "); // Remove extra spaces
+    if (address.length < 5 || address.length > 200)
+      return "Must be between 5-200 characters";
+    if (!/^[a-zA-Z0-9\s,.\-#]+$/.test(address))
+      return "Only letters, numbers, spaces, commas, dots, hyphens, and #";
     return null;
   }
 
   function validatePosition(position) {
-    if (!position) return 'Position is required';
-    position = position.trim().replace(/\s+/g, ' '); // Remove extra spaces
-    if (position.length < 2 || position.length > 50) return 'Must be between 2-50 characters';
-    if (!/^[a-zA-Z\s\-]+$/.test(position)) return 'Only letters, spaces, and hyphens allowed';
+    if (!position) return "Position is required";
+    position = position.trim().replace(/\s+/g, " "); // Remove extra spaces
+    if (position.length < 2 || position.length > 50)
+      return "Must be between 2-50 characters";
+    if (!/^[a-zA-Z\s\-]+$/.test(position))
+      return "Only letters, spaces, and hyphens allowed";
     return null;
   }
 
   function validateUsername(username) {
-    if (!username) return 'Username is required';
-    
+    if (!username) return "Username is required";
+
     // Only allow letters, numbers, and dots
     if (!/^[a-zA-Z0-9.]+$/.test(username)) {
-      return 'Username can only contain letters, numbers, and dots';
+      return "Username can only contain letters, numbers, and dots";
     }
 
     // Check if username already exists
     const email = `${username.toLowerCase()}${EMAIL_DOMAIN}`;
     if (data.existingEmails.includes(email)) {
-      return 'This username is already taken';
+      return "This username is already taken";
     }
 
     // Username length validation - MODIFIED HERE
     if (username.length < 2 || username.length > 30) {
-      return 'Username must be between 2 and 30 characters';
+      return "Username must be between 2 and 30 characters";
     }
 
     // Don't allow username to start or end with dot
-    if (username.startsWith('.') || username.endsWith('.')) {
-      return 'Username cannot start or end with a dot';
+    if (username.startsWith(".") || username.endsWith(".")) {
+      return "Username cannot start or end with a dot";
     }
 
     // Don't allow consecutive dots
-    if (username.includes('..')) {
-      return 'Username cannot contain consecutive dots';
+    if (username.includes("..")) {
+      return "Username cannot contain consecutive dots";
     }
 
     return null;
   }
 
   function toSentenceCase(text) {
-    return text.trim()
-      .replace(/\s+/g, ' ') // Remove extra spaces
+    return text
+      .trim()
+      .replace(/\s+/g, " ") // Remove extra spaces
       .toLowerCase()
-      .replace(/(?:^|\s)\w/g, letter => letter.toUpperCase());
+      .replace(/(?:^|\s)\w/g, (letter) => letter.toUpperCase());
   }
 </script>
 
@@ -462,7 +463,12 @@
         'employees'
           ? 'bg-primary text-white shadow-sm'
           : 'text-gray-600 hover:text-primary'}"
-        on:click={() => (activeTab = "employees")}
+        on:click={() => {
+          activeTab = "employees";
+          const url = new URL(window.location);
+          url.searchParams.set("tab", "employees");
+          window.history.pushState({}, "", url);
+        }}
       >
         Tailor
       </button>
@@ -471,7 +477,12 @@
         'admins'
           ? 'bg-primary text-white shadow-sm'
           : 'text-gray-600 hover:text-primary'}"
-        on:click={() => (activeTab = "admins")}
+        on:click={() => {
+          activeTab = "admins";
+          const url = new URL(window.location);
+          url.searchParams.set("tab", "admins");
+          window.history.pushState({}, "", url);
+        }}
       >
         Administrators
       </button>
@@ -505,11 +516,7 @@
               class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               on:click={() => (searchQuery = "")}
             >
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414z"
-                />
-              </svg>
+              x
             </button>
           {/if}
         </div>
@@ -532,21 +539,11 @@
                     >Name</span
                   >
                   {#if sortBy.field === "name"}
-                    <svg
-                      class="w-4 h-4 text-gray-500 {sortBy.order === 'desc'
-                        ? 'transform rotate-180'
-                        : ''}"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    <span
+                      class={sortBy.order === "desc"
+                        ? "transform rotate-180"
+                        : ""}>↑</span
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
                   {/if}
                 </div>
               </th>
@@ -623,7 +620,7 @@
                   >
                     Edit
                   </button>
-                  {#if (data.userRole === 'superadmin') || (data.userRole === 'admin' && account.role === 'employee')}
+                  {#if data.userRole === "superadmin" || (data.userRole === "admin" && account.role === "employee")}
                     <button
                       class="text-error hover:text-error-dark font-medium text-sm"
                       on:click={() => {
@@ -952,7 +949,10 @@
                           type="text"
                           id="firstName"
                           bind:value={newAccount.firstName}
-                          on:input={() => errors.firstName = validateName(newAccount.firstName)}
+                          on:input={() =>
+                            (errors.firstName = validateName(
+                              newAccount.firstName
+                            ))}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.firstName
                             ? 'border-error'
                             : ''}"
@@ -973,7 +973,10 @@
                           type="text"
                           id="lastName"
                           bind:value={newAccount.lastName}
-                          on:input={() => errors.lastName = validateName(newAccount.lastName)}
+                          on:input={() =>
+                            (errors.lastName = validateName(
+                              newAccount.lastName
+                            ))}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.lastName
                             ? 'border-error'
                             : ''}"
@@ -1022,8 +1025,13 @@
                         type="text"
                         id="position"
                         bind:value={newAccount.position}
-                        on:input={() => errors.position = validatePosition(newAccount.position)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.position ? 'border-error' : ''}"
+                        on:input={() =>
+                          (errors.position = validatePosition(
+                            newAccount.position
+                          ))}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.position
+                          ? 'border-error'
+                          : ''}"
                         placeholder="Enter position"
                         required
                       />
@@ -1033,27 +1041,47 @@
                     </div>
 
                     <div>
-                      <label for="contactNumber" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                      <label
+                        for="contactNumber"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Contact Number</label
+                      >
                       <input
                         type="text"
                         id="contactNumber"
                         bind:value={newAccount.contactNumber}
-                        on:input={() => errors.contactNumber = validatePhoneNumber(newAccount.contactNumber)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.contactNumber ? 'border-error' : ''}"
+                        on:input={() =>
+                          (errors.contactNumber = validatePhoneNumber(
+                            newAccount.contactNumber
+                          ))}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.contactNumber
+                          ? 'border-error'
+                          : ''}"
                         placeholder="09XXXXXXXXX"
                       />
                       {#if errors.contactNumber}
-                        <p class="mt-1 text-sm text-error">{errors.contactNumber}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {errors.contactNumber}
+                        </p>
                       {/if}
                     </div>
 
                     <div>
-                      <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <label
+                        for="address"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Address</label
+                      >
                       <textarea
                         id="address"
                         bind:value={newAccount.address}
-                        on:input={() => errors.address = validateAddress(newAccount.address)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.address ? 'border-error' : ''}"
+                        on:input={() =>
+                          (errors.address = validateAddress(
+                            newAccount.address
+                          ))}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.address
+                          ? 'border-error'
+                          : ''}"
                         rows="3"
                       ></textarea>
                       {#if errors.address}
@@ -1082,7 +1110,10 @@
                           type="text"
                           id="username"
                           bind:value={newAccount.username}
-                          on:input={() => errors.username = validateUsername(newAccount.username)}
+                          on:input={() =>
+                            (errors.username = validateUsername(
+                              newAccount.username
+                            ))}
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent pr-24 {errors.username
                             ? 'border-error'
                             : ''}"
@@ -1098,34 +1129,62 @@
                     </div>
 
                     <div>
-                      <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <label
+                        for="password"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Password</label
+                      >
                       <div class="relative">
                         {#if showPassword}
                           <input
                             type="text"
                             id="password"
                             bind:value={newAccount.password}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password
+                              ? 'border-error'
+                              : ''}"
                           />
                         {:else}
                           <input
                             type="password"
                             id="password"
                             bind:value={newAccount.password}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.password
+                              ? 'border-error'
+                              : ''}"
                           />
                         {/if}
                         <button
                           type="button"
                           class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          on:click={() => showPassword = !showPassword}
+                          on:click={() => (showPassword = !showPassword)}
                         >
-                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg
+                            class="h-5 w-5 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
                             {#if !showPassword}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
                             {:else}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
                             {/if}
                           </svg>
                         </button>
@@ -1136,40 +1195,71 @@
                     </div>
 
                     <div>
-                      <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                      <label
+                        for="confirmPassword"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Confirm Password</label
+                      >
                       <div class="relative">
                         {#if showConfirmPassword}
                           <input
                             type="text"
                             id="confirmPassword"
                             bind:value={newAccount.confirmPassword}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword
+                              ? 'border-error'
+                              : ''}"
                           />
                         {:else}
                           <input
                             type="password"
                             id="confirmPassword"
                             bind:value={newAccount.confirmPassword}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {errors.confirmPassword
+                              ? 'border-error'
+                              : ''}"
                           />
                         {/if}
                         <button
                           type="button"
                           class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          on:click={() => showConfirmPassword = !showConfirmPassword}
+                          on:click={() =>
+                            (showConfirmPassword = !showConfirmPassword)}
                         >
-                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg
+                            class="h-5 w-5 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
                             {#if !showConfirmPassword}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
                             {:else}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
                             {/if}
                           </svg>
                         </button>
                       </div>
                       {#if errors.confirmPassword}
-                        <p class="mt-1 text-sm text-error">{errors.confirmPassword}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {errors.confirmPassword}
+                        </p>
                       {/if}
                     </div>
                   </div>
@@ -1180,11 +1270,16 @@
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white">
+        <div
+          class="px-6 py-4 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0 bg-white"
+        >
           <button
             type="button"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-            on:click={() => (showCreateModal = false)}
+            on:click={() => {
+              showCreateModal = false;
+              resetForm();
+            }}
             disabled={loading}
           >
             Cancel
@@ -1196,9 +1291,25 @@
             class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary flex items-center space-x-2"
           >
             {#if loading}
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               <span>Creating...</span>
             {:else}
@@ -1268,11 +1379,18 @@
                           type="text"
                           id="edit-firstName"
                           bind:value={editForm.firstName}
-                          on:input={() => editErrors.firstName = validateName(editForm.firstName)}
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.firstName ? 'border-error' : ''}"
+                          on:input={() =>
+                            (editErrors.firstName = validateName(
+                              editForm.firstName
+                            ))}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.firstName
+                            ? 'border-error'
+                            : ''}"
                         />
                         {#if editErrors.firstName}
-                          <p class="mt-1 text-sm text-error">{editErrors.firstName}</p>
+                          <p class="mt-1 text-sm text-error">
+                            {editErrors.firstName}
+                          </p>
                         {/if}
                       </div>
                       <div>
@@ -1285,11 +1403,18 @@
                           type="text"
                           id="edit-lastName"
                           bind:value={editForm.lastName}
-                          on:input={() => editErrors.lastName = validateName(editForm.lastName)}
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.lastName ? 'border-error' : ''}"
+                          on:input={() =>
+                            (editErrors.lastName = validateName(
+                              editForm.lastName
+                            ))}
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.lastName
+                            ? 'border-error'
+                            : ''}"
                         />
                         {#if editErrors.lastName}
-                          <p class="mt-1 text-sm text-error">{editErrors.lastName}</p>
+                          <p class="mt-1 text-sm text-error">
+                            {editErrors.lastName}
+                          </p>
                         {/if}
                       </div>
                     </div>
@@ -1330,7 +1455,10 @@
                         type="text"
                         id="edit-position"
                         bind:value={editForm.position}
-                        on:input={() => editErrors.position = validatePosition(editForm.position)}
+                        on:input={() =>
+                          (editErrors.position = validatePosition(
+                            editForm.position
+                          ))}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter position"
                       />
@@ -1346,12 +1474,17 @@
                         type="text"
                         id="edit-contactNumber"
                         bind:value={editForm.contactNumber}
-                        on:input={() => editErrors.contactNumber = validatePhoneNumber(editForm.contactNumber)}
+                        on:input={() =>
+                          (editErrors.contactNumber = validatePhoneNumber(
+                            editForm.contactNumber
+                          ))}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="+639..."
                       />
                       {#if editErrors.contactNumber}
-                        <p class="mt-1 text-sm text-error">{editErrors.contactNumber}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {editErrors.contactNumber}
+                        </p>
                       {/if}
                     </div>
 
@@ -1364,12 +1497,19 @@
                       <textarea
                         id="edit-address"
                         bind:value={editForm.address}
-                        on:input={() => editErrors.address = validateAddress(editForm.address)}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.address ? 'border-error' : ''}"
+                        on:input={() =>
+                          (editErrors.address = validateAddress(
+                            editForm.address
+                          ))}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.address
+                          ? 'border-error'
+                          : ''}"
                         rows="3"
                       ></textarea>
                       {#if editErrors.address}
-                        <p class="mt-1 text-sm text-error">{editErrors.address}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {editErrors.address}
+                        </p>
                       {/if}
                     </div>
                   </div>
@@ -1399,83 +1539,147 @@
                         />
                         <span
                           class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
-                          >{EMAIL_DOMAIN}</span>
+                          >{EMAIL_DOMAIN}</span
+                        >
                       </div>
                     </div>
 
                     <div>
-                      <label for="edit-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                      <label
+                        for="edit-password"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >New Password</label
+                      >
                       <div class="relative">
                         {#if showEditPassword}
                           <input
                             type="text"
                             id="edit-password"
                             bind:value={editForm.password}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password
+                              ? 'border-error'
+                              : ''}"
                           />
                         {:else}
                           <input
                             type="password"
                             id="edit-password"
                             bind:value={editForm.password}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.password
+                              ? 'border-error'
+                              : ''}"
                           />
                         {/if}
                         <button
                           type="button"
                           class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          on:click={() => showEditPassword = !showEditPassword}
+                          on:click={() =>
+                            (showEditPassword = !showEditPassword)}
                         >
-                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg
+                            class="h-5 w-5 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
                             {#if !showEditPassword}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
                             {:else}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
                             {/if}
                           </svg>
                         </button>
                       </div>
                       {#if editErrors.password}
-                        <p class="mt-1 text-sm text-error">{editErrors.password}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {editErrors.password}
+                        </p>
                       {/if}
                     </div>
 
                     <div>
-                      <label for="edit-confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <label
+                        for="edit-confirmPassword"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Confirm New Password</label
+                      >
                       <div class="relative">
                         {#if showEditConfirmPassword}
                           <input
                             type="text"
                             id="edit-confirmPassword"
                             bind:value={editForm.confirmPassword}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword
+                              ? 'border-error'
+                              : ''}"
                           />
                         {:else}
                           <input
                             type="password"
                             id="edit-confirmPassword"
                             bind:value={editForm.confirmPassword}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword ? 'border-error' : ''}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent {editErrors.confirmPassword
+                              ? 'border-error'
+                              : ''}"
                           />
                         {/if}
                         <button
                           type="button"
                           class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          on:click={() => showEditConfirmPassword = !showEditConfirmPassword}
+                          on:click={() =>
+                            (showEditConfirmPassword =
+                              !showEditConfirmPassword)}
                         >
-                          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg
+                            class="h-5 w-5 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
                             {#if !showEditConfirmPassword}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                              />
                             {:else}
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
                             {/if}
                           </svg>
                         </button>
                       </div>
                       {#if editErrors.confirmPassword}
-                        <p class="mt-1 text-sm text-error">{editErrors.confirmPassword}</p>
+                        <p class="mt-1 text-sm text-error">
+                          {editErrors.confirmPassword}
+                        </p>
                       {/if}
                     </div>
                   </div>
@@ -1514,10 +1718,14 @@
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       transition:fade
     >
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" transition:slide>
+      <div
+        class="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+        transition:slide
+      >
         <h3 class="text-xl font-semibold text-gray-900 mb-4">Confirm Delete</h3>
         <p class="text-gray-600 mb-6">
-          Are you sure you want to delete the account for {selectedAccount?.first_name} {selectedAccount?.last_name}? This action cannot be undone.
+          Are you sure you want to delete the account for {selectedAccount?.first_name}
+          {selectedAccount?.last_name}? This action cannot be undone.
         </p>
         <div class="flex justify-end gap-4">
           <button
