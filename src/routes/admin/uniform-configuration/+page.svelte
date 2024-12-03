@@ -58,9 +58,12 @@
 
     function resetForm() {
         selectedConfig = null;
+        selectedCourseId = '';
+        selectedGender = '';
+        selectedWearType = '';
         showForm = false;
         isLoading = false;
-        selectedMeasurements = new Set(); // Reset selected measurements
+        selectedMeasurements = new Set();
     }
 
     function showError(message) {
@@ -116,6 +119,57 @@
         } else {
             selectedMeasurements.add(typeId);
         }
+    }
+
+    // Add the configuration map
+    let configurationMap = data.configurationMap;
+
+    // Local variables to hold selected options
+    let selectedCourseId = '';
+    let selectedGender = '';
+    let selectedWearType = '';
+
+    // Compute disabled options based on existing configurations
+    $: disabledGenders = selectedCourseId ? getDisabledGenders(selectedCourseId) : [];
+    $: disabledWearTypes = selectedCourseId && selectedGender ? getDisabledWearTypes(selectedCourseId, selectedGender) : [];
+
+    function getDisabledGenders(courseId) {
+        const genders = ['male', 'female'];
+        const disabled = [];
+        if (configurationMap[courseId]) {
+            genders.forEach(gender => {
+                const wearTypes = configurationMap[courseId][gender];
+                if (wearTypes && wearTypes.size >= 2) { // Assuming two wear types: 'upper' and 'lower'
+                    disabled.push(gender);
+                }
+            });
+        }
+        return disabled;
+    }
+
+    function getDisabledWearTypes(courseId, gender) {
+        if (configurationMap[courseId] && configurationMap[courseId][gender]) {
+            return Array.from(configurationMap[courseId][gender]);
+        }
+        return [];
+    }
+
+    function isCourseDisabled(courseId) {
+        const genders = ['male', 'female'];
+        if (configurationMap[courseId]) {
+            return genders.every(gender => {
+                const wearTypes = configurationMap[courseId][gender];
+                return wearTypes && wearTypes.size >= 2;
+            });
+        }
+        return false;
+    }
+
+    // Update selectedConfig when editing
+    $: if (selectedConfig) {
+        selectedCourseId = selectedConfig.course_id?.toString(); // Ensure selectedCourseId is a string
+        selectedGender = selectedConfig.gender;
+        selectedWearType = selectedConfig.wear_type;
     }
 </script>
 
@@ -284,29 +338,89 @@
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="courseId">Course</label>
-                                        <select name="courseId" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                        <select
+                                            name="courseId"
+                                            bind:value={selectedCourseId}
+                                            on:change={() => {
+                                                selectedGender = '';
+                                                selectedWearType = '';
+                                            }}
+                                            class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                                            required
+                                        >
                                             <option value="">Select Course</option>
                                             {#each courses as course}
-                                                <option value={course.id} selected={selectedConfig?.courses?.id === course.id}>
+                                                <option
+                                                    value={course.id}
+                                                    disabled={isCourseDisabled(course.id.toString())}
+                                                >
                                                     {course.course_code}
+                                                    {#if isCourseDisabled(course.id.toString())}
+                                                        (All Configurations Set)
+                                                    {/if}
                                                 </option>
                                             {/each}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="gender">Gender</label>
-                                        <select name="gender" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                        <select
+                                            name="gender"
+                                            bind:value={selectedGender}
+                                            on:change={() => selectedWearType = ''}
+                                            class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                                            disabled={!selectedCourseId}
+                                            required
+                                        >
                                             <option value="">Select Gender</option>
-                                            <option value="male" selected={selectedConfig?.gender === 'male'}>Male</option>
-                                            <option value="female" selected={selectedConfig?.gender === 'female'}>Female</option>
+                                            <option
+                                                value="male"
+                                                disabled={disabledGenders.includes('male')}
+                                            >
+                                                Male
+                                                {#if disabledGenders.includes('male')}
+                                                    (All Wear Types Configured)
+                                                {/if}
+                                            </option>
+                                            <option
+                                                value="female"
+                                                disabled={disabledGenders.includes('female')}
+                                            >
+                                                Female
+                                                {#if disabledGenders.includes('female')}
+                                                    (All Wear Types Configured)
+                                                {/if}
+                                            </option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-600 mb-1" for="wearType">Wear Type</label>
-                                        <select name="wearType" class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10" required>
+                                        <select
+                                            name="wearType"
+                                            bind:value={selectedWearType}
+                                            class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                                            disabled={!selectedGender}
+                                            required
+                                        >
                                             <option value="">Select Wear Type</option>
-                                            <option value="upper" selected={selectedConfig?.wear_type === 'upper'}>Upper</option>
-                                            <option value="lower" selected={selectedConfig?.wear_type === 'lower'}>Lower</option>
+                                            <option
+                                                value="upper"
+                                                disabled={disabledWearTypes.includes('upper')}
+                                            >
+                                                Upper
+                                                {#if disabledWearTypes.includes('upper')}
+                                                    (Already Configured)
+                                                {/if}
+                                            </option>
+                                            <option
+                                                value="lower"
+                                                disabled={disabledWearTypes.includes('lower')}
+                                            >
+                                                Lower
+                                                {#if disabledWearTypes.includes('lower')}
+                                                    (Already Configured)
+                                                {/if}
+                                            </option>
                                         </select>
                                     </div>
                                     <div>

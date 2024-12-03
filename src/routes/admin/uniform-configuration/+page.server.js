@@ -8,6 +8,7 @@ export const load = async ({ locals }) => {
             .from('uniform_configuration')
             .select(`
                 id,
+                course_id,
                 gender,
                 wear_type,
                 base_price,
@@ -35,10 +36,28 @@ export const load = async ({ locals }) => {
 
         if (measurementError) throw measurementError;
 
+        // Prepare a mapping of existing configurations
+        const configurationMap = {};
+
+        configs.forEach(config => {
+            const courseId = config.course_id?.toString(); // Ensure courseId is a string
+            const gender = config.gender;
+            const wearType = config.wear_type;
+
+            if (!configurationMap[courseId]) {
+                configurationMap[courseId] = {};
+            }
+            if (!configurationMap[courseId][gender]) {
+                configurationMap[courseId][gender] = new Set();
+            }
+            configurationMap[courseId][gender].add(wearType);
+        });
+
         return {
             configs,
             courses,
-            measurementTypes
+            measurementTypes,
+            configurationMap // Add this to be used in the Svelte component
         };
     } catch (err) {
         console.error('Error:', err);
