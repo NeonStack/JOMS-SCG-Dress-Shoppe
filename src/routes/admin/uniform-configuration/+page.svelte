@@ -356,7 +356,7 @@
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label class="block text-xs text-gray-600">Cost/cm (₱)</label>
+                                                                    <label class="block text-xs text-gray-600">Cost per extra cm (₱)</label>
                                                                     <input type="number" 
                                                                            name="costPerCm_{measurementType.id}" 
                                                                            value={spec?.additional_cost_per_cm ?? 0}
