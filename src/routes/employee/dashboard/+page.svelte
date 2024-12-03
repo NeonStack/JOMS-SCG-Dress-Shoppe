@@ -84,7 +84,7 @@
 
 <!-- Modal Component -->
 {#if showModal}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-4xl h-[85vh] flex flex-col">
       <div class="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
         <h2 class="text-xl font-semibold">{modalTitle}</h2>

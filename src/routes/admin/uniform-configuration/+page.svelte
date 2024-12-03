@@ -97,11 +97,10 @@
 
   const handleDelete = () => {
     return async ({ result }) => {
-      console.log("Backend result:", result); // Log the entire result for debugging
+      console.log("Backend result:", result);
       resetDeleteModal();
 
       if (result.data?.data?.error) {
-        // Safeguard against undefined result.data
         showError(result.data?.data?.error);
       } else if (result.type === "success") {
         await invalidate("app:configs");
