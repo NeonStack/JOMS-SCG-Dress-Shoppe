@@ -1,5 +1,7 @@
 <script>
   import { get } from "svelte/store";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
 
   export let data;
   let dateRange = { start: "", end: "" };
@@ -524,7 +526,14 @@
   };
 
   // Add tab state
-  let activeTab = "overview";
+  $: activeTab = $page.url.searchParams.get("tab") || "overview";
+
+  // Update tab click handler
+  function setActiveTab(tab) {
+    const url = new URL($page.url);
+    url.searchParams.set("tab", tab);
+    goto(url, { replaceState: true });
+  }
 
   // Modified ranking calculation to get fastest completion per employee
   function calculateFastestCompletions(orders) {
@@ -901,7 +910,7 @@
         class="py-4 px-1 {activeTab === 'overview'
           ? 'border-b-2 border-primary text-primary'
           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        on:click={() => (activeTab = "overview")}
+        on:click={() => setActiveTab("overview")}
       >
         Overview
       </button>
@@ -909,7 +918,7 @@
         class="py-4 px-1 {activeTab === 'rankings'
           ? 'border-b-2 border-primary text-primary'
           : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        on:click={() => (activeTab = "rankings")}
+        on:click={() => setActiveTab("rankings")}
       >
         Rankings
       </button>
@@ -1451,9 +1460,9 @@
 
       <!-- Middle Column: Completion Records -->
       <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-violet-100 hover:border-violet-200 transition-all">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-start mb-4">
           <div>
-            <h2 class="text-lg font-semibold">Completion Records</h2>
+            <h2 class="text-lg font-semibold mb-4">Completion Records</h2>
             <p class="text-xs text-gray-500">Tailor completion statistics</p>
           </div>
           <select
@@ -1542,9 +1551,9 @@
                     ? 'bg-yellow-100 text-yellow-700'
                     : i === 1
                       ? 'bg-gray-100 text-gray-700'
-                      : i === 2
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-gray-50 text-gray-600'}"
+                    : i === 2
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-50 text-gray-600'}"
                 >
                   #{i + 1}
                 </span>
