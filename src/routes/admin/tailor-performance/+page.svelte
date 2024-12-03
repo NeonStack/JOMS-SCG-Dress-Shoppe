@@ -236,6 +236,7 @@
     });
 
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
 
     metrics = {
       totalOrders: filteredOrders.length,
@@ -246,10 +247,16 @@
       inProgressOrders: filteredOrders.filter((o) => o.status === "in progress")
         .length,
       lateOrders: filteredOrders.filter((o) => {
+        const dueDate = new Date(o.due_date);
+        dueDate.setHours(0, 0, 0, 0); // Reset time to start of day
+
         if (o.status === "completed") {
-          return new Date(o.completed_at) > new Date(o.due_date);
+          // For completed orders, check if they were completed after due date
+          const completedDate = new Date(o.completed_at);
+          return completedDate > dueDate;
         } else if (o.status === "in progress" || o.status === "pending") {
-          return now > new Date(o.due_date);
+          // For non-completed orders, only count if they're past due date (not including today)
+          return now > dueDate;
         }
         return false;
       }).length,
@@ -465,7 +472,7 @@
     // Calculate days difference
     const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
     const daysLate = completedDate
-      ? Math.ceil((completedDate - dueDate) / (1000 * 60 * 60 * 24))
+      ? Math.floor((completedDate - dueDate) / (1000 * 60 * 60 * 24))
       : Math.ceil((now - dueDate) / (1000 * 60 * 60 * 24));
 
     let statusClass = "";
@@ -1191,7 +1198,8 @@
                         )}
                       </div>
                       <div class="text-xs text-gray-500">
-                        {order.student?.course?.course_code || "No course"}
+                        {order.student?.course?.course_code || "No course"} - 
+                        <span class="capitalize">{order.uniform_type}</span>
                       </div>
                     </div>
                   </td>
@@ -1293,7 +1301,10 @@
                   <div>
                     <div class="text-sm text-gray-500">Student</div>
                     <div class="font-medium">{formatName(order.student?.first_name, order.student?.last_name)}</div>
-                    <div class="text-xs text-gray-500">{order.student?.course?.course_code || "No course"}</div>
+                    <div class="text-xs text-gray-500">
+                      {order.student?.course?.course_code || "No course"} - 
+                      <span class="capitalize">{order.uniform_type}</span>
+                    </div>
                   </div>
                   <div>
                     <div class="text-sm text-gray-500">Tailor</div>
