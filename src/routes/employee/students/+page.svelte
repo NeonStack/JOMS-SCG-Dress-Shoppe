@@ -298,7 +298,7 @@
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="bg-muted">
+            <tr class="bg-muted max-md:whitespace-nowrap">
               <th
                 class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => sort("first_name")}
@@ -591,7 +591,6 @@
                             ] || ""}
                             class="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                             placeholder="Base: {measurement.base_cm}cm"
-                            required
                           />
                           <span
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"
@@ -632,7 +631,6 @@
                             ] || ""}
                             class="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                             placeholder="Base: {measurement.base_cm}cm"
-                            required
                           />
                           <span
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"

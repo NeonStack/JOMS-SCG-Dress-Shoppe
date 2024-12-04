@@ -682,7 +682,7 @@
                                 >
                                   <path
                                     fill-rule="evenodd"
-                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
+                                    d="M7.293 14.707a 1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z"
                                     clip-rule="evenodd"
                                   />
                                 </svg>
@@ -1323,7 +1323,7 @@
           {#if activeTab === "payments"}
             <thead>
               <tr class="bg-muted max-md:whitespace-nowrap">
-                {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status"] as field}
+                {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status", "payment_updated_by"] as field}
                   <th
                     class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                     on:click={() => sort(field.toLowerCase())}
@@ -1333,11 +1333,13 @@
                       : field === "amount_paid"
                         ? "Paid"
                         : field === "payment_date"
-                          ? "Payment Date"
+                          ? "Last Payment Date"
                           : field === "payment_status"
                             ? "Payment Status"
-                            : field.charAt(0).toUpperCase() +
-                              field.slice(1).replace("_", " ")}
+                            : field === "payment_updated_by"
+                              ? "Updated By"
+                              : field.charAt(0).toUpperCase() +
+                                field.slice(1).replace("_", " ")}
                     {#if sortField === field}
                       <span class="ml-1"
                         >{sortDirection === "asc" ? "↑" : "↓"}</span
@@ -1395,6 +1397,7 @@
                       {displayPaymentStatus(order)}
                     </span>
                   </td>
+                  <td class="p-2">{order.payment_updated_by || '-'}</td>
                   <td class="p-2">
                     <button
                       class="text-blue-600 hover:text-blue-800 {isLoading
@@ -1431,15 +1434,18 @@
                     {/if}
                   </th>
                 {/each}
-                {#if activeTab !== "pending" && activeTab !== "payments"}
+                {#if activeTab !== "pending"}
                   <th class="p-2">Assigned To</th>
+                  {#if activeTab !== "payments"}
+                    <th class="p-2">Assigned By</th>
+                  {/if}
                 {/if}
                 {#if activeTab === "payments"}
-                  <th class="p-2">Assigned To</th>
-                  <th class="p-2">Payment Status</th>
-                  <th class="p-2">Balance</th>
+                  <th class="p-2">Payment Updated By</th>
                 {/if}
-                <th class="p-2">Actions</th>
+                {#if activeTab === "pending" || activeTab === "payments"}
+                  <th class="p-2">Actions</th>
+                {/if}
               </tr>
             </thead>
             <tbody>
@@ -1556,9 +1562,7 @@
                         <span class="text-gray-400">Unassigned</span>
                       {/if}
                     </td>
-                    <td class="p-2">
-                      <div class="flex gap-2"></div>
-                    </td>
+                    <td class="p-2">{order.assigned_by || '-'}</td>
                   </tr>
                 {/each}
               {:else if activeTab === "completed"}
@@ -1608,9 +1612,7 @@
                         <span class="text-gray-400">Unassigned</span>
                       {/if}
                     </td>
-                    <td class="p-2">
-                      <div class="flex gap-2"></div>
-                    </td>
+                    <td class="p-2">{order.assigned_by || '-'}</td>
                   </tr>
                 {/each}
               {/if}

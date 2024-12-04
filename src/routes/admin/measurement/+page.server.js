@@ -2,7 +2,11 @@ import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
 const toSentenceCase = (str) => {
-    return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
+    return str
+        .toLowerCase()
+        .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+        .trim()                // Remove leading/trailing spaces
+        .replace(/^.|\s\S/g, letter => letter.toUpperCase());
 };
 
 const NAME_MAX_LENGTH = 40;

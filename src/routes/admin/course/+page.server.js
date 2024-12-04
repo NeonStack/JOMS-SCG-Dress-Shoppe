@@ -39,14 +39,18 @@ export const actions = {
         const course_codes = formData.getAll('course_codes');
         const descriptions = formData.getAll('descriptions');
 
-        // Helper function for sentence case
-        const toSentenceCase = str => 
-            str ? str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) : null;
+        // Updated helper function for sentence case and whitespace handling
+        const formatText = str => 
+            str ? str.toLowerCase()
+                   .replace(/^.|\s\S/g, letter => letter.toUpperCase())
+                   .replace(/\s+/g, ' ')
+                   .trim()
+                : null;
 
         // Create array of course objects
         const courses = course_codes.map((code, index) => ({
             course_code: code.toString().trim().toUpperCase(),
-            description: toSentenceCase(descriptions[index]?.toString().trim()) || null
+            description: formatText(descriptions[index]?.toString())
         })).filter(course => course.course_code !== '');
 
         if (courses.length === 0) {
@@ -139,9 +143,14 @@ export const actions = {
             });
         }
 
-        const sentenceCaseDesc = description ? 
-            description.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase()) 
-            : null;
+        const formatText = str => 
+            str ? str.toLowerCase()
+                   .replace(/^.|\s\S/g, letter => letter.toUpperCase())
+                   .replace(/\s+/g, ' ')
+                   .trim()
+                : null;
+
+        const formattedDesc = formatText(description);
 
         // Validate input
         const validationErrors = [];
@@ -170,7 +179,7 @@ export const actions = {
             const { data: existingData } = await supabase
                 .from('courses')
                 .select('course_code, description')
-                .or(`course_code.eq.${course_code.toUpperCase()},description.eq.${sentenceCaseDesc}`)
+                .or(`course_code.eq.${course_code.toUpperCase()},description.eq.${formattedDesc}`)
                 .neq('id', id);
 
             if (existingData && existingData.length > 0) {
@@ -178,7 +187,7 @@ export const actions = {
                     .filter(e => e.course_code === course_code.toUpperCase())
                     .map(e => e.course_code);
                 const duplicateDescs = existingData
-                    .filter(e => e.description === sentenceCaseDesc)
+                    .filter(e => e.description === formattedDesc)
                     .map(e => e.description);
 
                 let errorMessage = '';
@@ -200,7 +209,7 @@ export const actions = {
                 .from('courses')
                 .update({ 
                     course_code: course_code.toUpperCase(),
-                    description: sentenceCaseDesc
+                    description: formattedDesc
                 })
                 .eq('id', id);
 

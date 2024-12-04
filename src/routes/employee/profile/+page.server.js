@@ -34,6 +34,10 @@ function toSentenceCase(str) {
         .join(' ');
 }
 
+function cleanWhitespace(str) {
+    return str.replace(/\s+/g, ' ').trim();
+}
+
 export const actions = {
     updateProfile: async ({ request, locals }) => {
         if (!locals.session) {
@@ -41,10 +45,10 @@ export const actions = {
         }
 
         const formData = await request.formData();
-        const first_name = formData.get('first_name');
-        const last_name = formData.get('last_name');
+        const first_name = cleanWhitespace(formData.get('first_name'));
+        const last_name = cleanWhitespace(formData.get('last_name'));
         const contact_number = formData.get('contact_number');
-        const address = formData.get('address');
+        const address = cleanWhitespace(formData.get('address'));
 
         // Name validations
         if (!first_name) {

@@ -1,9 +1,14 @@
 import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
-const toSentenceCase = (str) => {
+const cleanupName = (str) => {
     return str
         .trim()
+        .replace(/\s+/g, ' '); // Replace multiple spaces with single space
+};
+
+const toSentenceCase = (str) => {
+    return cleanupName(str)  // Add cleanupName here
         .toLowerCase()
         .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.substr(1).toLowerCase());
 };
@@ -29,7 +34,7 @@ const sanitizeAndValidateInput = (formData) => {
     const gender = (formData.get('gender') || '').toLowerCase();
     const course_id = formData.get('course_id');
     const contact_number = (formData.get('contact_number') || '').trim();
-    const address = (formData.get('address') || '').trim();
+    const address = toSentenceCase(formData.get('address') || ''); // Changed to use toSentenceCase instead of just cleanupName
 
     const errors = {};
 

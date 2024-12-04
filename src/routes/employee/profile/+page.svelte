@@ -19,6 +19,10 @@
     };
 
     // Validation functions
+    function cleanWhitespace(str) {
+        return str.replace(/\s+/g, ' ').trim();
+    }
+
     function validateName(name, field) {
         if (!name) {
             errors[field] = 'Name is required';
@@ -69,6 +73,11 @@
     let isSubmitting = false;
 
     async function handleSubmit(event) {
+        // Clean whitespace only when submitting
+        formData.first_name = formData.first_name.replace(/\s+/g, ' ').trim();
+        formData.last_name = formData.last_name.replace(/\s+/g, ' ').trim();
+        formData.address = formData.address.replace(/\s+/g, ' ').trim();
+
         const isFirstNameValid = validateName(formData.first_name, 'first_name');
         const isLastNameValid = validateName(formData.last_name, 'last_name');
         const isPhoneValid = validatePhone(formData.contact_number);

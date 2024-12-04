@@ -83,10 +83,12 @@
     isLoading = false;
   };
 
-  // Function to convert to sentence case
+  // Function to convert to sentence case and clean whitespace
   const toSentenceCase = (str) => {
     return str
       .toLowerCase()
+      .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+      .trim()                // Remove leading/trailing spaces
       .replace(/^.|\s\S/g, (letter) => letter.toUpperCase());
   };
 
@@ -247,6 +249,10 @@
                       value={measurement.name}
                       on:input={(e) =>
                         validateMeasurementName(e.target.value, 0, true)}
+                      on:blur={(e) => {
+                        measurement.name = toSentenceCase(e.target.value);
+                        validateMeasurementName(measurement.name, 0, true);
+                      }}
                       class="px-2 py-1 border rounded {editValidationError?.message
                         ? 'border-red-500'
                         : ''}"
@@ -381,8 +387,10 @@
                     bind:value={newMeasurements[index]}
                     on:input={() =>
                       validateMeasurementName(newMeasurements[index], index)}
-                    on:blur={(e) =>
-                      (newMeasurements[index] = toSentenceCase(e.target.value))}
+                    on:blur={(e) => {
+                      newMeasurements[index] = toSentenceCase(e.target.value);
+                      validateMeasurementName(newMeasurements[index], index);
+                    }}
                     class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors[
                       index
                     ]?.message

@@ -175,20 +175,24 @@
         });
     }
 
-    // Function to convert to sentence case
-    const toSentenceCase = (str) => {
+    // Function to format text: sentence case and remove duplicate whitespace
+    const formatText = (str) => {
         if (!str) return str;
-        return str.toLowerCase().replace(/^.|\s\S/g, letter => letter.toUpperCase());
+        return str
+            .toLowerCase()
+            .replace(/^.|\s\S/g, letter => letter.toUpperCase())
+            .replace(/\s+/g, ' ')
+            .trim();
     };
 
     // Handle input blur events
     const handleDescriptionBlur = (index) => {
-        newCourses[index].description = toSentenceCase(newCourses[index].description);
+        newCourses[index].description = formatText(newCourses[index].description);
         newCourses = [...newCourses]; // Trigger reactivity
     };
 
     const handleUpdateDescriptionBlur = (event) => {
-        event.target.value = toSentenceCase(event.target.value);
+        event.target.value = formatText(event.target.value);
     };
 
     // Validation constants

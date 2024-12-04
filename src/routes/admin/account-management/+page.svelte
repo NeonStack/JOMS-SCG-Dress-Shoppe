@@ -648,27 +648,29 @@
                   >
                     Details
                   </button>
-                  <button
-                    class="text-primary hover:text-primary-dark font-medium text-sm"
-                    on:click={() => {
-                      showDeleteModal = false;
-                      showDetailsModal = false;
-                      openEditModal(account);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  {#if data.userRole === "superadmin" || (data.userRole === "admin" && account.role === "employee")}
+                  {#if account.role !== 'superadmin'}
                     <button
-                      class="text-error hover:text-error-dark font-medium text-sm"
+                      class="text-primary hover:text-primary-dark font-medium text-sm"
                       on:click={() => {
-                        selectedAccount = account;
-                        showDeleteModal = true;
+                        showDeleteModal = false;
                         showDetailsModal = false;
+                        openEditModal(account);
                       }}
                     >
-                      Delete
+                      Edit
                     </button>
+                    {#if data.userRole === "superadmin" || (data.userRole === "admin" && account.role === "employee")}
+                      <button
+                        class="text-error hover:text-error-dark font-medium text-sm"
+                        on:click={() => {
+                          selectedAccount = account;
+                          showDeleteModal = true;
+                          showDetailsModal = false;
+                        }}
+                      >
+                        Delete
+                      </button>
+                    {/if}
                   {/if}
                 </td>
               </tr>
