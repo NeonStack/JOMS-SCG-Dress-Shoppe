@@ -67,26 +67,30 @@
     };
 </script>
 
-<div class="min-h-screen p-4">
-    <div class="max-w-7xl mx-auto">
-        <div class="mb-6 flex items-center gap-6">
-            <div>
-                <h1 class="text-3xl font-bold text-primary">Admin Permissions</h1>
-                <p class="text-gray-600 mt-1">Configure access rights</p>
-            </div>
-            <div class="flex-1">
-                <select 
-                    class="select w-full max-w-md p-3 rounded-md cursor-pointer transition-all duration-200 border-2"
-                    on:change={(e) => handleAdminSelect(e.target.value)}
-                    value={selectedAdmin}
-                >
-                    <option value="">Select an admin user...</option>
-                    {#each data.admins as admin}
-                        <option value={admin.id}>
-                            {admin.first_name} {admin.last_name}
-                        </option>
-                    {/each}
-                </select>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header Section -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6">
+            <div class="flex flex-col md:flex-row md:items-center gap-6">
+                <div class="flex-1">
+                    <h1 class="text-2xl font-bold text-primary">Permission Settings</h1>
+                    <p class="text-gray-500 mt-1 text-sm">Manage access rights for administrative users</p>
+                </div>
+                <div class="md:w-96">
+                    <select 
+                        class="select w-full bg-gray-50 p-3 rounded-xl cursor-pointer transition-all 
+                               duration-200 border-2 hover:border-primary/30 focus:border-primary"
+                        on:change={(e) => handleAdminSelect(e.target.value)}
+                        value={selectedAdmin}
+                    >
+                        <option value="">Select an administrator...</option>
+                        {#each data.admins as admin}
+                            <option value={admin.id}>
+                                {admin.first_name} {admin.last_name}
+                            </option>
+                        {/each}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -95,25 +99,24 @@
                 method="POST" 
                 action="?/updatePermissions" 
                 use:enhance={handleSubmit}
-                class="bg-white/80 backdrop-blur rounded-xl shadow-xl border border-white/50 
-                       overflow-hidden transition-all duration-300 animate-scale"
+                class="bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300"
             >
                 <input type="hidden" name="adminId" value={selectedAdmin}>
                 <input type="hidden" name="permissions" value={JSON.stringify(selectedRoutes)}>
                 
-                <div class="grid grid-cols-3 gap-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                     {#each Object.entries(routeGroups) as [groupName, routes]}
-                        <div class="bg-white/50 rounded-lg p-4 hover:shadow-lg transition-all duration-300
-                                  border border-input hover:border-primary/30">
-                            <h3 class="font-medium text-base mb-2 text-primary flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>
+                        <div class="bg-gray-50 rounded-xl p-5 hover:shadow-md transition-all duration-300
+                                  border hover:border-primary/20">
+                            <h3 class="font-semibold text-base mb-4 text-primary/90 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
                                 {groupName}
                             </h3>
-                            <div class="space-y-1.5">
+                            <div class="space-y-2.5">
                                 {#each routes as route}
-                                    <label class="flex items-center gap-2 p-1.5 hover:bg-white rounded-md 
+                                    <label class="flex items-center gap-3 p-2 hover:bg-white rounded-lg 
                                                 cursor-pointer group transition-all duration-200">
-                                        <div class="relative">
+                                        <div class="relative flex-shrink-0">
                                             <input 
                                                 type="checkbox" 
                                                 class="peer sr-only"
@@ -127,7 +130,7 @@
                                                     }
                                                 }}
                                             >
-                                            <div class="w-4 h-4 border-2 border-input rounded 
+                                            <div class="w-5 h-5 border-2 border-gray-300 rounded-md 
                                                         peer-checked:bg-primary peer-checked:border-primary 
                                                         transition-all duration-200"></div>
                                             <div class="absolute inset-0 flex items-center justify-center
@@ -139,10 +142,10 @@
                                             </div>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <div class="font-medium truncate group-hover:text-primary transition-colors">
+                                            <div class="font-medium text-sm group-hover:text-primary transition-colors">
                                                 {getRouteName(route)}
                                             </div>
-                                            <div class="text-xs text-gray-400 truncate">{route}</div>
+                                            <div class="text-xs text-gray-400">{route}</div>
                                         </div>
                                     </label>
                                 {/each}
@@ -151,10 +154,10 @@
                     {/each}
                 </div>
 
-                <div class="p-4 bg-gradient-to-b from-white to-muted/30 flex justify-end gap-3 border-t">
+                <div class="p-6 bg-gray-50 flex justify-end gap-3 border-t">
                     <button type="button" 
-                        class="px-4 py-2 rounded-lg border border-input hover:border-primary/30 
-                               hover:bg-white/80 transition-all duration-200 text-sm
+                        class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50
+                               hover:border-primary/30 transition-all duration-200 text-sm
                                disabled:opacity-50 disabled:cursor-not-allowed"
                         on:click={handleReset}
                         disabled={isResetting || isSubmitting}
@@ -168,12 +171,12 @@
                                 Resetting...
                             </span>
                         {:else}
-                            Reset
+                            Reset Changes
                         {/if}
                     </button>
                     <button type="submit" 
-                        class="px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark 
-                               shadow hover:shadow-xl hover:shadow-primary/20 transition-all duration-200
+                        class="px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary/90
+                               shadow-sm hover:shadow-md hover:shadow-primary/10 transition-all duration-200
                                disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isSubmitting || isResetting}
                     >
@@ -192,25 +195,17 @@
                 </div>
             </form>
         {:else}
-            <div class="bg-white/80 backdrop-blur rounded-2xl shadow-xl border border-white/50 
-                        p-12 text-center animate-scale">
-                <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                    <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-2xl shadow-sm border p-12 text-center">
+                <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                        </path>
+                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                     </svg>
                 </div>
-                <h2 class="text-2xl font-semibold text-foreground mb-3">Select an Admin User</h2>
-                <p class="text-gray-600 max-w-md mx-auto">
-                    Choose an administrator from the dropdown above to manage their permission settings and access rights.
+                <h2 class="text-xl font-semibold text-gray-800 mb-3">No Administrator Selected</h2>
+                <p class="text-gray-500 max-w-md mx-auto text-sm">
+                    Please select an administrator from the dropdown above to manage their permissions and access rights.
                 </p>
-                <div class="mt-8 flex justify-center gap-4">
-                    <div class="px-4 py-3 rounded-lg bg-muted/50 border border-input flex items-center gap-2 text-sm">
-                        <span class="w-2 h-2 rounded-full bg-primary"></span>
-                        <span class="text-gray-600">Manage Access permissions</span>
-                    </div>
-                </div>
             </div>
         {/if}
     </div>

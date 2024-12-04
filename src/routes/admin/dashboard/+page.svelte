@@ -20,25 +20,25 @@
       title: "Total Students",
       value: data.basicStats.totalStudents,
       color: "from-blue-500 to-blue-600",
-      description: "Total number of students registered in the system"
+      description: "Total number of students registered in the system",
     },
     {
       title: "Total Orders",
       value: data.basicStats.totalOrders,
       color: "from-primary to-primary-dark",
-      description: "Total number of uniform orders placed"
+      description: "Total number of uniform orders placed",
     },
     {
       title: "Completion Rate",
       value: formatPercent(data.basicStats.completionRate),
       color: "from-green-500 to-green-600",
-      description: "Percentage of completed orders out of total orders"
+      description: "Percentage of completed orders out of total orders",
     },
     {
       title: "Total Revenue",
       value: formatCurrency(data.basicStats.totalRevenue),
       color: "from-purple-500 to-purple-600",
-      description: "Total revenue from all paid orders"
+      description: "Total revenue from all paid orders",
     },
   ];
 
@@ -107,24 +107,36 @@
 
     const timeData = data.financialMetrics.revenueOverTime[selectedTimeFrame];
     let labels = Object.keys(timeData);
-    
+
     // Special sorting for months
-    if (selectedTimeFrame === 'month') {
+    if (selectedTimeFrame === "month") {
       const monthOrder = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
       ];
-      labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+      labels = labels.sort(
+        (a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b)
+      );
     } else {
       labels = labels.sort();
     }
-    
+
     const datasets = [
       {
-        label: `Revenue by ${selectedRevenueType === 'order' ? 'Order Date' : 'Payment Date'}`,
-        data: labels.map(key => {
+        label: `Revenue by ${selectedRevenueType === "order" ? "Order Date" : "Payment Date"}`,
+        data: labels.map((key) => {
           const orderAmount = timeData[key];
-          if (selectedRevenueType === 'payment') {
+          if (selectedRevenueType === "payment") {
             // Use payment_date for revenue when payment type is selected
             return orderAmount.paymentRevenue || 0;
           }
@@ -134,7 +146,7 @@
         backgroundColor: "rgba(183, 50, 51, 0.1)",
         fill: true,
         tension: 0.4,
-      }
+      },
     ];
 
     revenueChart = new Chart(revenueChartEl, {
@@ -160,39 +172,44 @@
     const labels = Object.keys(
       data.additionalMetrics.averageOrderValueOverTime[selectedTimeFrame]
     );
-    
-    const values = labels.map(key => {
-        const item = data.additionalMetrics.averageOrderValueOverTime[selectedTimeFrame][key];
-        return item.count > 0 ? (item.total / item.count).toFixed(2) : 0;
+
+    const values = labels.map((key) => {
+      const item =
+        data.additionalMetrics.averageOrderValueOverTime[selectedTimeFrame][
+          key
+        ];
+      return item.count > 0 ? (item.total / item.count).toFixed(2) : 0;
     });
 
     averageOrderValueChart = new Chart(averageOrderValueChartEl, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: `Average Order Value (${selectedTimeFrame})`,
-                data: values,
-                borderColor: '#E85D2F',
-                backgroundColor: 'rgba(232, 93, 47, 0.1)',
-                fill: true,
-                tension: 0.4,
-                spanGaps: true // This ensures continuous line even with missing data
-            }]
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `Average Order Value (${selectedTimeFrame})`,
+            data: values,
+            borderColor: "#E85D2F",
+            backgroundColor: "rgba(232, 93, 47, 0.1)",
+            fill: true,
+            tension: 0.4,
+            spanGaps: true, // This ensures continuous line even with missing data
+          },
+        ],
+      },
+      options: {
+        ...commonOptions,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: (value) => formatCurrency(value) },
+          },
         },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: (value) => formatCurrency(value) }
-                }
-            }
-        }
+      },
     });
-}
+  }
 
-// Initialize order status chart
+  // Initialize order status chart
   function initOrderStatusChart() {
     if (orderStatusChart) orderStatusChart.destroy();
     if (!orderStatusChartEl) return;
@@ -412,13 +429,33 @@
   }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
+<div
+  class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200"
+>
   <div class="p-3 max-md:p-4 space-y-4 max-md:space-y-6">
     <!-- Header -->
-    <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center">
-      <h1 class="text-3xl max-md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">
-        Dashboard Overview
-      </h1>
+    <div
+      class="flex max-md:flex-col max-md:space-y-2 justify-between items-center"
+    >
+      <div class="flex gap-3 items-center">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="1.2em"
+          height="1.2em"
+          viewBox="0 0 24 24"
+          class="text-primary"
+        >
+          <path
+            fill="currentColor"
+            d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"
+          />
+        </svg>
+        <h1
+          class="text-3xl max-md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark"
+        >
+          Dashboard Overview
+        </h1>
+      </div>
       <div class="text-sm max-md:text-xs text-gray-500">
         Last updated: {new Date().toLocaleString("en-US", {
           year: "numeric",
@@ -452,32 +489,7 @@
           </div>
         </div>
       {/each}
-      {#each [
-        { 
-          title: "Overdue Orders", 
-          value: data.timeBasedMetrics.overdueOrders, 
-          color: "from-red-500 to-red-600",
-          description: "Orders past their due date and not completed"
-        }, 
-        { 
-          title: "Due Within 7 Days", 
-          value: data.timeBasedMetrics.upcomingDue, 
-          color: "from-yellow-500 to-yellow-600",
-          description: "Orders due from today to next 7 days (inclusive)"
-        }, 
-        { 
-          title: "Avg Completion", 
-          value: `${data.timeBasedMetrics.averageCompletionTime} days`, 
-          color: "from-blue-500 to-blue-600",
-          description: "Average time to complete an order"
-        }, 
-        { 
-          title: "Rush Orders", 
-          value: data.timeBasedMetrics.rushOrders, 
-          color: "from-orange-500 to-orange-600",
-          description: "Orders with 3 or fewer days between order and due date"
-        }
-      ] as metric}
+      {#each [{ title: "Overdue Orders", value: data.timeBasedMetrics.overdueOrders, color: "from-red-500 to-red-600", description: "Orders past their due date and not completed" }, { title: "Due Within 7 Days", value: data.timeBasedMetrics.upcomingDue, color: "from-yellow-500 to-yellow-600", description: "Orders due from today to next 7 days (inclusive)" }, { title: "Avg Completion", value: `${data.timeBasedMetrics.averageCompletionTime} days`, color: "from-blue-500 to-blue-600", description: "Average time to complete an order" }, { title: "Rush Orders", value: data.timeBasedMetrics.rushOrders, color: "from-orange-500 to-orange-600", description: "Orders with 3 or fewer days between order and due date" }] as metric}
         <div class="group relative flex">
           <div
             class="absolute inset-0 bg-gradient-to-r {metric.color} rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"
@@ -500,32 +512,64 @@
     <!-- Recent Orders Table -->
     <div class="bg-white/90 p-6 max-md:p-3 rounded-2xl shadow-lg border">
       <h3 class="text-lg font-bold mb-4">Recent Orders</h3>
-      <div class="overflow-x-auto max-md:-mx-3"> <!-- Added negative margin for mobile -->
-        <table class="min-w-full max-md:text-[11px]"> <!-- Reduced font size further -->
+      <div class="overflow-x-auto max-md:-mx-3">
+        <!-- Added negative margin for mobile -->
+        <table class="min-w-full max-md:text-[11px]">
+          <!-- Reduced font size further -->
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Student</th>
-              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500 max-md:hidden">Ordered At</th> <!-- Hide on mobile -->
-              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Due Date</th>
-              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-              <th class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
+              <th
+                class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500"
+                >Student</th
+              >
+              <th
+                class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500 max-md:hidden"
+                >Ordered At</th
+              >
+              <!-- Hide on mobile -->
+              <th
+                class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500"
+                >Due Date</th
+              >
+              <th
+                class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500"
+                >Status</th
+              >
+              <th
+                class="px-4 max-md:px-2 py-2 text-left text-xs font-medium text-gray-500"
+                >Amount</th
+              >
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
             {#each data.orderMetrics.recentOrders as order}
               <tr>
-                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{order.student}</td>
-                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px] max-md:hidden">{new Date(order.orderedAt).toLocaleDateString()}</td> <!-- Hide on mobile -->
-                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{new Date(order.dueDate).toLocaleDateString()}</td>
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]"
+                  >{order.student}</td
+                >
+                <td
+                  class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px] max-md:hidden"
+                  >{new Date(order.orderedAt).toLocaleDateString()}</td
+                >
+                <!-- Hide on mobile -->
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]"
+                  >{new Date(order.dueDate).toLocaleDateString()}</td
+                >
                 <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">
-                  <span class="px-2 py-1 rounded-full text-xs max-md:text-[10px] max-md:px-1.5 max-md:py-0.5
-                              {order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                               order.status === 'in progress' ? 'bg-blue-100 text-blue-800' : 
-                               'bg-yellow-100 text-yellow-800'}">
+                  <span
+                    class="px-2 py-1 rounded-full text-xs max-md:text-[10px] max-md:px-1.5 max-md:py-0.5
+                              {order.status === 'completed'
+                      ? 'bg-green-100 text-green-800'
+                      : order.status === 'in progress'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-yellow-100 text-yellow-800'}"
+                  >
                     {order.status}
                   </span>
                 </td>
-                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]">{formatCurrency(order.amount)}</td>
+                <td class="px-4 max-md:px-2 py-2 text-sm max-md:text-[11px]"
+                  >{formatCurrency(order.amount)}</td
+                >
               </tr>
             {/each}
           </tbody>
@@ -535,8 +579,12 @@
 
     <!-- Time-based Charts Section -->
     <div class="space-y-6 max-md:space-y-4">
-      <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center">
-        <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">Time-Based Analytics</h2>
+      <div
+        class="flex max-md:flex-col max-md:space-y-2 justify-between items-center"
+      >
+        <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">
+          Time-Based Analytics
+        </h2>
         <!-- Keep only the time frame selector in the header -->
         <select
           bind:value={selectedTimeFrame}
@@ -552,8 +600,12 @@
 
       <div class="grid grid-cols-12 gap-6 max-md:gap-4">
         <!-- Revenue Trend card with internal toggle -->
-        <div class="col-span-12 lg:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border">
-          <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center mb-2">
+        <div
+          class="col-span-12 lg:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
+        >
+          <div
+            class="flex max-md:flex-col max-md:space-y-2 justify-between items-center mb-2"
+          >
             <h3 class="text-xl max-md:text-lg font-bold">Revenue Trend</h3>
             <select
               bind:value={selectedRevenueType}
@@ -563,7 +615,9 @@
               <option value="payment">By Payment Date</option>
             </select>
           </div>
-          <p class="text-xs text-gray-500 mb-4">Track revenue patterns over time based on order or payment dates</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Track revenue patterns over time based on order or payment dates
+          </p>
           <div class="h-80 max-md:h-60">
             <canvas bind:this={revenueChartEl}></canvas>
           </div>
@@ -572,8 +626,12 @@
         <div
           class="col-span-12 lg:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-xl max-md:text-lg font-bold mb-2">Average Order Value</h3>
-          <p class="text-xs text-gray-500 mb-4">Average value of order over time</p>
+          <h3 class="text-xl max-md:text-lg font-bold mb-2">
+            Average Order Value
+          </h3>
+          <p class="text-xs text-gray-500 mb-4">
+            Average value of order over time
+          </p>
           <div class="h-80 max-md:h-60">
             <canvas
               bind:this={averageOrderValueChartEl}
@@ -586,7 +644,9 @@
 
     <!-- Static Analytics Section -->
     <div class="space-y-6 max-md:space-y-4">
-      <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">Current Status Overview</h2>
+      <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">
+        Current Status Overview
+      </h2>
 
       <!-- Order & Payment Stats -->
       <div class="grid grid-cols-12 gap-6 max-md:gap-4">
@@ -594,7 +654,9 @@
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Order Status</h3>
-          <p class="text-xs text-gray-500 mb-4">Distribution of orders by their current status</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Distribution of orders by their current status
+          </p>
           <div class="h-72 max-md:h-60">
             <canvas bind:this={orderStatusChartEl}></canvas>
           </div>
@@ -604,7 +666,9 @@
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Payment Status</h3>
-          <p class="text-xs text-gray-500 mb-4">Overview of order payment statuses</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Overview of order payment statuses
+          </p>
           <div class="h-72 max-md:h-60">
             <canvas bind:this={paymentStatusChartEl}></canvas>
           </div>
@@ -614,7 +678,9 @@
           class="col-span-12 md:col-span-6 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Completion Rate</h3>
-          <p class="text-xs text-gray-500 mb-4">Ratio of orders completed on time vs late</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Ratio of orders completed on time vs late
+          </p>
           <div class="h-72 max-md:h-60">
             <canvas bind:this={completionPerformanceChartEl}></canvas>
           </div>
@@ -627,7 +693,9 @@
           class="col-span-12 lg:col-span-8 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Student Courses</h3>
-          <p class="text-xs text-gray-500 mb-4">Number of students registered per course</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Number of students registered per course
+          </p>
           <div class="h-80 max-md:h-60">
             <canvas bind:this={courseEnrollmentChartEl}></canvas>
           </div>
@@ -637,7 +705,9 @@
           class="col-span-12 lg:col-span-4 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Gender Distribution</h3>
-          <p class="text-xs text-gray-500 mb-4">Distribution of students by gender</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Distribution of students by gender
+          </p>
           <div class="h-80 max-md:h-60">
             <canvas bind:this={genderChartEl}></canvas>
           </div>
@@ -650,7 +720,9 @@
           class="col-span-12 md:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
           <h3 class="text-lg font-bold mb-2">Weekly Distribution</h3>
-          <p class="text-xs text-gray-500 mb-4">Pattern of orders received throughout the week</p>
+          <p class="text-xs text-gray-500 mb-4">
+            Pattern of orders received throughout the week
+          </p>
           <div class="h-72 max-md:h-60">
             <canvas bind:this={busyDaysChartEl}></canvas>
           </div>
@@ -659,9 +731,10 @@
         <div
           class="col-span-12 md:col-span-6 bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border"
         >
-          <h3 class="text-lg font-bold mb-2">Tailor
-             Performance</h3>
-          <p class="text-xs text-gray-500 mb-4">Number of orders completed by each tailor</p>
+          <h3 class="text-lg font-bold mb-2">Tailor Performance</h3>
+          <p class="text-xs text-gray-500 mb-4">
+            Number of orders completed by each tailor
+          </p>
           <div class="h-72 max-md:h-60">
             <canvas bind:this={employeePerformanceChartEl}></canvas>
           </div>
@@ -705,17 +778,17 @@
     canvas {
       max-height: 300px;
     }
-    
+
     .chart-container {
       margin-bottom: 1rem;
     }
-    
+
     /* Add smooth scrolling for table */
     .overflow-x-auto {
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none; /* Firefox */
     }
-    
+
     .overflow-x-auto::-webkit-scrollbar {
       display: none; /* Chrome, Safari and Opera */
     }
