@@ -353,8 +353,9 @@ export const load = async ({ locals }) => {
                 upcomingDue: orderData?.filter(o => {
                     const dueDate = new Date(o.due_date);
                     const now = new Date();
+                    now.setHours(0, 0, 0, 0); // Reset time to start of day
                     const diffDays = (dueDate - now) / (1000 * 60 * 60 * 24);
-                    return diffDays >= 0 && diffDays <= 7 && o.status !== 'completed';
+                    return diffDays >= 0 && diffDays <= 6 && o.status !== 'completed'; // Changed from 7 to 6 to include today
                 }).length || 0,
                 averageCompletionTime: calculateAverageCompletionTime(orderData),
                 busyDays: orderData?.reduce((acc, curr) => {

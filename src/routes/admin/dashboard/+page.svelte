@@ -463,7 +463,7 @@
           title: "Due Within 7 Days", 
           value: data.timeBasedMetrics.upcomingDue, 
           color: "from-yellow-500 to-yellow-600",
-          description: "Orders due in the next 7 days"
+          description: "Orders due from today to next 7 days (inclusive)"
         }, 
         { 
           title: "Avg Completion", 

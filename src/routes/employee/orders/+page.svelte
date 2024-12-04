@@ -312,7 +312,7 @@
                 <div>
                     <h3 class="text-lg md:text-xl font-bold">{selectedOrder.studentName}</h3>
                     <p class="text-xs md:text-sm text-gray-600">
-                        {selectedOrder.gender} - {selectedOrder.course}
+                        {(selectedOrder.gender).toUpperCase()} - {selectedOrder.course}
                     </p>
                 </div>
                 <button 
