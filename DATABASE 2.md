@@ -72,10 +72,11 @@ balance numeric(10, 2) generated always as (total_amount - amount_paid) stored,
 payment_date date,
 completed_at timestamptz,
 payment_status text not null check (payment_status in ('not paid', 'partial', 'fully paid')) default 'not paid',
-order_measurements jsonb, -- New column to store measurements at order time
+order_measurements jsonb,
+payment_updated_by text,
+assigned_by text,
 created_at timestamptz default now() not null,
-updated_at timestamptz default now() not null,
-
+updated_at timestamptz default now() not null
 );
 
 create table admin_permissions (
