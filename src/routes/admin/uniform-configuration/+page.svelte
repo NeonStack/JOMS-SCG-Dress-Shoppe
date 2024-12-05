@@ -604,6 +604,7 @@
                                     name="selectedMeasurements"
                                     value={measurementType.id}
                                     checked={true}
+    
                                     class="w-4 h-4 rounded-md border-gray-300 text-primary focus:ring-primary pointer-events-none"
                                   />
                                 </div>
@@ -622,6 +623,7 @@
                                       value={spec?.base_cm ?? 0}
                                       class="block w-full px-2 py-1 text-sm rounded-md border border-gray-200 bg-white/50"
                                       min="0"
+                                      max="500"
                                       step="0.1"
                                       required
                                     />
