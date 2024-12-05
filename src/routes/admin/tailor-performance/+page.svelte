@@ -699,8 +699,9 @@
             (o) =>
               o.employee?.id === record.employee.id && o.status === "completed"
           )
-          .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0]
-          ?.completed_at,
+          .sort(
+            (a, b) => new Date(b.completed_at) - new Date(a.completed_at)
+          )[0]?.completed_at,
       }))
       .sort((a, b) => b.bestDay.count - a.bestDay.count);
   }
@@ -886,12 +887,7 @@
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M16 8v8m-4-5v5M8 8v8m-4-5v5"
-          />
+          <path fill="currentColor" d="M3 22V8h4v14zm7 0V2h4v20zm7 0v-8h4v8z" />
         </svg>
       </div>
       <div>
@@ -1017,25 +1013,33 @@
       <!-- Top row: Key Metrics Overview -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Quick Stats -->
-        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all">
+        <div
+          class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all"
+        >
           <div class="text-lg font-semibold text-gray-900">
             {metrics.totalOrders}
           </div>
           <div class="text-sm text-gray-500">Total Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-green-100 hover:border-green-200 transition-all">
+        <div
+          class="bg-white p-4 rounded-lg shadow-md border-2 border-green-100 hover:border-green-200 transition-all"
+        >
           <div class="text-lg font-semibold text-green-600">
             {metrics.completedOrders}
           </div>
           <div class="text-sm text-gray-500">Completed Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-red-100 hover:border-red-200 transition-all">
+        <div
+          class="bg-white p-4 rounded-lg shadow-md border-2 border-red-100 hover:border-red-200 transition-all"
+        >
           <div class="text-lg font-semibold text-red-600">
             {metrics.lateOrders}
           </div>
           <div class="text-sm text-gray-500">Late Orders</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all">
+        <div
+          class="bg-white p-4 rounded-lg shadow-md border-2 border-primary/10 hover:border-primary/20 transition-all"
+        >
           <div class="text-lg font-semibold text-primary">
             {metrics.efficiencyRate}%
           </div>
@@ -1049,7 +1053,9 @@
         <div class="space-y-4 col-span-2">
           <!-- Time Analysis -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-blue-100 hover:border-blue-200 transition-all">
+            <div
+              class="bg-white p-4 rounded-lg shadow-md border-2 border-blue-100 hover:border-blue-200 transition-all"
+            >
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Completion Times
               </h3>
@@ -1076,7 +1082,9 @@
             </div>
 
             <!-- Workload Distribution -->
-            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-purple-100 hover:border-purple-200 transition-all">
+            <div
+              class="bg-white p-4 rounded-lg shadow-md border-2 border-purple-100 hover:border-purple-200 transition-all"
+            >
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Weekly Distribution
               </h3>
@@ -1090,7 +1098,9 @@
               </div>
             </div>
             <!-- Uniform Type Analysis -->
-            <div class="bg-white p-4 rounded-lg shadow-md border-2 border-emerald-100 hover:border-emerald-200 transition-all">
+            <div
+              class="bg-white p-4 rounded-lg shadow-md border-2 border-emerald-100 hover:border-emerald-200 transition-all"
+            >
               <h3 class="text-sm font-semibold text-gray-800 mb-3">
                 Uniform Type Analysis
               </h3>
@@ -1113,7 +1123,9 @@
       <!-- Bottom row: Orders Table -->
       <div class="bg-white rounded-lg shadow-md border-2 border-gray-100">
         <div class="p-4 border-b">
-          <div class="flex flex-col sm:flex-row gap-4 justify-between items-center">
+          <div
+            class="flex flex-col sm:flex-row gap-4 justify-between items-center"
+          >
             <h2 class="text-lg font-semibold">Order Details</h2>
             <input
               type="text"
@@ -1125,7 +1137,8 @@
         </div>
         <!-- Replace the existing table section with this -->
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[800px]"> <!-- Added min-width to prevent squishing -->
+          <table class="w-full min-w-[800px]">
+            <!-- Added min-width to prevent squishing -->
             <thead>
               <tr class="bg-muted max-md:whitespace-nowrap">
                 <th
@@ -1133,7 +1146,9 @@
                   on:click={() => toggleSort("created_at")}
                 >
                   Order Date {#if sortState.column === "created_at"}
-                    <span class="ml-1">{sortState.direction === "asc" ? "↑" : "↓"}</span>
+                    <span class="ml-1"
+                      >{sortState.direction === "asc" ? "↑" : "↓"}</span
+                    >
                   {/if}
                 </th>
                 <th
@@ -1205,7 +1220,7 @@
                         )}
                       </div>
                       <div class="text-xs text-gray-500">
-                        {order.student?.course?.course_code || "No course"} - 
+                        {order.student?.course?.course_code || "No course"} -
                         <span class="capitalize">{order.uniform_type}</span>
                       </div>
                     </div>
@@ -1337,7 +1352,9 @@
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <!-- Left Column: Fastest Completions -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-cyan-100 hover:border-cyan-200 transition-all">
+      <div
+        class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-cyan-100 hover:border-cyan-200 transition-all"
+      >
         <h2 class="text-lg font-semibold mb-4">Fastest Completions</h2>
         <p class="text-xs text-gray-500 mb-4">
           Best time efficiency per tailor
@@ -1401,7 +1418,9 @@
       </div>
 
       <!-- Middle Column: Completion Records -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-violet-100 hover:border-violet-200 transition-all">
+      <div
+        class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-violet-100 hover:border-violet-200 transition-all"
+      >
         <div class="flex justify-between items-start mb-4">
           <div>
             <h2 class="text-lg font-semibold mb-4">Completion Records</h2>
@@ -1476,7 +1495,9 @@
       </div>
 
       <!-- Right Column: On-Time Rankings -->
-      <div class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-amber-100 hover:border-amber-200 transition-all">
+      <div
+        class="bg-white rounded-lg shadow-md p-6 h-[36rem] flex flex-col border-2 border-amber-100 hover:border-amber-200 transition-all"
+      >
         <h2 class="text-lg font-semibold mb-4">On-Time Completion</h2>
         <p class="text-xs text-gray-500 mb-4">
           Most orders completed before deadline
@@ -1493,9 +1514,9 @@
                     ? 'bg-yellow-100 text-yellow-700'
                     : i === 1
                       ? 'bg-gray-100 text-gray-700'
-                    : i === 2
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-gray-50 text-gray-600'}"
+                      : i === 2
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-50 text-gray-600'}"
                 >
                   #{i + 1}
                 </span>

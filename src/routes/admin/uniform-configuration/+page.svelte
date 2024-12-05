@@ -199,7 +199,31 @@
   <div
     class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 mb-6"
   >
-    <h1 class="text-2xl font-bold text-foreground">Uniform Configurations</h1>
+    <!-- Header Section -->
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="bg-primary/10 p-3 rounded-lg">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="text-primary w-6 h-6"
+            viewBox="0 0 512 512"
+            {...$$props}
+          >
+            <path
+              fill="currentColor"
+              fill-rule="evenodd"
+              d="m234.67 85.33l-.004 213.338h-21.333v42.666h21.333l.005 85.33h42.666l-.004-85.33h21.333v-42.666h-21.333l.004-213.338zm-128.006 0v85.355H85.331v42.645h21.333v213.333h42.667V213.33h21.333v-42.645h-21.333V85.33zm255.981.004v128h-21.333l.013 42.663h21.333v170.666h42.688V255.997h21.333l-.013-42.663h-21.333l.013-128.004z"
+            />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">Uniform Configuration</h1>
+          <p class="text-sm text-gray-500">
+            Manage and customize uniform configurations
+          </p>
+        </div>
+      </div>
+    </div>
     <button
       on:click={() => {
         selectedConfig = null;

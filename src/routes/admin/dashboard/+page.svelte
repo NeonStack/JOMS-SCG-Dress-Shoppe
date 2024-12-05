@@ -546,24 +546,23 @@
 <div
   class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200"
 >
-  <div class="p-3 max-md:p-4 space-y-4 max-md:space-y-6">
+  <div class="p-3 max-md:p-4 space-y-8 max-md:space-y-6">
     <!-- Header -->
     <div
       class="flex max-md:flex-col max-md:space-y-2 justify-between items-center"
     >
       <div class="flex gap-3 items-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="1.2em"
-          height="1.2em"
-          viewBox="0 0 24 24"
-          class="text-primary"
-        >
-          <path
-            fill="currentColor"
-            d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"
-          />
-        </svg>
+        <div class="bg-primary/10 p-3 rounded-lg">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-6 h-6 text-primary"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+          <path fill="currentColor" d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z" />
+          </svg>
+        </div>
         <h1
           class="text-3xl max-md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark"
         >

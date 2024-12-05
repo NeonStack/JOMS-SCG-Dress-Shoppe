@@ -1087,7 +1087,35 @@
   <div
     class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 mb-6"
   >
-    <h1 class="text-2xl font-bold text-foreground">Order Management</h1>
+    <!-- Header Section -->
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="bg-primary/10 p-3 rounded-lg">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="text-primary w-6 h-6"
+            
+            viewBox="0 0 16 16"
+            {...$$props}
+          >
+            <path
+              fill="currentColor"
+              fill-rule="evenodd"
+              d="M5.5 1a.5.5 0 0 0-.477.65l.11.35H3.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5h-1.632l.11-.35A.5.5 0 0 0 10.5 1zm.68 1h3.64l-.313 1H6.493zM11 7H5V6h6zm0 2.5H5v-1h6zM5 12h4v-1H5z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">
+            Orders Management
+          </h1>
+          <p class="text-sm text-gray-500">
+            Manage orders and track payments
+          </p>
+        </div>
+      </div>
+    </div>
     <button
       class="w-full md:w-auto bg-primary text-white px-4 py-2 rounded-lg"
       on:click={handleCreateClick}
@@ -1397,7 +1425,7 @@
                       {displayPaymentStatus(order)}
                     </span>
                   </td>
-                  <td class="p-2">{order.payment_updated_by || '-'}</td>
+                  <td class="p-2">{order.payment_updated_by || "-"}</td>
                   <td class="p-2">
                     <button
                       class="text-blue-600 hover:text-blue-800 {isLoading
@@ -1562,7 +1590,7 @@
                         <span class="text-gray-400">Unassigned</span>
                       {/if}
                     </td>
-                    <td class="p-2">{order.assigned_by || '-'}</td>
+                    <td class="p-2">{order.assigned_by || "-"}</td>
                   </tr>
                 {/each}
               {:else if activeTab === "completed"}
@@ -1612,7 +1640,7 @@
                         <span class="text-gray-400">Unassigned</span>
                       {/if}
                     </td>
-                    <td class="p-2">{order.assigned_by || '-'}</td>
+                    <td class="p-2">{order.assigned_by || "-"}</td>
                   </tr>
                 {/each}
               {/if}

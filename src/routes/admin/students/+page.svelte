@@ -272,7 +272,28 @@
   <div class="p-6">
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 mb-6">
-      <h1 class="text-2xl font-bold text-foreground">Student Management</h1>
+      <!-- Header Section -->
+  <div class="flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <div class="bg-primary/10 p-3 rounded-lg">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-6 h-6 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+        <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4s-4 1.79-4 4s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Student Management</h1>
+        <p class="text-sm text-gray-500">
+            Manage student info and measurements
+        </p>
+      </div>
+    </div>
+  </div>
     </div>
 
     <!-- Main content card -->

@@ -50,7 +50,7 @@
       </svg>`,
     },
     {
-      name: "Orders",
+      name: "Orders Management",
       href: "/admin/orders",
       icon: `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 16 16" {...$$props}>
 	<path fill="currentColor" fill-rule="evenodd" d="M5.5 1a.5.5 0 0 0-.477.65l.11.35H3.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5h-1.632l.11-.35A.5.5 0 0 0 10.5 1zm.68 1h3.64l-.313 1H6.493zM11 7H5V6h6zm0 2.5H5v-1h6zM5 12h4v-1H5z" clip-rule="evenodd" />
@@ -74,7 +74,7 @@
 
   if (userRole === 'superadmin') {
         navigation = [
-            ...navigation.slice(0, -1), // Keep all items except Sign Out
+            ...navigation.slice(0, -1),
             {
                 name: "Admin Permissions",
                 href: "/admin/permissions",
@@ -82,7 +82,7 @@
                     <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5zm0 11h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
                 </svg>`
             },
-            navigation[navigation.length - 1] // Add Sign Out back at the end
+            navigation[navigation.length - 1] 
         ];
     }
 
