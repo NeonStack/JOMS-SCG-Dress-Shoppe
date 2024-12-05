@@ -78,6 +78,7 @@
   // Replace the single dateRange with separate ranges
   let orderDateRange = { start: "", end: "" };
   let dueDateRange = { start: "", end: "" };
+  let completedDateRange = { start: "", end: "" }; // Add this line
 
   // Date validation function
   function validateDateRanges() {
@@ -99,6 +100,16 @@
     if (dueDateRange.end) {
       const endInput = document.getElementById("due-date-start");
       if (endInput) endInput.max = dueDateRange.end;
+    }
+
+    // Set min/max for completed date range
+    if (completedDateRange.start) {
+      const startInput = document.getElementById("completed-date-end");
+      if (startInput) startInput.min = completedDateRange.start;
+    }
+    if (completedDateRange.end) {
+      const endInput = document.getElementById("completed-date-start");
+      if (endInput) endInput.max = completedDateRange.end;
     }
   }
 
@@ -398,6 +409,7 @@
   function clearFilters() {
     orderDateRange = { start: "", end: "" };
     dueDateRange = { start: "", end: "" };
+    completedDateRange = { start: "", end: "" }; // Add this line
     selectedEmployee = "all";
     selectedStatus = "all";
     searchQuery = "";
@@ -421,6 +433,9 @@
   $: filteredOrders = sortedOrders?.filter((order) => {
     const orderDate = new Date(order.created_at).setHours(0, 0, 0, 0);
     const dueDate = new Date(order.due_date).setHours(0, 0, 0, 0);
+    const completedDate = order.completed_at 
+      ? new Date(order.completed_at).setHours(0, 0, 0, 0)
+      : null;
 
     const inOrderDateRange =
       (!orderDateRange.start ||
@@ -433,6 +448,14 @@
         dueDate >= new Date(dueDateRange.start).setHours(0, 0, 0, 0)) &&
       (!dueDateRange.end ||
         dueDate <= new Date(dueDateRange.end).setHours(23, 59, 59, 999));
+
+    const inCompletedDateRange = 
+      !completedDateRange.start && !completedDateRange.end ? true :
+      completedDate && 
+      (!completedDateRange.start || 
+        completedDate >= new Date(completedDateRange.start).setHours(0, 0, 0, 0)) &&
+      (!completedDateRange.end || 
+        completedDate <= new Date(completedDateRange.end).setHours(23, 59, 59, 999));
 
     const searchTerms = searchQuery.toLowerCase().trim();
 
@@ -462,7 +485,7 @@
 
     const matchesStatus =
       selectedStatus === "all" || order.status === selectedStatus;
-    return inOrderDateRange && inDueDateRange && matchesSearch && matchesStatus;
+    return inOrderDateRange && inDueDateRange && inCompletedDateRange && matchesSearch && matchesStatus;
   });
 
   function getStatusDetails(order) {
@@ -968,6 +991,28 @@
               type="date"
               id="due-date-end"
               bind:value={dueDateRange.end}
+              on:change={validateDateRanges}
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+          </div>
+        </div>
+
+        <!-- Add this after the Due Date Range input in the filters section -->
+        <div class="w-full">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Completed Date Range</label>
+          <div class="flex flex-col sm:flex-row items-center gap-2">
+            <input
+              type="date"
+              id="completed-date-start"
+              bind:value={completedDateRange.start}
+              on:change={validateDateRanges}
+              class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
+            />
+            <span class="text-gray-400">to</span>
+            <input
+              type="date"
+              id="completed-date-end"
+              bind:value={completedDateRange.end}
               on:change={validateDateRanges}
               class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm"
             />
