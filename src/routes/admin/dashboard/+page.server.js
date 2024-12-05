@@ -538,7 +538,9 @@ function calculateDeliveryPerformance(orders) {
 }
 
 function getDateDiff(date1, date2) {
-    return Math.ceil((new Date(date2) - new Date(date1)) / (1000 * 60 * 60 * 24));
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const diff = new Date(date2) - new Date(date1);
+    return (diff / msPerDay).toFixed(1);
 }
 
 function calculateAverageOrderValueOverTime(orders) {
