@@ -160,9 +160,18 @@ function getTimeSlot(hour) {
     return 'Night';
 }
 
+function getNextSevenDays() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDays = new Date(today);
+    sevenDays.setDate(today.getDate() + 7);
+    return { today, sevenDays };
+}
+
 export const load = async ({ locals }) => {
     try {
         const { today, thisWeekStart, thisMonthStart, thisYearStart, last12Months } = getDateRanges();
+        const { sevenDays } = getNextSevenDays();
         const next7Days = new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
         const promises = [
@@ -219,6 +228,8 @@ export const load = async ({ locals }) => {
             locals.supabase.from('students').select(`
                 id,
                 gender,
+                first_name,
+                last_name,
                 created_at,
                 courses(
                     course_code,
@@ -258,6 +269,59 @@ export const load = async ({ locals }) => {
             { data: paymentData }
         ] = await Promise.all(promises);
 
+        // Calculate upcoming due orders correctly
+        const upcomingDue = orderData?.filter(o => {
+            const dueDate = new Date(o.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            const todayDate = new Date(today); // Convert ISO string to Date object
+            return dueDate >= todayDate && dueDate <= sevenDays && o.status !== 'completed';
+        }).length || 0;
+
+        // Calculate additional metrics
+        const additionalMetricsData = {
+            overdueDetails: orderData?.filter(o => 
+                new Date(o.due_date) < new Date(today) && 
+                o.status !== 'completed'
+            ).map(o => ({
+                student: `${o.students?.first_name} ${o.students?.last_name}`,
+                dueDate: new Date(o.due_date).toLocaleDateString(),
+                daysOverdue: Math.ceil((new Date(today) - new Date(o.due_date)) / (1000 * 60 * 60 * 24))
+            })) || [],
+            
+            upcomingDueDetails: orderData?.filter(o => {
+                const dueDate = new Date(o.due_date);
+                dueDate.setHours(0, 0, 0, 0);
+                const todayDate = new Date(today);
+                return dueDate >= todayDate && dueDate <= sevenDays && o.status !== 'completed';
+            }).map(o => ({
+                student: `${o.students?.first_name} ${o.students?.last_name}`,
+                dueDate: new Date(o.due_date).toLocaleDateString(),
+                status: o.status
+            })) || [],
+
+            avgCompletionDetails: {
+                average: calculateAverageCompletionTime(orderData),
+                breakdown: orderData?.filter(o => o.status === 'completed')
+                    .map(o => ({
+                        student: `${o.students?.first_name} ${o.students?.last_name}`,
+                        days: getDateDiff(o.created_at, o.completed_at),
+                        completedAt: new Date(o.completed_at).toLocaleDateString()
+                    })) || []
+            },
+
+            rushOrderDetails: orderData?.filter(o => {
+                const orderDate = new Date(o.created_at);
+                const dueDate = new Date(o.due_date);
+                const diffDays = (dueDate - orderDate) / (1000 * 60 * 60 * 24);
+                return diffDays <= 3;
+            }).map(o => ({
+                student: `${o.students?.first_name} ${o.students?.last_name}`,
+                orderDate: new Date(o.created_at).toLocaleDateString(),
+                dueDate: new Date(o.due_date).toLocaleDateString(),
+                daysToComplete: Math.ceil((new Date(o.due_date) - new Date(o.created_at)) / (1000 * 60 * 60 * 24))
+            })) || []
+        };
+
         // Process order data for financial metrics
         const actualRevenue = orderData?.reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0;
         const pendingRevenue = orderData?.reduce((sum, o) => sum + (o.balance || 0), 0) || 0;
@@ -292,7 +356,14 @@ export const load = async ({ locals }) => {
                     ).length || 0
                 },
                 orderTurnover: calculateOrderTurnover(orderData),
-                recentOrders: getRecentOrders(orderData)
+                recentOrders: getRecentOrders(orderData),
+                allOrders: orderData?.map(order => ({
+                    student: `${order.students?.first_name} ${order.students?.last_name}`,
+                    type: order.uniform_type,
+                    status: order.status,
+                    amount: formatCurrency(order.total_amount)
+                })) || [],
+                completionDetails: calculateCompletionDetails(orderData)
             },
 
             financialMetrics: {
@@ -315,6 +386,7 @@ export const load = async ({ locals }) => {
                 averageOrderValue: calculateAverageOrderValue(orderData),
                 revenueByStatus: calculateRevenueByStatus(orderData),
                 revenueOverTime: calculateRevenueOverTime(orderData),
+                revenueDetails: calculateRevenueDetails(orderData)
             },
 
             studentAnalytics: {
@@ -334,7 +406,12 @@ export const load = async ({ locals }) => {
                 }, {}),
                 coursePerformance: calculateCoursePerformance(orderData),
                 enrollmentTrends: calculateEnrollmentTrends(studentData),
-                genderByProgram: calculateGenderDistributionByCourse(studentData)
+                genderByProgram: calculateGenderDistributionByCourse(studentData),
+                studentList: studentData?.map(student => ({
+                    name: `${student.first_name} ${student.last_name}`,
+                    course: student.courses?.course_code || 'N/A',
+                    gender: student.gender
+                })) || []
             },
 
             performanceMetrics: {
@@ -350,13 +427,7 @@ export const load = async ({ locals }) => {
 
             timeBasedMetrics: {
                 overdueOrders: orderData?.filter(o => new Date(o.due_date) < new Date() && o.status !== 'completed').length || 0,
-                upcomingDue: orderData?.filter(o => {
-                    const dueDate = new Date(o.due_date);
-                    const now = new Date();
-                    now.setHours(0, 0, 0, 0); // Reset time to start of day
-                    const diffDays = (dueDate - now) / (1000 * 60 * 60 * 24);
-                    return diffDays >= 0 && diffDays <= 6 && o.status !== 'completed'; // Changed from 7 to 6 to include today
-                }).length || 0,
+                upcomingDue,  // Now upcomingDue is defined before being used
                 averageCompletionTime: calculateAverageCompletionTime(orderData),
                 busyDays: orderData?.reduce((acc, curr) => {
                     const day = new Date(curr.created_at).toLocaleString('default', { weekday: 'short' });
@@ -372,7 +443,9 @@ export const load = async ({ locals }) => {
                 processingTimes: calculateProcessingTimes(orderData),
                 seasonalTrends: calculateSeasonalTrends(orderData),
                 peakOrderTimes: identifyPeakOrderTimes(orderData),
-                deliveryPerformance: calculateDeliveryPerformance(orderData)
+                deliveryPerformance: calculateDeliveryPerformance(orderData),
+                upcomingDue,
+                additionalMetrics: additionalMetricsData
             },
 
             additionalMetrics: {
@@ -707,4 +780,45 @@ function calculateEmployeeStats(employeeData) {
         acc[name].averageOrderValue = acc[name].revenue / acc[name].total;
         return acc;
     }, {}) || {};
+}
+
+function calculateCompletionDetails(orders) {
+    const statusCount = orders?.reduce((acc, order) => {
+        acc[order.status] = (acc[order.status] || 0) + 1;
+        return acc;
+    }, {}) || {};
+
+    const total = Object.values(statusCount).reduce((a, b) => a + b, 0);
+    
+    return Object.entries(statusCount).map(([status, count]) => ({
+        status: status.charAt(0).toUpperCase() + status.slice(1),
+        count,
+        percentage: `${((count / total) * 100).toFixed(1)}%`
+    }));
+}
+
+function calculateRevenueDetails(orders) {
+    const paid = orders?.reduce((sum, order) => sum + (order.amount_paid || 0), 0) || 0;
+    const pending = orders?.reduce((sum, order) => sum + (order.balance || 0), 0) || 0;
+    const total = paid + pending;
+
+    return [
+        {
+            category: 'Collected',
+            amount: formatCurrency(paid),
+            percentage: `${((paid / total) * 100).toFixed(1)}%`
+        },
+        {
+            category: 'Pending',
+            amount: formatCurrency(pending),
+            percentage: `${((pending / total) * 100).toFixed(1)}%`
+        }
+    ];
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP'
+    }).format(value);
 }
