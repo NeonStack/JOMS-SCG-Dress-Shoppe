@@ -2,6 +2,7 @@
   import { Chart, registerables } from "chart.js";
   import { onMount, onDestroy } from "svelte";
   import { fade } from 'svelte/transition';
+  import * as ExcelJS from 'exceljs';
 
   Chart.register(...registerables);
   export let data;
@@ -541,6 +542,296 @@
     activeModal = null;
     modalData = null;
   }
+
+  async function generateExcelReport() {
+    const workbook = new ExcelJS.Workbook();
+
+    // Summary Sheet
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { header: 'Metric', key: 'metric', width: 20 },
+      { header: 'Value', key: 'value', width: 15 },
+      { header: 'Description', key: 'description', width: 40 }
+    ];
+
+    // Add basic metrics
+    [...metrics, ...timeMetrics].forEach(metric => {
+      summarySheet.addRow({
+        metric: metric.title,
+        value: metric.value,
+        description: metric.description
+      });
+    });
+
+    // Orders Sheet
+    const ordersSheet = workbook.addWorksheet('Recent Orders');
+    ordersSheet.columns = [
+      { header: 'Student', key: 'student', width: 20 },
+      { header: 'Ordered At', key: 'orderedAt', width: 15 },
+      { header: 'Due Date', key: 'dueDate', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Amount', key: 'amount', width: 15 }
+    ];
+
+    data.orderMetrics.recentOrders.forEach(order => {
+      ordersSheet.addRow({
+        student: order.student,
+        orderedAt: new Date(order.orderedAt).toLocaleDateString(),
+        dueDate: new Date(order.dueDate).toLocaleDateString(),
+        status: order.status,
+        amount: order.amount
+      });
+    });
+
+    // Order Status Sheet
+    const statusSheet = workbook.addWorksheet('Order Status');
+    statusSheet.columns = [
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Count', key: 'count', width: 10 }
+    ];
+
+    Object.entries(data.orderMetrics.byStatus).forEach(([status, count]) => {
+      statusSheet.addRow({ status, count });
+    });
+
+    // Revenue Data Sheet
+    const revenueSheet = workbook.addWorksheet('Revenue Data');
+    revenueSheet.columns = [
+      { header: 'Period', key: 'period', width: 15 },
+      { header: 'Revenue', key: 'revenue', width: 15 }
+    ];
+
+    const timeData = data.financialMetrics.revenueOverTime[selectedTimeFrame];
+    Object.entries(timeData).forEach(([period, data]) => {
+      revenueSheet.addRow({
+        period,
+        revenue: data.orderRevenue
+      });
+    });
+
+    // Course Enrollment Sheet
+    const courseSheet = workbook.addWorksheet('Course Enrollment');
+    courseSheet.columns = [
+      { header: 'Course', key: 'course', width: 20 },
+      { header: 'Students', key: 'students', width: 10 }
+    ];
+
+    Object.entries(data.studentAnalytics.courseEnrollment).forEach(([course, count]) => {
+      courseSheet.addRow({ course, students: count });
+    });
+
+    // Gender Distribution Sheet
+    const genderSheet = workbook.addWorksheet('Gender Distribution');
+    genderSheet.columns = [
+      { header: 'Gender', key: 'gender', width: 15 },
+      { header: 'Count', key: 'count', width: 10 }
+    ];
+
+    Object.entries(data.studentAnalytics.genderDistribution).forEach(([gender, count]) => {
+      genderSheet.addRow({ gender, count });
+    });
+
+    // Detailed Students Sheet
+    const studentsSheet = workbook.addWorksheet('Detailed Students');
+    studentsSheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'First Name', key: 'firstName', width: 15 },
+      { header: 'Last Name', key: 'lastName', width: 15 },
+      { header: 'Gender', key: 'gender', width: 10 },
+      { header: 'Course', key: 'course', width: 15 },
+      { header: 'Contact', key: 'contact', width: 15 },
+      { header: 'Address', key: 'address', width: 30 },
+      { header: 'Registration Date', key: 'created', width: 15 }
+    ];
+
+    data.rawData.detailedStudents.forEach(student => {
+      studentsSheet.addRow({
+        id: student.id,
+        firstName: student.first_name,
+        lastName: student.last_name,
+        gender: student.gender,
+        course: student.courses?.course_code || 'N/A',
+        contact: student.contact_number || 'N/A',
+        address: student.address || 'N/A',
+        created: new Date(student.created_at).toLocaleDateString()
+      });
+    });
+
+    // Detailed Orders Sheet
+    const detailedOrdersSheet = workbook.addWorksheet('Detailed Orders');
+    detailedOrdersSheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Student', key: 'student', width: 20 },
+      { header: 'Type', key: 'type', width: 10 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Due Date', key: 'dueDate', width: 15 },
+      { header: 'Total Amount', key: 'total', width: 15 },
+      { header: 'Amount Paid', key: 'paid', width: 15 },
+      { header: 'Balance', key: 'balance', width: 15 },
+      { header: 'Payment Status', key: 'paymentStatus', width: 15 },
+      { header: 'Assigned To', key: 'employee', width: 20 },
+      { header: 'Order Date', key: 'created', width: 15 },
+      { header: 'Completion Date', key: 'completed', width: 15 }
+    ];
+
+    data.rawData.detailedOrders.forEach(order => {
+      detailedOrdersSheet.addRow({
+        id: order.id,
+        student: `${order.students?.first_name} ${order.students?.last_name}`,
+        type: order.uniform_type,
+        status: order.status,
+        dueDate: new Date(order.due_date).toLocaleDateString(),
+        total: order.total_amount,
+        paid: order.amount_paid,
+        balance: order.balance,
+        paymentStatus: order.payment_status,
+        employee: order.profiles ? `${order.profiles.first_name} ${order.profiles.last_name}` : 'Unassigned',
+        created: new Date(order.created_at).toLocaleDateString(),
+        completed: order.completed_at ? new Date(order.completed_at).toLocaleDateString() : 'Not completed'
+      });
+    });
+
+    // Courses Sheet
+    const coursesSheet = workbook.addWorksheet('Courses');
+    coursesSheet.columns = [
+      { header: 'Course Code', key: 'code', width: 15 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Created At', key: 'created', width: 15 }
+    ];
+
+    data.rawData.courses.forEach(course => {
+      coursesSheet.addRow({
+        code: course.course_code,
+        description: course.description || 'N/A',
+        created: new Date(course.created_at).toLocaleDateString()
+      });
+    });
+
+    // Employees Sheet
+    const employeesSheet = workbook.addWorksheet('Employees');
+    employeesSheet.columns = [
+      { header: 'First Name', key: 'firstName', width: 15 },
+      { header: 'Last Name', key: 'lastName', width: 15 },
+      { header: 'Role', key: 'role', width: 15 },
+      { header: 'Contact', key: 'contact', width: 15 },
+      { header: 'Position', key: 'position', width: 20 },
+      { header: 'Start Date', key: 'created', width: 15 }
+    ];
+
+    data.rawData.employees.forEach(employee => {
+      employeesSheet.addRow({
+        firstName: employee.first_name,
+        lastName: employee.last_name,
+        role: employee.role,
+        contact: employee.contact_number || 'N/A',
+        position: employee.position || 'N/A',
+        created: new Date(employee.created_at).toLocaleDateString()
+      });
+    });
+
+    // Measurements Sheet
+    const measurementsSheet = workbook.addWorksheet('Student Measurements');
+    measurementsSheet.columns = [
+      { header: 'Student', key: 'student', width: 25 },
+      { header: 'Course', key: 'course', width: 15 },
+      { header: 'Measurement Type', key: 'type', width: 20 },
+      { header: 'Value (cm)', key: 'value', width: 15 }
+    ];
+
+    data.rawData.measurements.forEach(student => {
+      const measurements = student.measurements || {};
+      Object.entries(measurements).forEach(([type, value]) => {
+        measurementsSheet.addRow({
+          student: `${student.first_name} ${student.last_name}`,
+          course: student.courses?.course_code || 'N/A',
+          type: type.replace(/_/g, ' ').toLowerCase(),
+          value: value
+        });
+      });
+    });
+
+    // Uniform Configurations Sheet
+    const configSheet = workbook.addWorksheet('Uniform Configurations');
+    configSheet.columns = [
+      { header: 'Course', key: 'course', width: 15 },
+      { header: 'Gender', key: 'gender', width: 10 },
+      { header: 'Type', key: 'type', width: 15 },
+      { header: 'Base Price', key: 'price', width: 15 },
+      { header: 'Measurement Specs', key: 'specs', width: 40 }
+    ];
+
+    data.rawData.uniformConfigs.forEach(config => {
+      configSheet.addRow({
+        course: config.courses?.course_code || 'N/A',
+        gender: config.gender,
+        type: config.wear_type,
+        price: formatCurrency(config.base_price),
+        specs: JSON.stringify(config.measurement_specs)
+      });
+    });
+
+    // Payment Tracking Sheet
+    const paymentSheet = workbook.addWorksheet('Payment History');
+    paymentSheet.columns = [
+      { header: 'Order ID', key: 'id', width: 10 },
+      { header: 'Student', key: 'student', width: 25 },
+      { header: 'Course', key: 'course', width: 15 },
+      { header: 'Total Amount', key: 'total', width: 15 },
+      { header: 'Amount Paid', key: 'paid', width: 15 },
+      { header: 'Balance', key: 'balance', width: 15 },
+      { header: 'Payment Status', key: 'status', width: 15 },
+      { header: 'Payment Date', key: 'date', width: 15 },
+      { header: 'Updated by', key: 'updatedBy', width: 20 }
+    ];
+
+    data.rawData.paymentTracking.forEach(payment => {
+      paymentSheet.addRow({
+        id: payment.id,
+        student: `${payment.students?.first_name} ${payment.students?.last_name}`,
+        course: payment.students?.courses?.course_code || 'N/A',
+        total: formatCurrency(payment.total_amount),
+        paid: formatCurrency(payment.amount_paid),
+        balance: formatCurrency(payment.balance),
+        status: payment.payment_status,
+        date: payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A',
+        updatedBy: payment.payment_updated_by || 'N/A'
+      });
+    });
+
+    // Style all sheets
+    workbook.eachSheet(sheet => {
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+      
+      // Add borders to all cells
+      sheet.eachRow((row, rowNumber) => {
+        row.eachCell(cell => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+    });
+
+    // Generate and download the file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dashboard-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
 </script>
 
 <div
@@ -580,6 +871,19 @@
           hour12: true,
         })}
       </div>
+    </div>
+
+    <!-- Add this button after the dashboard header, before the Key Metrics Cards section -->
+    <div class="flex justify-end mb-4">
+      <button
+        on:click={generateExcelReport}
+        class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586L7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+        </svg>
+        Generate Report
+      </button>
     </div>
 
     <!-- Key Metrics Cards -->

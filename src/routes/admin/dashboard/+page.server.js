@@ -269,6 +269,124 @@ export const load = async ({ locals }) => {
             { data: paymentData }
         ] = await Promise.all(promises);
 
+        // Add these new queries for detailed Excel report
+        const detailedDataPromises = [
+            // Detailed student data
+            locals.supabase
+                .from('students')
+                .select(`
+                    id,
+                    first_name,
+                    last_name,
+                    gender,
+                    contact_number,
+                    address,
+                    created_at,
+                    courses (
+                        course_code,
+                        description
+                    )
+                `)
+                .order('created_at', { ascending: false }),
+
+            // Detailed order data
+            locals.supabase
+                .from('orders')
+                .select(`
+                    id,
+                    uniform_type,
+                    status,
+                    due_date,
+                    total_amount,
+                    amount_paid,
+                    balance,
+                    payment_status,
+                    created_at,
+                    completed_at,
+                    students (
+                        first_name,
+                        last_name,
+                        courses (
+                            course_code
+                        )
+                    ),
+                    profiles (
+                        first_name,
+                        last_name
+                    )
+                `)
+                .order('created_at', { ascending: false }),
+
+            // Course data
+            locals.supabase
+                .from('courses')
+                .select('*')
+                .order('course_code', { ascending: true }),
+
+            // Employee data
+            locals.supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false }),
+
+            // Measurements data
+            locals.supabase
+                .from('students')
+                .select(`
+                    id,
+                    first_name,
+                    last_name,
+                    measurements,
+                    courses (course_code)
+                `)
+                .not('measurements', 'is', null),
+
+            // Uniform configurations
+            locals.supabase
+                .from('uniform_configuration')
+                .select(`
+                    id,
+                    gender,
+                    wear_type,
+                    measurement_specs,
+                    base_price,
+                    courses (
+                        course_code,
+                        description
+                    )
+                `),
+
+            // Detailed payment tracking
+            locals.supabase
+                .from('orders')
+                .select(`
+                    id,
+                    payment_status,
+                    total_amount,
+                    amount_paid,
+                    balance,
+                    payment_date,
+                    payment_updated_by,
+                    created_at,
+                    students (
+                        first_name,
+                        last_name,
+                        courses (course_code)
+                    )
+                `)
+                .order('payment_date', { ascending: false })
+        ];
+
+        const [
+            { data: detailedStudents },
+            { data: detailedOrders },
+            { data: courses },
+            { data: employees },
+            { data: measurements },
+            { data: uniformConfigs },
+            { data: paymentTracking }
+        ] = await Promise.all(detailedDataPromises);
+
         // Calculate upcoming due orders correctly
         const upcomingDue = orderData?.filter(o => {
             const dueDate = new Date(o.due_date);
@@ -450,6 +568,17 @@ export const load = async ({ locals }) => {
 
             additionalMetrics: {
                 averageOrderValueOverTime: calculateAverageOrderValueOverTime(orderData),
+            },
+
+            // Add new raw data for Excel export
+            rawData: {
+                detailedStudents,
+                detailedOrders,
+                courses,
+                employees,
+                measurements,
+                uniformConfigs,
+                paymentTracking
             }
         };
 
@@ -462,7 +591,16 @@ export const load = async ({ locals }) => {
             financialMetrics: {},
             studentAnalytics: {},
             performanceMetrics: {},
-            timeBasedMetrics: {}
+            timeBasedMetrics: {},
+            rawData: {
+                detailedStudents: [],
+                detailedOrders: [],
+                courses: [],
+                employees: [],
+                measurements: [],
+                uniformConfigs: [],
+                paymentTracking: []
+            }
         };
     }
 };

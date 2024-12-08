@@ -28,6 +28,7 @@
   let isEmployeeDropdownOpen = false;
   let employeeSearchTerm = "";
   let isLoading = false;
+  let orderForReceipt = null;
 
   $: {
     if (activeTab === "payments") {
@@ -518,6 +519,22 @@
       orderToPayment = order;
     }
   };
+
+  async function generateReceipt() {
+    if (browser) {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = document.getElementById('receipt');
+      const opt = {
+        margin: 1,
+        filename: `receipt-${orderForReceipt.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      
+      html2pdf().set(opt).from(element).save();
+    }
+  }
 </script>
 
 <!-- Student Search Modal -->
@@ -1082,6 +1099,93 @@
   </div>
 {/if}
 
+<!-- Add Receipt Modal -->
+{#if orderForReceipt}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg w-[800px] max-h-[90vh] overflow-auto">
+      <!-- Receipt Content -->
+      <div id="receipt" class="p-8">
+        <!-- Header -->
+        <div class="text-center mb-6">
+          <h1 class="text-2xl font-bold">SCG Dresshoppe</h1>
+          <p>Official Receipt</p>
+        </div>
+
+        <!-- Receipt Details -->
+        <div class="space-y-4">
+          <div class="flex justify-between">
+            <div>
+              <p><strong>Receipt No:</strong> {orderForReceipt.id}</p>
+              <p><strong>Date:</strong> {format(new Date(orderForReceipt.payment_date || orderForReceipt.created_at), "MMM d, yyyy")}</p>
+            </div>
+            <div>
+              <p><strong>Status:</strong> {displayPaymentStatus(orderForReceipt)}</p>
+            </div>
+          </div>
+
+          <div class="border-t border-b py-4">
+            <h3 class="font-bold mb-2">Customer Information</h3>
+            <p><strong>Name:</strong> {orderForReceipt.student?.first_name} {orderForReceipt.student?.last_name}</p>
+            <p><strong>Course:</strong> {orderForReceipt.student?.course?.course_code}</p>
+          </div>
+
+          <div class="border-b py-4">
+            <h3 class="font-bold mb-2">Order Details</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <p><strong>Order Type:</strong> {orderForReceipt.uniform_type}</p>
+              <p><strong>Status:</strong> {orderForReceipt.status}</p>
+              <p><strong>Due Date:</strong> {format(new Date(orderForReceipt.due_date), "MMM d, yyyy")}</p>
+              {#if orderForReceipt.employee}
+                <p><strong>Assigned To:</strong> {orderForReceipt.employee.first_name} {orderForReceipt.employee.last_name}</p>
+              {/if}
+            </div>
+          </div>
+
+          <div class="py-4">
+            <h3 class="font-bold mb-2">Payment Summary</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Total Amount:</span>
+                <span>₱{orderForReceipt.total_amount}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Amount Paid:</span>
+                <span>₱{orderForReceipt.amount_paid}</span>
+              </div>
+              <div class="flex justify-between font-bold">
+                <span>Balance:</span>
+                <span>₱{orderForReceipt.balance}</span>
+              </div>
+            </div>
+          </div>
+
+          {#if orderForReceipt.payment_updated_by}
+            <div class="text-sm text-gray-500 mt-8">
+              <p>Last payment recorded by: {orderForReceipt.payment_updated_by}</p>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="border-t p-4 flex justify-end gap-3">
+        <button 
+          class="px-4 py-2 border rounded hover:bg-gray-50"
+          on:click={() => orderForReceipt = null}
+        >
+          Close
+        </button>
+        <button 
+          class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+          on:click={generateReceipt}
+        >
+          Download PDF
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <!-- Main content -->
 <div class="p-6">
   <div
@@ -1361,7 +1465,7 @@
                       : field === "amount_paid"
                         ? "Paid"
                         : field === "payment_date"
-                          ? "Last Payment Date"
+                          ? "Last Payment"
                           : field === "payment_status"
                             ? "Payment Status"
                             : field === "payment_updated_by"
@@ -1427,15 +1531,21 @@
                   </td>
                   <td class="p-2">{order.payment_updated_by || "-"}</td>
                   <td class="p-2">
-                    <button
-                      class="text-blue-600 hover:text-blue-800 {isLoading
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''}"
-                      on:click={() => handleRecordPayment(order)}
-                      disabled={isLoading}
-                    >
-                      Record Payment
-                    </button>
+                    <div class="flex gap-2">
+                      <button
+                        class="text-blue-600 hover:text-blue-800 {isLoading ? 'opacity-50 cursor-not-allowed' : ''}"
+                        on:click={() => handleRecordPayment(order)}
+                        disabled={isLoading}
+                      >
+                        Payment
+                      </button>
+                      <button
+                        class="text-green-600 hover:text-green-800"
+                        on:click={() => orderForReceipt = order}
+                      >
+                        Receipt
+                      </button>
+                    </div>
                   </td>
                 </tr>
               {/each}
