@@ -3,6 +3,7 @@
   import { format } from "date-fns";
   import { invalidate } from "$app/navigation";
   import { browser } from "$app/environment";
+  import QRCode from 'qrcode';
 
   export let data;
   let showModal = false;
@@ -29,6 +30,9 @@
   let employeeSearchTerm = "";
   let isLoading = false;
   let orderForReceipt = null;
+  let verificationHash = "";
+  let verificationResult = null;
+  let showVerificationModal = false;
 
   $: {
     if (activeTab === "payments") {
@@ -433,6 +437,43 @@
     };
   };
 
+  async function generateQRCode(order) {
+    const dataToHash = `${order.id}-${order.student_id}-${order.total_amount}-${order.amount_paid}-${order.payment_date}`;
+    const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+    const verificationUrl = `${window.location.origin}/verify-receipt?orderId=${order.id}&hash=${hash}`;
+    return await QRCode.toDataURL(verificationUrl);
+  }
+
+  const handleVerifyReceipt = () => {
+    return async ({ result }) => {
+      if (result.type === 'success') {
+        verificationResult = result.data;
+      }
+    };
+  };
+
+  async function generateReceipt() {
+    if (browser) {
+      const qrCodeUrl = await generateQRCode(orderForReceipt);
+      const element = document.getElementById('receipt');
+      
+      // Add QR code to receipt
+      const qrContainer = document.getElementById('qr-code');
+      qrContainer.innerHTML = `<img src="${qrCodeUrl}" alt="Verification QR Code" class="w-32 h-32">`;
+
+      const html2pdf = (await import('html2pdf.js')).default;
+      const opt = {
+        margin: 1,
+        filename: `receipt-${orderForReceipt.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      
+      html2pdf().set(opt).from(element).save();
+    }
+  }
+
   function reloadWithTab(tab) {
     if (browser) {
       const url = new URL(window.location.href);
@@ -519,22 +560,6 @@
       orderToPayment = order;
     }
   };
-
-  async function generateReceipt() {
-    if (browser) {
-      const html2pdf = (await import('html2pdf.js')).default;
-      const element = document.getElementById('receipt');
-      const opt = {
-        margin: 1,
-        filename: `receipt-${orderForReceipt.id}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-      
-      html2pdf().set(opt).from(element).save();
-    }
-  }
 </script>
 
 <!-- Student Search Modal -->
@@ -1165,10 +1190,24 @@
             </div>
           {/if}
         </div>
+
+        <!-- Add QR Code section -->
+        <div class="mt-8 flex justify-center">
+          <div id="qr-code"></div>
+        </div>
+        <p class="text-center text-sm text-gray-500 mt-2">
+          Scan to verify receipt authenticity
+        </p>
       </div>
 
       <!-- Modal Actions -->
       <div class="border-t p-4 flex justify-end gap-3">
+        <button 
+          class="px-4 py-2 border rounded hover:bg-gray-50"
+          on:click={() => showVerificationModal = true}
+        >
+          Verify Receipt
+        </button>
         <button 
           class="px-4 py-2 border rounded hover:bg-gray-50"
           on:click={() => orderForReceipt = null}
@@ -1182,6 +1221,68 @@
           Download PDF
         </button>
       </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Add Verification Modal -->
+{#if showVerificationModal}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-[500px]">
+      <h2 class="text-xl font-bold mb-4">Verify Receipt</h2>
+      
+      <form 
+        method="POST" 
+        action="?/verifyReceipt" 
+        use:enhance={handleVerifyReceipt}
+        class="space-y-4"
+      >
+        <div>
+          <label class="block mb-2">Order ID</label>
+          <input 
+            type="text" 
+            name="orderId" 
+            class="w-full p-2 border rounded"
+            placeholder="Enter Order ID"
+            required
+          />
+        </div>
+        <div>
+          <label class="block mb-2">Verification Hash</label>
+          <input 
+            type="text" 
+            name="hash"
+            class="w-full p-2 border rounded"
+            placeholder="Enter verification hash"
+            required
+          />
+        </div>
+
+        {#if verificationResult}
+          <div class={`p-4 rounded-lg ${verificationResult.isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            {verificationResult.isValid ? 'Receipt is valid!' : 'Invalid receipt!'}
+          </div>
+        {/if}
+
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button"
+            class="px-4 py-2 border rounded"
+            on:click={() => {
+              showVerificationModal = false;
+              verificationResult = null;
+            }}
+          >
+            Close
+          </button>
+          <button 
+            type="submit"
+            class="px-4 py-2 bg-primary text-white rounded"
+          >
+            Verify
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 {/if}
