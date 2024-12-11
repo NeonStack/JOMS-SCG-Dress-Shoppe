@@ -896,6 +896,46 @@
     completionStats,
     onTimeStats
   );
+
+  // Add pagination state
+  let currentPage = 1;
+  let rowsPerPage = 10;
+  
+  // Calculate total pages and paginated orders
+  $: totalPages = Math.ceil((filteredOrders?.length || 0) / rowsPerPage);
+  $: paginatedOrders = filteredOrders?.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Navigation functions
+  function nextPage() {
+    if (currentPage < totalPages) currentPage++;
+  }
+
+  function prevPage() {
+    if (currentPage > 1) currentPage--;
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+  }
+
+  // Reset to first page when filters change
+  $: if (searchQuery || selectedEmployee || selectedStatus || orderDateRange || dueDateRange || completedDateRange) {
+    currentPage = 1;
+  }
+
+  // Generate page numbers for pagination
+  $: pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, i) => {
+      if (totalPages <= 5) return i + 1;
+      if (currentPage <= 3) return i + 1;
+      if (currentPage >= totalPages - 2) return totalPages - 4 + i;
+      return currentPage - 2 + i;
+    }
+  );
 </script>
 
 <div class="p-6 space-y-6">
@@ -1180,7 +1220,7 @@
             />
           </div>
         </div>
-        <!-- Replace the existing table section with this -->
+        <!-- Replace the existing table section with this updated version -->
         <div class="overflow-x-auto">
           <table class="w-full min-w-[800px]">
             <!-- Added min-width to prevent squishing -->
@@ -1233,7 +1273,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each filteredOrders as order}
+              {#each paginatedOrders as order}
                 {@const workInfo = calculateWorkDuration(order)}
                 <tr class="border-b hover:bg-gray-50">
                   <td class="p-3">
@@ -1340,6 +1380,39 @@
               {/each}
             </tbody>
           </table>
+          
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-between px-4 py-3 border-t">
+            <div class="flex items-center text-sm text-gray-500">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredOrders?.length || 0)} of {filteredOrders?.length || 0} entries
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-3 py-1 rounded border {currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}"
+                on:click={prevPage}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              
+              {#each pageNumbers as pageNum}
+                <button
+                  class="px-3 py-1 rounded border {currentPage === pageNum ? 'bg-primary text-white' : 'hover:bg-gray-50'}"
+                  on:click={() => goToPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              {/each}
+              
+              <button
+                class="px-3 py-1 rounded border {currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}"
+                on:click={nextPage}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
