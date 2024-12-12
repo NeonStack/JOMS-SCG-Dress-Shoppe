@@ -262,6 +262,46 @@
       }
     };
   }
+
+  // Add pagination state
+  let currentPage = 1;
+  let rowsPerPage = 10;
+  
+  // Calculate total pages and paginated students
+  $: totalPages = Math.ceil((filteredStudents?.length || 0) / rowsPerPage);
+  $: paginatedStudents = filteredStudents?.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Navigation functions
+  function nextPage() {
+    if (currentPage < totalPages) currentPage++;
+  }
+
+  function prevPage() {
+    if (currentPage > 1) currentPage--;
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+  }
+
+  // Reset to first page when filters change
+  $: if (searchQuery) {
+    currentPage = 1;
+  }
+
+  // Generate page numbers for pagination
+  $: pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, i) => {
+      if (totalPages <= 5) return i + 1;
+      if (currentPage <= 3) return i + 1;
+      if (currentPage >= totalPages - 2) return totalPages - 4 + i;
+      return currentPage - 2 + i;
+    }
+  );
 </script>
 
 {#if error}
@@ -374,7 +414,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each filteredStudents as student}
+            {#each paginatedStudents as student}
               <tr class="border-b hover:bg-muted">
                 <td class="p-2">{student.first_name}</td>
                 <td class="p-2">{student.last_name}</td>
@@ -415,6 +455,39 @@
             {/each}
           </tbody>
         </table>
+
+        <!-- Add Pagination Controls -->
+        <div class="flex items-center justify-between px-4 py-3 border-t">
+          <div class="flex items-center text-sm text-gray-500">
+            Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredStudents?.length || 0)} of {filteredStudents?.length || 0} entries
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              class="px-3 py-1 rounded border {currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}"
+              on:click={prevPage}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            
+            {#each pageNumbers as pageNum}
+              <button
+                class="px-3 py-1 rounded border {currentPage === pageNum ? 'bg-primary text-white' : 'hover:bg-gray-50'}"
+                on:click={() => goToPage(pageNum)}
+              >
+                {pageNum}
+              </button>
+            {/each}
+            
+            <button
+              class="px-3 py-1 rounded border {currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}"
+              on:click={nextPage}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

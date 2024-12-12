@@ -551,95 +551,89 @@
       </div>
     </div>
 
-    <!-- Table -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <!-- Main content card -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <div class="flex flex-col md:flex-row justify-between gap-4 md:gap-0 mb-4">
+        <h2 class="text-xl font-semibold">Accounts List</h2>
+        <input
+          type="text"
+          placeholder="Search accounts..."
+          bind:value={searchQuery}
+          class="w-full md:w-auto border rounded p-2"
+        />
+      </div>
+
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="bg-gray-50 border-b border-gray-200">
+            <tr class="bg-muted max-md:whitespace-nowrap">
               <th
-                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => handleSort("name")}
               >
-                <div class="flex items-center space-x-1">
-                  <span class="text-xs font-medium text-gray-500 uppercase"
-                    >Name</span
-                  >
-                  {#if sortBy.field === "name"}
-                    <span
-                      class={sortBy.order === "desc"
-                        ? "transform rotate-180"
-                        : ""}>↑</span
-                    >
-                  {/if}
-                </div>
+                Name
+                {#if sortBy.field === "name"}
+                  <span class="ml-1">{sortBy.order === "asc" ? "↑" : "↓"}</span>
+                {/if}
               </th>
               <th
-                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => handleSort("email")}
               >
-                <div class="flex items-center space-x-1">
-                  <span class="text-xs font-medium text-gray-500 uppercase">Email</span>
-                  {#if sortBy.field === "email"}
-                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
-                  {/if}
-                </div>
+                Email
+                {#if sortBy.field === "email"}
+                  <span class="ml-1">{sortBy.order === "asc" ? "↑" : "↓"}</span>
+                {/if}
               </th>
               <th
-                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => handleSort("role")}
               >
-                <div class="flex items-center space-x-1">
-                  <span class="text-xs font-medium text-gray-500 uppercase">Role</span>
-                  {#if sortBy.field === "role"}
-                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
-                  {/if}
-                </div>
+                Role
+                {#if sortBy.field === "role"}
+                  <span class="ml-1">{sortBy.order === "asc" ? "↑" : "↓"}</span>
+                {/if}
               </th>
               <th
-                class="px-6 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => handleSort("position")}
               >
-                <div class="flex items-center space-x-1">
-                  <span class="text-xs font-medium text-gray-500 uppercase">Position</span>
-                  {#if sortBy.field === "position"}
-                    <span class={sortBy.order === "desc" ? "transform rotate-180" : ""}>↑</span>
-                  {/if}
-                </div>
+                Position
+                {#if sortBy.field === "position"}
+                  <span class="ml-1">{sortBy.order === "asc" ? "↑" : "↓"}</span>
+                {/if}
               </th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
-                >Actions</th
+              <th
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                on:click={() => handleSort("created_at")}
               >
+                Created At
+                {#if sortBy.field === "created_at"}
+                  <span class="ml-1">{sortBy.order === "asc" ? "↑" : "↓"}</span>
+                {/if}
+              </th>
+              <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-200">
+          <tbody>
             {#each filteredAccounts as account (account.id)}
-              <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4">
+              <tr class="border-b hover:bg-muted">
+                <td class="p-2">
                   <div class="flex items-center">
                     <div
-                      class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium"
+                      class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm"
                     >
                       {account.first_name[0]}{account.last_name[0]}
                     </div>
-                    <div class="ml-4">
-                      <div class="text-sm font-medium text-gray-900">
-                        {account.first_name}
-                        {account.last_name}
-                      </div>
-                      <div class="text-sm text-gray-500">
-                        {account.contact_number || "No contact"}
-                      </div>
-                    </div>
+                    <span class="ml-2">
+                      {account.first_name} {account.last_name}
+                    </span>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-500">
-                  {account.email}
-                </td>
-                <td class="px-6 py-4">
+                <td class="p-2">{account.email}</td>
+                <td class="p-2">
                   <span
-                    class="px-2 py-1 rounded-full text-sm {account.role ===
-                    'superadmin'
+                    class="px-2 py-1 rounded-full text-sm {account.role === 'superadmin'
                       ? 'bg-purple-100 text-purple-800'
                       : account.role === 'admin'
                         ? 'bg-blue-100 text-blue-800'
@@ -652,12 +646,13 @@
                         : "Tailor"}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-500"
-                  >{account.position || "Not assigned"}</td
-                >
-                <td class="px-6 py-4 text-right space-x-2">
+                <td class="p-2">{account.position || "-"}</td>
+                <td class="p-2">
+                  {new Date(account.created_at).toLocaleDateString()}
+                </td>
+                <td class="p-2 text-right">
                   <button
-                    class="text-primary hover:text-primary-dark font-medium text-sm"
+                    class="text-blue-600 hover:text-blue-800 mr-2"
                     on:click={() => {
                       showDeleteModal = false;
                       showDetailsModal = true;
@@ -668,7 +663,7 @@
                   </button>
                   {#if account.role !== 'superadmin'}
                     <button
-                      class="text-primary hover:text-primary-dark font-medium text-sm"
+                      class="text-blue-600 hover:text-blue-800 mr-2"
                       on:click={() => {
                         showDeleteModal = false;
                         showDetailsModal = false;
@@ -679,7 +674,7 @@
                     </button>
                     {#if data.userRole === "superadmin" || (data.userRole === "admin" && account.role === "employee")}
                       <button
-                        class="text-error hover:text-error-dark font-medium text-sm"
+                        class="text-red-600 hover:text-red-800"
                         on:click={() => {
                           selectedAccount = account;
                           showDeleteModal = true;
