@@ -1,8 +1,9 @@
 <script>
   import { Chart, registerables } from "chart.js";
   import { onMount, onDestroy } from "svelte";
-  import { fade } from 'svelte/transition';
-  import * as ExcelJS from 'exceljs';
+  import { fade } from "svelte/transition";
+  import AIInsights from "$lib/components/dashboard/AIInsights.svelte";
+  import * as ExcelJS from "exceljs";
 
   Chart.register(...registerables);
   export let data;
@@ -23,28 +24,28 @@
       value: data.basicStats.totalStudents,
       color: "from-blue-500 to-blue-600",
       description: "Total number of students registered in the system",
-      type: 'students'
+      type: "students",
     },
     {
       title: "Total Orders",
       value: data.basicStats.totalOrders,
       color: "from-primary to-primary-dark",
       description: "Total number of uniform orders placed",
-      type: 'orders'
+      type: "orders",
     },
     {
       title: "Completion Rate",
       value: formatPercent(data.basicStats.completionRate),
       color: "from-green-500 to-green-600",
       description: "Percentage of completed orders out of total orders",
-      type: 'completion'
+      type: "completion",
     },
     {
       title: "Total Revenue",
       value: formatCurrency(data.basicStats.totalRevenue),
       color: "from-purple-500 to-purple-600",
       description: "Total revenue from all paid orders",
-      type: 'revenue'
+      type: "revenue",
     },
   ];
 
@@ -54,29 +55,29 @@
       value: data.timeBasedMetrics.overdueOrders,
       color: "from-red-500 to-red-600",
       description: "Orders past their due date and not completed",
-      type: "overdue"
+      type: "overdue",
     },
     {
       title: "Due Within 7 Days",
       value: data.timeBasedMetrics.upcomingDue,
       color: "from-yellow-500 to-yellow-600",
       description: "Orders due from today to next 7 days (inclusive)",
-      type: "upcoming"
+      type: "upcoming",
     },
     {
       title: "Avg Completion",
       value: `${data.timeBasedMetrics.averageCompletionTime} days`,
       color: "from-blue-500 to-blue-600",
       description: "Average time to complete an order",
-      type: "completion_time"
+      type: "completion_time",
     },
     {
       title: "Rush Orders",
       value: data.timeBasedMetrics.rushOrders,
       color: "from-orange-500 to-orange-600",
       description: "Orders with 3 or fewer days between order and due date",
-      type: "rush"
-    }
+      type: "rush",
+    },
   ];
 
   // Improved common chart options
@@ -112,6 +113,10 @@
   let selectedTimeFrame = "day";
   let selectedRevenueType = "order"; // Add this new state
   const timeFrames = ["day", "week", "month", "year"];
+
+  // Add AI data state
+  let aiData = null;
+  let aiLoading = true;
 
   // Add chart instance variables
   let revenueChart;
@@ -443,7 +448,19 @@
     initCompletionPerformanceChart();
   }
 
-  onMount(() => {
+  onMount(async () => {
+    try {
+      const response = await fetch("/api/ai");
+      if (response.ok) {
+        aiData = await response.json();
+      } else {
+        console.error("Failed to load AI insights");
+      }
+    } catch (error) {
+      console.error("Error fetching AI insights:", error);
+    } finally {
+      aiLoading = false;
+    }
     updateCharts();
   });
 
@@ -473,68 +490,69 @@
   async function handleCardClick(metric) {
     try {
       let details;
-      switch(metric) {
-        case 'students':
+      switch (metric) {
+        case "students":
           details = {
-            title: 'Student List',
+            title: "Student List",
             data: data.studentAnalytics.studentList,
-            columns: ['Name', 'Course', 'Gender']
+            columns: ["Name", "Course", "Gender"],
           };
           break;
-        case 'orders':
+        case "orders":
           details = {
-            title: 'Order List',
+            title: "Order List",
             data: data.orderMetrics.allOrders,
-            columns: ['Student', 'Type', 'Status', 'Amount']
+            columns: ["Student", "Type", "Status", "Amount"],
           };
           break;
-        case 'completion':
+        case "completion":
           details = {
-            title: 'Completion Statistics',
+            title: "Completion Statistics",
             data: data.orderMetrics.completionDetails,
-            columns: ['Status', 'Count', 'Percentage']
+            columns: ["Status", "Count", "Percentage"],
           };
           break;
-        case 'revenue':
+        case "revenue":
           details = {
-            title: 'Revenue Details',
+            title: "Revenue Details",
             data: data.financialMetrics.revenueDetails,
-            columns: ['Category', 'Amount', 'Percentage']
+            columns: ["Category", "Amount", "Percentage"],
           };
           break;
-        case 'overdue':
+        case "overdue":
           details = {
-            title: 'Overdue Orders',
+            title: "Overdue Orders",
             data: data.timeBasedMetrics.additionalMetrics.overdueDetails,
-            columns: ['Student', 'Due Date', 'Days Overdue']
+            columns: ["Student", "Due Date", "Days Overdue"],
           };
           break;
-        case 'upcoming':
+        case "upcoming":
           details = {
-            title: 'Upcoming Due Orders',
+            title: "Upcoming Due Orders",
             data: data.timeBasedMetrics.additionalMetrics.upcomingDueDetails,
-            columns: ['Student', 'Due Date', 'Status']
+            columns: ["Student", "Due Date", "Status"],
           };
           break;
-        case 'completion_time':
+        case "completion_time":
           details = {
-            title: 'Completion Time Details',
-            data: data.timeBasedMetrics.additionalMetrics.avgCompletionDetails.breakdown,
-            columns: ['Student', 'Days to Complete', 'Completed At']
+            title: "Completion Time Details",
+            data: data.timeBasedMetrics.additionalMetrics.avgCompletionDetails
+              .breakdown,
+            columns: ["Student", "Days to Complete", "Completed At"],
           };
           break;
-        case 'rush':
+        case "rush":
           details = {
-            title: 'Rush Orders',
+            title: "Rush Orders",
             data: data.timeBasedMetrics.additionalMetrics.rushOrderDetails,
-            columns: ['Student', 'Order Date', 'Due Date', 'Days to Complete']
+            columns: ["Student", "Order Date", "Due Date", "Days to Complete"],
           };
           break;
       }
       modalData = details;
       activeModal = metric;
     } catch (error) {
-      console.error('Error loading details:', error);
+      console.error("Error loading details:", error);
     }
   }
 
@@ -547,47 +565,47 @@
     const workbook = new ExcelJS.Workbook();
 
     // Summary Sheet
-    const summarySheet = workbook.addWorksheet('Summary');
+    const summarySheet = workbook.addWorksheet("Summary");
     summarySheet.columns = [
-      { header: 'Metric', key: 'metric', width: 20 },
-      { header: 'Value', key: 'value', width: 15 },
-      { header: 'Description', key: 'description', width: 40 }
+      { header: "Metric", key: "metric", width: 20 },
+      { header: "Value", key: "value", width: 15 },
+      { header: "Description", key: "description", width: 40 },
     ];
 
     // Add basic metrics
-    [...metrics, ...timeMetrics].forEach(metric => {
+    [...metrics, ...timeMetrics].forEach((metric) => {
       summarySheet.addRow({
         metric: metric.title,
         value: metric.value,
-        description: metric.description
+        description: metric.description,
       });
     });
 
     // Orders Sheet
-    const ordersSheet = workbook.addWorksheet('Recent Orders');
+    const ordersSheet = workbook.addWorksheet("Recent Orders");
     ordersSheet.columns = [
-      { header: 'Student', key: 'student', width: 20 },
-      { header: 'Ordered At', key: 'orderedAt', width: 15 },
-      { header: 'Due Date', key: 'dueDate', width: 15 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Amount', key: 'amount', width: 15 }
+      { header: "Student", key: "student", width: 20 },
+      { header: "Ordered At", key: "orderedAt", width: 15 },
+      { header: "Due Date", key: "dueDate", width: 15 },
+      { header: "Status", key: "status", width: 15 },
+      { header: "Amount", key: "amount", width: 15 },
     ];
 
-    data.orderMetrics.recentOrders.forEach(order => {
+    data.orderMetrics.recentOrders.forEach((order) => {
       ordersSheet.addRow({
         student: order.student,
         orderedAt: new Date(order.orderedAt).toLocaleDateString(),
         dueDate: new Date(order.dueDate).toLocaleDateString(),
         status: order.status,
-        amount: order.amount
+        amount: order.amount,
       });
     });
 
     // Order Status Sheet
-    const statusSheet = workbook.addWorksheet('Order Status');
+    const statusSheet = workbook.addWorksheet("Order Status");
     statusSheet.columns = [
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Count', key: 'count', width: 10 }
+      { header: "Status", key: "status", width: 15 },
+      { header: "Count", key: "count", width: 10 },
     ];
 
     Object.entries(data.orderMetrics.byStatus).forEach(([status, count]) => {
@@ -595,86 +613,90 @@
     });
 
     // Revenue Data Sheet
-    const revenueSheet = workbook.addWorksheet('Revenue Data');
+    const revenueSheet = workbook.addWorksheet("Revenue Data");
     revenueSheet.columns = [
-      { header: 'Period', key: 'period', width: 15 },
-      { header: 'Revenue', key: 'revenue', width: 15 }
+      { header: "Period", key: "period", width: 15 },
+      { header: "Revenue", key: "revenue", width: 15 },
     ];
 
     const timeData = data.financialMetrics.revenueOverTime[selectedTimeFrame];
     Object.entries(timeData).forEach(([period, data]) => {
       revenueSheet.addRow({
         period,
-        revenue: data.orderRevenue
+        revenue: data.orderRevenue,
       });
     });
 
     // Course Enrollment Sheet
-    const courseSheet = workbook.addWorksheet('Course Enrollment');
+    const courseSheet = workbook.addWorksheet("Course Enrollment");
     courseSheet.columns = [
-      { header: 'Course', key: 'course', width: 20 },
-      { header: 'Students', key: 'students', width: 10 }
+      { header: "Course", key: "course", width: 20 },
+      { header: "Students", key: "students", width: 10 },
     ];
 
-    Object.entries(data.studentAnalytics.courseEnrollment).forEach(([course, count]) => {
-      courseSheet.addRow({ course, students: count });
-    });
+    Object.entries(data.studentAnalytics.courseEnrollment).forEach(
+      ([course, count]) => {
+        courseSheet.addRow({ course, students: count });
+      }
+    );
 
     // Gender Distribution Sheet
-    const genderSheet = workbook.addWorksheet('Gender Distribution');
+    const genderSheet = workbook.addWorksheet("Gender Distribution");
     genderSheet.columns = [
-      { header: 'Gender', key: 'gender', width: 15 },
-      { header: 'Count', key: 'count', width: 10 }
+      { header: "Gender", key: "gender", width: 15 },
+      { header: "Count", key: "count", width: 10 },
     ];
 
-    Object.entries(data.studentAnalytics.genderDistribution).forEach(([gender, count]) => {
-      genderSheet.addRow({ gender, count });
-    });
+    Object.entries(data.studentAnalytics.genderDistribution).forEach(
+      ([gender, count]) => {
+        genderSheet.addRow({ gender, count });
+      }
+    );
 
     // Detailed Students Sheet
-    const studentsSheet = workbook.addWorksheet('Detailed Students');
+    const studentsSheet = workbook.addWorksheet("Detailed Students");
     studentsSheet.columns = [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'First Name', key: 'firstName', width: 15 },
-      { header: 'Last Name', key: 'lastName', width: 15 },
-      { header: 'Gender', key: 'gender', width: 10 },
-      { header: 'Course', key: 'course', width: 15 },
-      { header: 'Contact', key: 'contact', width: 15 },
-      { header: 'Address', key: 'address', width: 30 },
-      { header: 'Registration Date', key: 'created', width: 15 }
+      { header: "ID", key: "id", width: 10 },
+      { header: "First Name", key: "firstName", width: 15 },
+      { header: "Last Name", key: "lastName", width: 15 },
+      { header: "Gender", key: "gender", width: 10 },
+      { header: "Course", key: "course", width: 15 },
+      { header: "Contact", key: "contact", width: 15 },
+      { header: "Address", key: "address", width: 30 },
+      { header: "Registration Date", key: "created", width: 15 },
     ];
 
-    data.rawData.detailedStudents.forEach(student => {
+    data.rawData.detailedStudents.forEach((student) => {
       studentsSheet.addRow({
         id: student.id,
         firstName: student.first_name,
         lastName: student.last_name,
         gender: student.gender,
-        course: student.courses?.course_code || 'N/A',
-        contact: student.contact_number || 'N/A',
-        address: student.address || 'N/A',
-        created: new Date(student.created_at).toLocaleDateString()
+        course: student.courses?.course_code || "N/A",
+        contact: student.contact_number || "N/A",
+        address: student.address || "N/A",
+        created: new Date(student.created_at).toLocaleDateString(),
       });
     });
 
     // Detailed Orders Sheet
-    const detailedOrdersSheet = workbook.addWorksheet('Detailed Orders');
+    const detailedOrdersSheet = workbook.addWorksheet("Detailed Orders");
     detailedOrdersSheet.columns = [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'Student', key: 'student', width: 20 },
-      { header: 'Type', key: 'type', width: 10 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Due Date', key: 'dueDate', width: 15 },
-      { header: 'Total Amount', key: 'total', width: 15 },
-      { header: 'Amount Paid', key: 'paid', width: 15 },
-      { header: 'Balance', key: 'balance', width: 15 },
-      { header: 'Payment Status', key: 'paymentStatus', width: 15 },
-      { header: 'Assigned To', key: 'employee', width: 20 },
-      { header: 'Order Date', key: 'created', width: 15 },
-      { header: 'Completion Date', key: 'completed', width: 15 }
+      { header: "ID", key: "id", width: 10 },
+      { header: "Student", key: "student", width: 20 },
+      { header: "Type", key: "type", width: 10 },
+      { header: "Status", key: "status", width: 15 },
+      { header: "Due Date", key: "dueDate", width: 15 },
+      { header: "Total Amount", key: "total", width: 15 },
+      { header: "Amount Paid", key: "paid", width: 15 },
+      { header: "Balance", key: "balance", width: 15 },
+      { header: "Payment Status", key: "paymentStatus", width: 15 },
+      { header: "Assigned To", key: "employee", width: 20 },
+      { header: "Order Date", key: "created", width: 15 },
+      { header: "Completion Date", key: "completed", width: 15 },
     ];
 
-    data.rawData.detailedOrders.forEach(order => {
+    data.rawData.detailedOrders.forEach((order) => {
       detailedOrdersSheet.addRow({
         id: order.id,
         student: `${order.students?.first_name} ${order.students?.last_name}`,
@@ -685,136 +707,142 @@
         paid: order.amount_paid,
         balance: order.balance,
         paymentStatus: order.payment_status,
-        employee: order.profiles ? `${order.profiles.first_name} ${order.profiles.last_name}` : 'Unassigned',
+        employee: order.profiles
+          ? `${order.profiles.first_name} ${order.profiles.last_name}`
+          : "Unassigned",
         created: new Date(order.created_at).toLocaleDateString(),
-        completed: order.completed_at ? new Date(order.completed_at).toLocaleDateString() : 'Not completed'
+        completed: order.completed_at
+          ? new Date(order.completed_at).toLocaleDateString()
+          : "Not completed",
       });
     });
 
     // Courses Sheet
-    const coursesSheet = workbook.addWorksheet('Courses');
+    const coursesSheet = workbook.addWorksheet("Courses");
     coursesSheet.columns = [
-      { header: 'Course Code', key: 'code', width: 15 },
-      { header: 'Description', key: 'description', width: 40 },
-      { header: 'Created At', key: 'created', width: 15 }
+      { header: "Course Code", key: "code", width: 15 },
+      { header: "Description", key: "description", width: 40 },
+      { header: "Created At", key: "created", width: 15 },
     ];
 
-    data.rawData.courses.forEach(course => {
+    data.rawData.courses.forEach((course) => {
       coursesSheet.addRow({
         code: course.course_code,
-        description: course.description || 'N/A',
-        created: new Date(course.created_at).toLocaleDateString()
+        description: course.description || "N/A",
+        created: new Date(course.created_at).toLocaleDateString(),
       });
     });
 
     // Employees Sheet
-    const employeesSheet = workbook.addWorksheet('Employees');
+    const employeesSheet = workbook.addWorksheet("Employees");
     employeesSheet.columns = [
-      { header: 'First Name', key: 'firstName', width: 15 },
-      { header: 'Last Name', key: 'lastName', width: 15 },
-      { header: 'Role', key: 'role', width: 15 },
-      { header: 'Contact', key: 'contact', width: 15 },
-      { header: 'Position', key: 'position', width: 20 },
-      { header: 'Start Date', key: 'created', width: 15 }
+      { header: "First Name", key: "firstName", width: 15 },
+      { header: "Last Name", key: "lastName", width: 15 },
+      { header: "Role", key: "role", width: 15 },
+      { header: "Contact", key: "contact", width: 15 },
+      { header: "Position", key: "position", width: 20 },
+      { header: "Start Date", key: "created", width: 15 },
     ];
 
-    data.rawData.employees.forEach(employee => {
+    data.rawData.employees.forEach((employee) => {
       employeesSheet.addRow({
         firstName: employee.first_name,
         lastName: employee.last_name,
         role: employee.role,
-        contact: employee.contact_number || 'N/A',
-        position: employee.position || 'N/A',
-        created: new Date(employee.created_at).toLocaleDateString()
+        contact: employee.contact_number || "N/A",
+        position: employee.position || "N/A",
+        created: new Date(employee.created_at).toLocaleDateString(),
       });
     });
 
     // Measurements Sheet
-    const measurementsSheet = workbook.addWorksheet('Student Measurements');
+    const measurementsSheet = workbook.addWorksheet("Student Measurements");
     measurementsSheet.columns = [
-      { header: 'Student', key: 'student', width: 25 },
-      { header: 'Course', key: 'course', width: 15 },
-      { header: 'Measurement Type', key: 'type', width: 20 },
-      { header: 'Value (cm)', key: 'value', width: 15 }
+      { header: "Student", key: "student", width: 25 },
+      { header: "Course", key: "course", width: 15 },
+      { header: "Measurement Type", key: "type", width: 20 },
+      { header: "Value (cm)", key: "value", width: 15 },
     ];
 
-    data.rawData.measurements.forEach(student => {
+    data.rawData.measurements.forEach((student) => {
       const measurements = student.measurements || {};
       Object.entries(measurements).forEach(([type, value]) => {
         measurementsSheet.addRow({
           student: `${student.first_name} ${student.last_name}`,
-          course: student.courses?.course_code || 'N/A',
-          type: type.replace(/_/g, ' ').toLowerCase(),
-          value: value
+          course: student.courses?.course_code || "N/A",
+          type: type.replace(/_/g, " ").toLowerCase(),
+          value: value,
         });
       });
     });
 
     // Uniform Configurations Sheet
-    const configSheet = workbook.addWorksheet('Uniform Configurations');
+    const configSheet = workbook.addWorksheet("Uniform Configurations");
     configSheet.columns = [
-      { header: 'Course', key: 'course', width: 15 },
-      { header: 'Gender', key: 'gender', width: 10 },
-      { header: 'Type', key: 'type', width: 15 },
-      { header: 'Base Price', key: 'price', width: 15 },
-      { header: 'Measurement Specs', key: 'specs', width: 40 }
+      { header: "Course", key: "course", width: 15 },
+      { header: "Gender", key: "gender", width: 10 },
+      { header: "Type", key: "type", width: 15 },
+      { header: "Base Price", key: "price", width: 15 },
+      { header: "Measurement Specs", key: "specs", width: 40 },
     ];
 
-    data.rawData.uniformConfigs.forEach(config => {
+    data.rawData.uniformConfigs.forEach((config) => {
       configSheet.addRow({
-        course: config.courses?.course_code || 'N/A',
+        course: config.courses?.course_code || "N/A",
         gender: config.gender,
         type: config.wear_type,
         price: formatCurrency(config.base_price),
-        specs: JSON.stringify(config.measurement_specs)
+        specs: JSON.stringify(config.measurement_specs),
       });
     });
 
     // Payment Tracking Sheet
-    const paymentSheet = workbook.addWorksheet('Payment History');
+    const paymentSheet = workbook.addWorksheet("Payment History");
     paymentSheet.columns = [
-      { header: 'Order ID', key: 'id', width: 10 },
-      { header: 'Student', key: 'student', width: 25 },
-      { header: 'Course', key: 'course', width: 15 },
-      { header: 'Total Amount', key: 'total', width: 15 },
-      { header: 'Amount Paid', key: 'paid', width: 15 },
-      { header: 'Balance', key: 'balance', width: 15 },
-      { header: 'Payment Status', key: 'status', width: 15 },
-      { header: 'Payment Date', key: 'date', width: 15 },
-      { header: 'Updated by', key: 'updatedBy', width: 20 }
+      { header: "Order ID", key: "id", width: 10 },
+      { header: "Student", key: "student", width: 25 },
+      { header: "Course", key: "course", width: 15 },
+      { header: "Total Amount", key: "total", width: 15 },
+      { header: "Amount Paid", key: "paid", width: 15 },
+      { header: "Balance", key: "balance", width: 15 },
+      { header: "Payment Status", key: "status", width: 15 },
+      { header: "Payment Date", key: "date", width: 15 },
+      { header: "Updated by", key: "updatedBy", width: 20 },
     ];
 
-    data.rawData.paymentTracking.forEach(payment => {
+    data.rawData.paymentTracking.forEach((payment) => {
       paymentSheet.addRow({
         id: payment.id,
         student: `${payment.students?.first_name} ${payment.students?.last_name}`,
-        course: payment.students?.courses?.course_code || 'N/A',
+        course: payment.students?.courses?.course_code || "N/A",
         total: formatCurrency(payment.total_amount),
         paid: formatCurrency(payment.amount_paid),
         balance: formatCurrency(payment.balance),
         status: payment.payment_status,
-        date: payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A',
-        updatedBy: payment.payment_updated_by || 'N/A'
+        date: payment.payment_date
+          ? new Date(payment.payment_date).toLocaleDateString()
+          : "N/A",
+        updatedBy: payment.payment_updated_by || "N/A",
       });
     });
 
     // Style all sheets
-    workbook.eachSheet(sheet => {
+    workbook.eachSheet((sheet) => {
       sheet.getRow(1).font = { bold: true };
       sheet.getRow(1).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE0E0E0' }
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFE0E0E0" },
       };
-      
+
       // Add borders to all cells
       sheet.eachRow((row, rowNumber) => {
-        row.eachCell(cell => {
+        row.eachCell((cell) => {
           cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
           };
         });
       });
@@ -822,11 +850,13 @@
 
     // Generate and download the file
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `dashboard-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.download = `dashboard-report-${new Date().toISOString().split("T")[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -851,7 +881,10 @@
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-          <path fill="currentColor" d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z" />
+            <path
+              fill="currentColor"
+              d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"
+            />
           </svg>
         </div>
         <h1
@@ -879,8 +912,17 @@
         on:click={generateExcelReport}
         class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586L7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586L7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+            clip-rule="evenodd"
+          />
         </svg>
         Generate Report
       </button>
@@ -889,10 +931,10 @@
     <!-- Key Metrics Cards -->
     <div class="grid grid-cols-4 max-md:grid-cols-1 gap-6 max-md:gap-3">
       {#each metrics as metric}
-        <div 
+        <div
           class="group relative flex cursor-pointer"
           on:click={() => handleCardClick(metric.type)}
-          on:keydown={(e) => e.key === 'Enter' && handleCardClick(metric.type)}
+          on:keydown={(e) => e.key === "Enter" && handleCardClick(metric.type)}
           role="button"
           tabindex="0"
         >
@@ -913,10 +955,10 @@
         </div>
       {/each}
       {#each timeMetrics as metric}
-        <div 
+        <div
           class="group relative flex cursor-pointer"
           on:click={() => handleCardClick(metric.type)}
-          on:keydown={(e) => e.key === 'Enter' && handleCardClick(metric.type)}
+          on:keydown={(e) => e.key === "Enter" && handleCardClick(metric.type)}
           role="button"
           tabindex="0"
         >
@@ -937,6 +979,8 @@
         </div>
       {/each}
     </div>
+
+    <AIInsights {aiData} loading={aiLoading} />
 
     <!-- Recent Orders Table -->
     <div class="bg-white/90 p-6 max-md:p-3 rounded-2xl shadow-lg border">
@@ -1180,28 +1224,38 @@
     transition:fade
     on:click={closeModal}
   >
-    <div 
+    <div
       class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
       on:click|stopPropagation
     >
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold text-gray-800">{modalData.title}</h3>
-        <button 
-          class="text-gray-500 hover:text-gray-700"
-          on:click={closeModal}
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <button class="text-gray-500 hover:text-gray-700" on:click={closeModal}>
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
-      
+
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
               {#each modalData.columns as column}
-                <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">{column}</th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-500"
+                  >{column}</th
+                >
               {/each}
             </tr>
           </thead>
