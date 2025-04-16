@@ -256,7 +256,12 @@ export const load = async ({ locals }) => {
                 amount_paid,
                 balance,
                 created_at
-            `).gte('created_at', thisYearStart)
+            `).gte('created_at', thisYearStart),
+            
+            // Fetch forecast results
+            locals.supabase.from('forecast_results')
+                .select('*')
+                .order('generated_at', { ascending: false })
         ];
 
         const [
@@ -266,7 +271,8 @@ export const load = async ({ locals }) => {
             { data: upcomingDueOrders },
             { data: studentData },
             { data: employeeData },
-            { data: paymentData }
+            { data: paymentData },
+            { data: forecastData } // Add this to receive forecast data
         ] = await Promise.all(promises);
 
         // Add these new queries for detailed Excel report
@@ -444,6 +450,10 @@ export const load = async ({ locals }) => {
         const actualRevenue = orderData?.reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0;
         const pendingRevenue = orderData?.reduce((sum, o) => sum + (o.balance || 0), 0) || 0;
 
+        // Prepare forecast data
+        const latestMonthlyForecast = forecastData?.find(f => f.granularity === 'monthly');
+        const latestYearlyForecast = forecastData?.find(f => f.granularity === 'yearly');
+
         // Calculate various statistics
         const processedData = {
             basicStats: {
@@ -570,6 +580,13 @@ export const load = async ({ locals }) => {
                 averageOrderValueOverTime: calculateAverageOrderValueOverTime(orderData),
             },
 
+            // Add forecast data
+            forecastData: {
+                monthly: latestMonthlyForecast?.forecast_data || [],
+                yearly: latestYearlyForecast?.forecast_data || [],
+                lastUpdated: latestMonthlyForecast ? new Date(latestMonthlyForecast.generated_at).toLocaleString() : 'No data available'
+            },
+
             // Add new raw data for Excel export
             rawData: {
                 detailedStudents,
@@ -592,6 +609,11 @@ export const load = async ({ locals }) => {
             studentAnalytics: {},
             performanceMetrics: {},
             timeBasedMetrics: {},
+            forecastData: {
+                monthly: [],
+                yearly: [],
+                lastUpdated: 'No data available'
+            },
             rawData: {
                 detailedStudents: [],
                 detailedOrders: [],

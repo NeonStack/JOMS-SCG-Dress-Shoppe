@@ -124,6 +124,9 @@
   let quarterlyRevenueChart;
   let paymentStatusChart;
   let completionPerformanceChart;
+  let forecastChart; // Add forecast chart instance
+  let forecastChartEl; // Add forecast chart element reference
+  let selectedForecastType = "monthly"; // Add forecast type state
 
   // Add corresponding element references
   let revenueChartEl;
@@ -429,6 +432,140 @@
     });
   }
 
+  // Initialize forecast chart
+  function initForecastChart() {
+    if (forecastChart) forecastChart.destroy();
+    if (!forecastChartEl) return;
+
+    const forecastData = selectedForecastType === "monthly" 
+      ? data.forecastData.monthly 
+      : data.forecastData.yearly;
+
+    if (!forecastData || forecastData.length === 0) {
+      // Create an empty chart with a message
+      forecastChart = new Chart(forecastChartEl, {
+        type: "bar",
+        data: {
+          labels: ["No forecast data available"],
+          datasets: [{
+            label: 'No data',
+            data: [0],
+            backgroundColor: '#ddd'
+          }]
+        },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            title: {
+              display: true,
+              text: `No ${selectedForecastType} forecast data available. This could be due to insufficient historical data.`,
+              color: '#666'
+            }
+          }
+        }
+      });
+      return;
+    }
+
+    const labels = forecastData.map(item => item.label);
+    const predictedValues = forecastData.map(item => item.predicted);
+    const lowerBounds = forecastData.map(item => item.lower_bound);
+    const upperBounds = forecastData.map(item => item.upper_bound);
+
+    forecastChart = new Chart(forecastChartEl, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'line',
+            label: 'Predicted',
+            data: predictedValues,
+            borderColor: "#B73233",
+            backgroundColor: "rgba(183, 50, 51, 0.8)",
+            fill: false,
+            tension: 0.1,
+            order: 0,
+            borderWidth: 2,
+            pointRadius: 3
+          },
+          {
+            type: 'line',
+            label: 'Upper Bound',
+            data: upperBounds,
+            borderColor: "rgba(183, 50, 51, 0.4)",
+            backgroundColor: "rgba(183, 50, 51, 0.1)",
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 0,
+            tension: 0.1,
+            order: 1
+          },
+          {
+            type: 'line',
+            label: 'Lower Bound',
+            data: lowerBounds,
+            borderColor: "rgba(183, 50, 51, 0.4)",
+            backgroundColor: "rgba(183, 50, 51, 0.1)",
+            fill: '+1',  // Fill between upper bound
+            borderDash: [5, 5],
+            pointRadius: 0,
+            tension: 0.1,
+            order: 2
+          }
+        ]
+      },
+      options: {
+        ...commonOptions,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { 
+              callback: (value) => formatCurrency(value),
+              precision: 0
+            },
+            title: {
+              display: true,
+              text: 'Revenue'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: selectedForecastType === "monthly" ? 'Month' : 'Year'
+            }
+          }
+        },
+        plugins: {
+          ...commonOptions.plugins,
+          title: {
+            display: true,
+            text: `${selectedForecastType === "monthly" ? 'Monthly' : 'Yearly'} Revenue Forecast`,
+            font: {
+              size: 16,
+              weight: 'bold'
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += formatCurrency(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   // Update charts function
   function updateCharts() {
     initRevenueChart();
@@ -441,6 +578,7 @@
     initQuarterlyRevenueChart();
     initPaymentStatusChart();
     initCompletionPerformanceChart();
+    initForecastChart(); // Add forecast chart initialization
   }
 
   onMount(() => {
@@ -459,10 +597,11 @@
     if (quarterlyRevenueChart) quarterlyRevenueChart.destroy();
     if (paymentStatusChart) paymentStatusChart.destroy();
     if (completionPerformanceChart) completionPerformanceChart.destroy();
+    if (forecastChart) forecastChart.destroy(); // Add forecast chart cleanup
   });
 
-  $: if (selectedTimeFrame || selectedRevenueType) {
-    updateCharts(); // Update charts when time frame changes
+  $: if (selectedTimeFrame || selectedRevenueType || selectedForecastType) {
+    updateCharts(); // Update charts when any selection changes
   }
 
   // State for modals
@@ -798,6 +937,28 @@
       });
     });
 
+    // Add Forecast Data Sheet
+    const forecastSheet = workbook.addWorksheet('Revenue Forecast');
+    forecastSheet.columns = [
+      { header: 'Period', key: 'period', width: 15 },
+      { header: 'Predicted Revenue', key: 'predicted', width: 20 },
+      { header: 'Lower Bound', key: 'lower', width: 20 },
+      { header: 'Upper Bound', key: 'upper', width: 20 }
+    ];
+
+    const forecastData = selectedForecastType === "monthly" 
+      ? data.forecastData.monthly 
+      : data.forecastData.yearly;
+    
+    forecastData.forEach(item => {
+      forecastSheet.addRow({
+        period: item.label,
+        predicted: item.predicted,
+        lower: item.lower_bound,
+        upper: item.upper_bound
+      });
+    });
+
     // Style all sheets
     workbook.eachSheet(sheet => {
       sheet.getRow(1).font = { bold: true };
@@ -936,6 +1097,40 @@
           </div>
         </div>
       {/each}
+    </div>
+
+    <!-- Add Forecast Chart Section after the Key Metrics Cards -->
+    <div class="space-y-6 max-md:space-y-4">
+      <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center">
+        <h2 class="text-2xl max-md:text-xl font-bold text-gray-800">
+          Revenue Forecast
+        </h2>
+        <select
+          bind:value={selectedForecastType}
+          class="px-4 py-2 max-md:w-full border rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+        >
+          <option value="monthly">Monthly Forecast</option>
+          <option value="yearly">Yearly Forecast</option>
+        </select>
+      </div>
+      
+      <div class="bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border">
+        <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center mb-4">
+          <p class="text-sm text-gray-500">
+            <span class="font-medium">Last updated:</span> {data.forecastData.lastUpdated}
+          </p>
+          <p class="text-xs text-gray-500 bg-gray-100 p-2 rounded-lg italic">
+            Based on historical completed orders data using Prophet forecasting algorithm
+          </p>
+        </div>
+        <div class="h-80 max-md:h-60">
+          <canvas bind:this={forecastChartEl}></canvas>
+        </div>
+        <p class="mt-4 text-xs text-gray-500">
+          Note: The shaded area represents the confidence interval between the upper and lower bounds of the forecast.
+          Negative values may appear if insufficient historical data is available.
+        </p>
+      </div>
     </div>
 
     <!-- Recent Orders Table -->
