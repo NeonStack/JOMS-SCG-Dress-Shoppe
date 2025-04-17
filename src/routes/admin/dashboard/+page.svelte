@@ -444,7 +444,7 @@
     if (!forecastData || forecastData.length === 0) {
       // Create an empty chart with a message
       forecastChart = new Chart(forecastChartEl, {
-        type: "bar",
+        type: "bar", // Keep bar for the 'no data' message
         data: {
           labels: ["No forecast data available"],
           datasets: [{
@@ -473,46 +473,52 @@
     const lowerBounds = forecastData.map(item => item.lower_bound);
     const upperBounds = forecastData.map(item => item.upper_bound);
 
+    // Log the bounds data to ensure it's being received correctly
+    console.log("Forecast Bounds Data:", { lowerBounds, upperBounds });
+
     forecastChart = new Chart(forecastChartEl, {
-      type: "bar",
+      type: "line", 
       data: {
         labels,
         datasets: [
+           // IMPORTANT: Define datasets in the order needed for filling
+           // Dataset 0: Upper Bound (Target for fill)
           {
-            type: 'line',
-            label: 'Predicted',
-            data: predictedValues,
-            borderColor: "#B73233",
-            backgroundColor: "rgba(183, 50, 51, 0.8)",
-            fill: false,
-            tension: 0.1,
-            order: 0,
-            borderWidth: 2,
-            pointRadius: 3
-          },
-          {
-            type: 'line',
             label: 'Upper Bound',
             data: upperBounds,
-            borderColor: "rgba(183, 50, 51, 0.4)",
-            backgroundColor: "rgba(183, 50, 51, 0.1)",
-            borderDash: [5, 5],
-            fill: false,
-            pointRadius: 0,
-            tension: 0.1,
-            order: 1
+            borderColor: "rgba(183, 50, 51, 0.3)", 
+            borderWidth: 1,
+            borderDash: [5, 5], 
+            pointRadius: 0, 
+            fill: false, 
+            tension: 0.4, 
+            order: 2 
           },
+           // Dataset 1: Lower Bound (Fills *up* to dataset 0)
           {
-            type: 'line',
-            label: 'Lower Bound',
+            label: 'Confidence Interval', // Changed label slightly for clarity
             data: lowerBounds,
-            borderColor: "rgba(183, 50, 51, 0.4)",
-            backgroundColor: "rgba(183, 50, 51, 0.1)",
-            fill: '+1',  // Fill between upper bound
-            borderDash: [5, 5],
-            pointRadius: 0,
-            tension: 0.1,
-            order: 2
+            borderColor: "rgba(183, 50, 51, 0.3)", 
+            backgroundColor: "rgba(183, 50, 51, 0.15)", // Slightly more opaque fill
+            borderWidth: 1,
+            borderDash: [5, 5], 
+            pointRadius: 0, 
+            fill: 0, // Fill to dataset at index 0 (Upper Bound)
+            tension: 0.4, 
+            order: 3 
+          },
+           // Dataset 2: Predicted Line (Draws on top)
+          {
+            label: 'Predicted Revenue',
+            data: predictedValues,
+            borderColor: "#B73233", 
+            backgroundColor: "rgba(183, 50, 51, 0.8)", 
+            borderWidth: 3, 
+            pointRadius: 4, 
+            pointHoverRadius: 6,
+            fill: false, 
+            tension: 0.4, 
+            order: 1 // Draw this line first/on top
           }
         ]
       },
@@ -520,14 +526,14 @@
         ...commonOptions,
         scales: {
           y: {
-            beginAtZero: true,
+            beginAtZero: false, // Allow y-axis to adjust to data range for better visibility
             ticks: { 
               callback: (value) => formatCurrency(value),
               precision: 0
             },
             title: {
               display: true,
-              text: 'Revenue'
+              text: 'Predicted Revenue' // More specific title
             }
           },
           x: {
@@ -539,23 +545,46 @@
         },
         plugins: {
           ...commonOptions.plugins,
+          legend: {
+            position: 'bottom', // Move legend to bottom
+             labels: { usePointStyle: true, padding: 20, font: { size: 12 } },
+          },
           title: {
             display: true,
             text: `${selectedForecastType === "monthly" ? 'Monthly' : 'Yearly'} Revenue Forecast`,
             font: {
-              size: 16,
+              size: 18, // Slightly larger title
               weight: 'bold'
+            },
+            padding: {
+              top: 10,
+              bottom: 20 // More space below title
             }
           },
           tooltip: {
+            // ... existing tooltip callbacks ...
             callbacks: {
               label: function(context) {
                 let label = context.dataset.label || '';
-                if (label) {
+                // Simplify label for bounds in tooltip
+                if (label === 'Confidence Interval') {
+                   // Show both bounds in tooltip for the interval area
+                   const index = context.dataIndex;
+                   const lower = formatCurrency(lowerBounds[index]);
+                   const upper = formatCurrency(upperBounds[index]);
+                   return `Confidence: ${lower} - ${upper}`;
+                } else if (label === 'Upper Bound') {
+                    label = 'Upper Bound'; // Keep simple
+                }
+                
+                if (label && label !== 'Confidence Interval') { // Avoid double labeling
                   label += ': ';
                 }
-                if (context.parsed.y !== null) {
+                if (context.parsed.y !== null && label !== 'Confidence Interval') {
                   label += formatCurrency(context.parsed.y);
+                } else if (label === 'Upper Bound' && context.parsed.y !== null) {
+                    // Ensure upper bound still shows its value if hovered directly
+                    label += formatCurrency(context.parsed.y);
                 }
                 return label;
               }
@@ -1114,21 +1143,23 @@
         </select>
       </div>
       
-      <div class="bg-white/90 p-6 max-md:p-4 rounded-2xl shadow-lg border">
+      <!-- Increased padding and added subtle background gradient -->
+      <div class="bg-gradient-to-br from-white via-gray-50 to-gray-100 p-8 max-md:p-4 rounded-3xl shadow-xl border border-gray-200">
         <div class="flex max-md:flex-col max-md:space-y-2 justify-between items-center mb-4">
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-gray-600">
             <span class="font-medium">Last updated:</span> {data.forecastData.lastUpdated}
           </p>
           <p class="text-xs text-gray-500 bg-gray-100 p-2 rounded-lg italic">
             Based on historical completed orders data using Prophet forecasting algorithm
           </p>
         </div>
-        <div class="h-80 max-md:h-60">
+        <!-- Increased height -->
+        <div class="h-96 max-md:h-72"> 
           <canvas bind:this={forecastChartEl}></canvas>
         </div>
-        <p class="mt-4 text-xs text-gray-500">
-          Note: The shaded area represents the confidence interval between the upper and lower bounds of the forecast.
-          Negative values may appear if insufficient historical data is available.
+        <p class="mt-6 text-xs text-gray-600 text-center">
+          Note: The shaded area represents the 80% confidence interval for the forecast. Actual revenue may fall outside this range.
+          <!-- Updated note -->
         </p>
       </div>
     </div>
