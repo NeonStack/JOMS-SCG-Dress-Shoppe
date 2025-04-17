@@ -59,6 +59,10 @@ function stringToBuffer(str) {
  * This creates a temporary credential specific for this authentication check
  */
 export async function verifyBiometric(userId = null) {
+  if (!isWebAuthnSupported()) {
+    throw new Error("WebAuthn is not supported in this browser");
+  }
+
   // This userId is just for the temporary credential
   const tempUserId = userId || generateRandomUserId();
   const challenge = new Uint8Array(32);

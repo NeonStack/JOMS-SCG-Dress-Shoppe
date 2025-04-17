@@ -124,6 +124,25 @@
         loading = false;
     };
   };
+
+  // Function to handle sign-out directly
+  function handleSignOut(event) {
+    event.preventDefault();
+    
+    // Clear cookies client-side first
+    document.cookie = "sb-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "sb-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "biometric-verified=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    
+    // Then navigate away immediately without waiting for the server
+    window.location.href = '/';
+    
+    // As a fallback, still submit the request to the server
+    setTimeout(() => {
+      fetch('/signout', { method: 'GET', credentials: 'include' })
+        .catch(() => {}); // Ignore any errors
+    }, 0);
+  }
 </script>
 
 <div
@@ -216,7 +235,13 @@
                     {/if}
                   </button>
                   
-                  <a href="/signout" class="text-red-500 hover:underline block mt-6">Sign Out</a>
+                  <a 
+                    href="/signout" 
+                    class="text-red-500 hover:underline block mt-6"
+                    on:click={handleSignOut}
+                  >
+                    Sign Out
+                  </a>
                 {/if}
               {/if}
               
