@@ -1,21 +1,110 @@
 <script>
   import { enhance } from '$app/forms';
+  import { isWebAuthnSupported, verifyBiometric, hasAuthenticator, isAndroid } from '$lib/webauthn';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
   
   let username = "";
   let password = "";
   let showPassword = false;
   let loginError = "";
   let loading = false;
+  let biometricSupported = false;
+  let platformAuthenticatorAvailable = false;
+  let showBiometricPrompt = false;
+  let userId = '';
+  let userRole = '';
+  let skipBiometric = false;
+  let isAndroidDevice = false;
+  let checkingCapabilities = true;
+
+  // Check WebAuthn support on mount with better Android handling
+  onMount(async () => {
+    isAndroidDevice = isAndroid();
+    biometricSupported = isWebAuthnSupported();
+    
+    if (biometricSupported) {
+      // For Android, we'll assume biometrics are available if the API is supported
+      if (isAndroidDevice) {
+        platformAuthenticatorAvailable = true;
+        console.log("Android device detected, assuming biometrics available");
+      } else {
+        platformAuthenticatorAvailable = await hasAuthenticator();
+      }
+    }
+    
+    checkingCapabilities = false;
+    console.log("Device capabilities:", { 
+      isAndroidDevice, 
+      biometricSupported, 
+      platformAuthenticatorAvailable 
+    });
+  });
 
   function togglePasswordVisibility() {
     showPassword = !showPassword;
   }
 
+  // When user clicks to skip biometric verification
+  function handleSkipVerification() {
+    skipBiometric = true;
+    const form = document.getElementById('biometric-form');
+    form.elements.verified.value = 'true';
+    form.elements.skipBiometric.value = 'true';
+    form.submit();
+  }
+
+  async function handleBiometricVerification() {
+    loading = true;
+    try {
+      await verifyBiometric();
+      
+      // Submit form for server-side verification
+      const form = document.getElementById('biometric-form');
+      form.elements.verified.value = 'true';
+      form.elements.skipBiometric.value = 'false';
+      form.submit();
+    } catch (error) {
+      console.error('Biometric verification failed:', error);
+      
+      // For Android devices, provide more specific error messages
+      if (isAndroidDevice) {
+        loginError = 'Fingerprint verification failed or was canceled. Please try again or skip verification.';
+      } else {
+        loginError = 'Biometric verification failed. You will be signed out.';
+      }
+      
+      // Don't immediately fail verification on Android - let them try again
+      if (!isAndroidDevice) {
+        const form = document.getElementById('biometric-form');
+        form.elements.verified.value = 'false';
+        form.elements.skipBiometric.value = 'false';
+        form.submit();
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
   const handleEnhance = () => {
     loading = true;
     return async ({ result }) => {
-        if (result.type === 'success' || result.type === 'redirect') {
-            // Handle both success and redirect
+        if (result.type === 'success') {
+            if (result.data?.requiresBiometric) {
+                // Show biometric prompt for admin/superadmin
+                showBiometricPrompt = true;
+                userId = result.data.userId;
+                userRole = result.data.role;
+                loading = false;
+                return;
+            } else if (result.location) {
+                // No biometric needed, redirect
+                window.location.href = result.location;
+                return;
+            }
+        }
+        
+        if (result.type === 'redirect') {
             window.location.href = result.location || '/';
             return;
         }
@@ -60,112 +149,209 @@
             </div>
           {/if}
 
-          <form 
-            class="space-y-6" 
-            method="POST"
-            action="?/signin"
-            use:enhance={handleEnhance}
-          >
-            <div>
-              <label
-                for="username"
-                class="block text-sm font-medium text-foreground mb-1"
-                >Username</label
-              >
-              <input
-                type="text"
-                id="username"
-                name="username"
-                bind:value={username}
-                class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
-                placeholder="Enter your username"
-                required
-              />
-            </div>
-
-            <div class="relative">
-              <label
-                for="password"
-                class="block text-sm font-medium text-foreground mb-1"
-                >Password</label
-              >
-              <div class="relative">
-                {#if showPassword}
-                  <input
-                    type="text"
-                    id="password"
-                    name="password"
-                    bind:value={password}
-                    class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
-                    placeholder="Enter your password"
-                    required
-                  />
-                {:else}
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    bind:value={password}
-                    class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
-                    placeholder="Enter your password"
-                    required
-                  />
-                {/if}
-                <button
-                  type="button"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-                  on:click={togglePasswordVisibility}
-                >
-                  {#if showPassword}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-primary"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                      <path
-                        fill-rule="evenodd"
-                        d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  {:else}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-primary"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
-                        clip-rule="evenodd"
-                      />
-                      <path
-                        d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"
-                      />
-                    </svg>
-                  {/if}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all select-none disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {#if loading}
-              <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+          {#if showBiometricPrompt}
+            <div class="text-center">
+              <h3 class="text-xl font-semibold mb-4">Verify Your Identity</h3>
+              
+              {#if checkingCapabilities}
+                <p class="mb-6">Checking your device capabilities...</p>
+                <div class="flex justify-center my-6">
+                  <svg class="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
               {:else}
-              Sign in
+                {#if isAndroidDevice}
+                  <p class="mb-6">Please use your fingerprint to verify your identity.</p>
+                {:else}
+                  <p class="mb-6">For security reasons, please verify your identity using your device's biometric authentication or PIN.</p>
+                {/if}
+                
+                {#if !biometricSupported}
+                  <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+                    Your browser doesn't support biometric authentication. Please use a modern browser.
+                  </div>
+                  <button
+                    on:click={handleSkipVerification}
+                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
+                  >
+                    Continue Without Verification
+                  </button>
+                {:else if isAndroidDevice}
+                  <!-- Android-specific UI -->
+                  <button
+                    on:click={handleBiometricVerification}
+                    disabled={loading}
+                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
+                  >
+                    {#if loading}
+                      <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    {:else}
+                      Verify with Fingerprint
+                    {/if}
+                  </button>
+                  <button
+                    on:click={handleSkipVerification}
+                    class="text-primary hover:underline mt-4 block w-full text-center"
+                  >
+                    Skip Fingerprint Verification
+                  </button>
+                {:else if !platformAuthenticatorAvailable}
+                  <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+                    Your device doesn't have biometric capabilities.
+                  </div>
+                  <button
+                    on:click={handleSkipVerification}
+                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
+                  >
+                    Continue Without Verification
+                  </button>
+                {:else}
+                  <!-- Standard UI for other devices -->
+                  <button
+                    on:click={handleBiometricVerification}
+                    disabled={loading}
+                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
+                  >
+                    {#if loading}
+                      <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    {:else}
+                      Verify Identity
+                    {/if}
+                  </button>
+                  <button
+                    on:click={handleSkipVerification}
+                    class="text-primary hover:underline mt-4 block w-full text-center"
+                  >
+                    Skip Verification (Not Recommended)
+                  </button>
+                {/if}
               {/if}
-            </button>
-          </form>
+              
+              <form id="biometric-form" method="POST" action="?/verifyBiometric">
+                <input type="hidden" name="verified" value="false" />
+                <input type="hidden" name="skipBiometric" value="false" />
+                <input type="hidden" name="role" value={userRole} />
+                <input type="hidden" name="userId" value={userId} />
+              </form>
+              
+              <a href="/signout" class="text-primary hover:underline block mt-4">Cancel & Sign Out</a>
+            </div>
+          {:else}
+            <form 
+              class="space-y-6" 
+              method="POST"
+              action="?/signin"
+              use:enhance={handleEnhance}
+            >
+              <div>
+                <label
+                  for="username"
+                  class="block text-sm font-medium text-foreground mb-1"
+                  >Username</label
+                >
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  bind:value={username}
+                  class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                  placeholder="Enter your username"
+                  required
+                />
+              </div>
+
+              <div class="relative">
+                <label
+                  for="password"
+                  class="block text-sm font-medium text-foreground mb-1"
+                  >Password</label
+                >
+                <div class="relative">
+                  {#if showPassword}
+                    <input
+                      type="text"
+                      id="password"
+                      name="password"
+                      bind:value={password}
+                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                      placeholder="Enter your password"
+                      required
+                    />
+                  {:else}
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      bind:value={password}
+                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                      placeholder="Enter your password"
+                      required
+                    />
+                  {/if}
+                  <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                    on:click={togglePasswordVisibility}
+                  >
+                    {#if showPassword}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 text-primary"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path
+                          fill-rule="evenodd"
+                          d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                    {:else}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 text-primary"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                          clip-rule="evenodd"
+                        />
+                        <path
+                          d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"
+                        />
+                      </svg>
+                    {/if}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all select-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {#if loading}
+                <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {:else}
+                Sign in
+                {/if}
+              </button>
+            </form>
+          {/if}
         </div>
       </div>
     </div>
