@@ -1,6 +1,13 @@
 import { startAuthentication } from '@simplewebauthn/browser';
 
 /**
+ * Checks if the environment is Android
+ */
+export function isAndroid() {
+  return typeof window !== 'undefined' && /android/i.test(window.navigator.userAgent);
+}
+
+/**
  * Checks if WebAuthn is supported in the current browser
  */
 export function isWebAuthnSupported() {
@@ -13,30 +20,15 @@ export function isWebAuthnSupported() {
 }
 
 /**
- * Detects if running on Android device
- */
-export function isAndroid() {
-  return typeof window !== 'undefined' && /android/i.test(window.navigator.userAgent);
-}
-
-/**
  * Checks if the device has a platform authenticator (fingerprint, face ID, PIN)
- * Android has special handling since it sometimes returns false incorrectly
  */
 export async function hasAuthenticator() {
   if (!isWebAuthnSupported()) {
     return false;
   }
   
-  // Android often returns false for platform authenticator check even though 
-  // fingerprint is available, so we'll assume it's available on Android
-  if (isAndroid()) {
-    console.log("Android device detected, assuming authenticator available");
-    return true;
-  }
-  
   try {
-    // Check if platform authenticator is available for non-Android devices
+    // Check if platform authenticator is available
     if (typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
       return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
@@ -49,38 +41,51 @@ export async function hasAuthenticator() {
 
 /**
  * Requests biometric authentication from the device
- * Modified to handle Android authentication better
+ * Optimized for Android compatibility
  */
 export async function verifyBiometric() {
   if (!isWebAuthnSupported()) {
     throw new Error("WebAuthn is not supported in this browser");
   }
 
+  // Generate a random challenge
+  const challenge = new Uint8Array(32);
+  window.crypto.getRandomValues(challenge);
+  
+  // Special handling for Android
+  const isAndroidDevice = isAndroid();
+
   try {
-    // Create simple authentication options
-    const challenge = new Uint8Array(32);
-    window.crypto.getRandomValues(challenge);
+    console.log("Starting biometric verification", isAndroidDevice ? "on Android" : "on non-Android");
     
-    // Define authentication options based on device type
+    // Basic options that work across platforms
     const authOptions = {
-      challenge: challenge.buffer,
-      timeout: 60000, // 1 minute
-      rpId: window.location.hostname,
-      userVerification: "required", // Requires biometric or PIN
+      publicKey: {
+        challenge: challenge.buffer,
+        timeout: 60000,
+        userVerification: isAndroidDevice ? "preferred" : "required",
+        // Empty allowCredentials list to allow any credential
+        allowCredentials: [],
+      }
     };
-    
-    // For Android, we need to be more permissive with the options
-    if (isAndroid()) {
-      console.log("Using Android-specific WebAuthn configuration");
-      // Android Chrome might not work well with some options
-      authOptions.userVerification = "preferred";
+
+    // For Android, we need to set rpId to avoid issues
+    if (isAndroidDevice) {
+      authOptions.publicKey.rpId = window.location.hostname;
     }
 
-    // This will trigger the device's biometric verification
-    const credential = await startAuthentication(authOptions);
+    console.log("Authentication options:", JSON.stringify({
+      ...authOptions.publicKey,
+      challenge: "[Challenge Buffer]"
+    }, null, 2));
+    
+    // This will trigger the fingerprint prompt
+    const credential = await navigator.credentials.get(authOptions);
+    
+    console.log("Credential received:", credential ? "success" : "null");
     return credential;
   } catch (error) {
-    console.error("Biometric verification failed", error);
+    console.error("Biometric verification error:", error);
     throw error;
   }
 }

@@ -78,7 +78,7 @@ export const actions = {
         const skipBiometric = formData.get('skipBiometric') === 'true';
         const role = formData.get('role');
 
-        // Allow skipped biometric verification if device doesn't support it
+        // Only allow skipping if explicit "skip" flag is provided
         if (!verified && !skipBiometric) {
             // Failed biometric verification - sign out
             cookies.delete('sb-access-token', { path: '/' });
@@ -89,12 +89,12 @@ export const actions = {
             });
         }
 
-        // Log skipped verifications (optional)
+        // For security, log cases where verification was skipped
         if (skipBiometric) {
             console.log('Biometric verification skipped for user with role:', role);
         }
 
-        // Successful verification (or skipped)
+        // Successful verification (or authorized skip)
         if (role === 'superadmin' || role === 'admin') {
             throw redirect(303, '/admin/dashboard');
         } else {

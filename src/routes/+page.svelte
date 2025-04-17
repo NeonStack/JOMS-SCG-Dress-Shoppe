@@ -17,6 +17,7 @@
   let skipBiometric = false;
   let isAndroidDevice = false;
   let checkingCapabilities = true;
+  let verificationAttempts = 0;
 
   // Check WebAuthn support on mount with better Android handling
   onMount(async () => {
@@ -24,7 +25,7 @@
     biometricSupported = isWebAuthnSupported();
     
     if (biometricSupported) {
-      // For Android, we'll assume biometrics are available if the API is supported
+      // For Android, we need to make a special assumption
       if (isAndroidDevice) {
         platformAuthenticatorAvailable = true;
         console.log("Android device detected, assuming biometrics available");
@@ -45,7 +46,7 @@
     showPassword = !showPassword;
   }
 
-  // When user clicks to skip biometric verification
+  // Only for devices that don't support biometrics
   function handleSkipVerification() {
     skipBiometric = true;
     const form = document.getElementById('biometric-form');
@@ -55,10 +56,15 @@
   }
 
   async function handleBiometricVerification() {
+    verificationAttempts++;
+    loginError = "";
     loading = true;
+    
     try {
+      console.log("Starting fingerprint verification attempt", verificationAttempts);
       await verifyBiometric();
       
+      console.log("Fingerprint verification successful");
       // Submit form for server-side verification
       const form = document.getElementById('biometric-form');
       form.elements.verified.value = 'true';
@@ -67,19 +73,16 @@
     } catch (error) {
       console.error('Biometric verification failed:', error);
       
-      // For Android devices, provide more specific error messages
-      if (isAndroidDevice) {
-        loginError = 'Fingerprint verification failed or was canceled. Please try again or skip verification.';
-      } else {
-        loginError = 'Biometric verification failed. You will be signed out.';
-      }
-      
-      // Don't immediately fail verification on Android - let them try again
-      if (!isAndroidDevice) {
+      if (verificationAttempts >= 3) {
+        loginError = 'Too many failed verification attempts. You will be signed out.';
+        
+        // After 3 attempts, force sign out
         const form = document.getElementById('biometric-form');
         form.elements.verified.value = 'false';
         form.elements.skipBiometric.value = 'false';
         form.submit();
+      } else {
+        loginError = 'Fingerprint verification failed. Please try again.';
       }
     } finally {
       loading = false;
@@ -162,15 +165,10 @@
                   </svg>
                 </div>
               {:else}
-                {#if isAndroidDevice}
-                  <p class="mb-6">Please use your fingerprint to verify your identity.</p>
-                {:else}
-                  <p class="mb-6">For security reasons, please verify your identity using your device's biometric authentication or PIN.</p>
-                {/if}
-                
                 {#if !biometricSupported}
+                  <!-- Device doesn't support WebAuthn at all -->
                   <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
-                    Your browser doesn't support biometric authentication. Please use a modern browser.
+                    Your browser doesn't support biometric authentication.
                   </div>
                   <button
                     on:click={handleSkipVerification}
@@ -178,29 +176,8 @@
                   >
                     Continue Without Verification
                   </button>
-                {:else if isAndroidDevice}
-                  <!-- Android-specific UI -->
-                  <button
-                    on:click={handleBiometricVerification}
-                    disabled={loading}
-                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
-                  >
-                    {#if loading}
-                      <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    {:else}
-                      Verify with Fingerprint
-                    {/if}
-                  </button>
-                  <button
-                    on:click={handleSkipVerification}
-                    class="text-primary hover:underline mt-4 block w-full text-center"
-                  >
-                    Skip Fingerprint Verification
-                  </button>
-                {:else if !platformAuthenticatorAvailable}
+                {:else if !platformAuthenticatorAvailable && !isAndroidDevice}
+                  <!-- Non-Android device without biometric capabilities -->
                   <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
                     Your device doesn't have biometric capabilities.
                   </div>
@@ -211,7 +188,13 @@
                     Continue Without Verification
                   </button>
                 {:else}
-                  <!-- Standard UI for other devices -->
+                  <!-- Device has biometric capabilities -->
+                  {#if isAndroidDevice}
+                    <p class="mb-6">For security reasons, please verify your fingerprint to confirm you are the device owner.</p>
+                  {:else}
+                    <p class="mb-6">For security reasons, please verify your identity using your device's biometric authentication.</p>
+                  {/if}
+                  
                   <button
                     on:click={handleBiometricVerification}
                     disabled={loading}
@@ -223,15 +206,11 @@
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     {:else}
-                      Verify Identity
+                      Verify with {isAndroidDevice ? "Fingerprint" : "Biometrics"}
                     {/if}
                   </button>
-                  <button
-                    on:click={handleSkipVerification}
-                    class="text-primary hover:underline mt-4 block w-full text-center"
-                  >
-                    Skip Verification (Not Recommended)
-                  </button>
+                  
+                  <a href="/signout" class="text-red-500 hover:underline block mt-6">Sign Out</a>
                 {/if}
               {/if}
               
@@ -241,8 +220,6 @@
                 <input type="hidden" name="role" value={userRole} />
                 <input type="hidden" name="userId" value={userId} />
               </form>
-              
-              <a href="/signout" class="text-primary hover:underline block mt-4">Cancel & Sign Out</a>
             </div>
           {:else}
             <form 
