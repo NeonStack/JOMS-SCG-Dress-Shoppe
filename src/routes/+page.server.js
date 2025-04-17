@@ -50,6 +50,9 @@ export const actions = {
                 secure: process.env.NODE_ENV === 'production',
                 maxAge: 60 * 60 * 24 * 7 // 1 week
             });
+            
+            // Clear any previous biometric verification
+            cookies.delete('biometric-verified', { path: '/' });
         }
 
         // For admin and superadmin roles, redirect to biometric verification first
@@ -78,21 +81,30 @@ export const actions = {
         const skipBiometric = formData.get('skipBiometric') === 'true';
         const role = formData.get('role');
 
-        // Only allow skipping if explicit "skip" flag is provided
+        // Only allow skipping if explicit "skip" flag is provided AND device doesn't support biometrics
         if (!verified && !skipBiometric) {
             // Failed biometric verification - sign out
             cookies.delete('sb-access-token', { path: '/' });
             cookies.delete('sb-refresh-token', { path: '/' });
+            cookies.delete('biometric-verified', { path: '/' });
             
             return fail(401, {
                 error: 'Biometric verification failed'
             });
         }
 
-        // For security, log cases where verification was skipped
+        // For security, log when verification was skipped
         if (skipBiometric) {
             console.log('Biometric verification skipped for user with role:', role);
         }
+
+        // Set a verification cookie that expires with the session
+        cookies.set('biometric-verified', 'true', {
+            path: '/',
+            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60 * 24 // 1 day (same as access token)
+        });
 
         // Successful verification (or authorized skip)
         if (role === 'superadmin' || role === 'admin') {

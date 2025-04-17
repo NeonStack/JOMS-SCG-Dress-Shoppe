@@ -28,7 +28,6 @@ export async function hasAuthenticator() {
   }
   
   try {
-    // Check if platform authenticator is available
     if (typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
       return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
@@ -40,49 +39,64 @@ export async function hasAuthenticator() {
 }
 
 /**
- * Requests biometric authentication from the device
- * Optimized for Android compatibility
+ * Creates a random challenge for WebAuthn
+ */
+function createChallenge() {
+  const challenge = new Uint8Array(32);
+  window.crypto.getRandomValues(challenge);
+  return challenge;
+}
+
+/**
+ * Requests fingerprint authentication specifically on Android
  */
 export async function verifyBiometric() {
   if (!isWebAuthnSupported()) {
     throw new Error("WebAuthn is not supported in this browser");
   }
 
-  // Generate a random challenge
-  const challenge = new Uint8Array(32);
-  window.crypto.getRandomValues(challenge);
-  
-  // Special handling for Android
   const isAndroidDevice = isAndroid();
+  const challenge = createChallenge();
 
   try {
-    console.log("Starting biometric verification", isAndroidDevice ? "on Android" : "on non-Android");
+    console.log("Attempting biometric verification on", isAndroidDevice ? "Android" : "non-Android device");
     
-    // Basic options that work across platforms
-    const authOptions = {
+    // Configure options specifically for fingerprint on Android
+    // This approach avoids triggering the passkey selection UI
+    const options = {
       publicKey: {
         challenge: challenge.buffer,
         timeout: 60000,
-        userVerification: isAndroidDevice ? "preferred" : "required",
-        // Empty allowCredentials list to allow any credential
+        // For Android fingerprint, we need to set this to discouraged to avoid passkeys
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          requireResidentKey: false,
+          userVerification: "required"
+        },
+        // Using an empty allowCredentials forces the browser to use the platform authenticator (fingerprint)
         allowCredentials: [],
+        // This helps on Android to specify we want fingerprint
+        extensions: {
+          uvm: true
+        }
       }
     };
-
-    // For Android, we need to set rpId to avoid issues
+    
     if (isAndroidDevice) {
-      authOptions.publicKey.rpId = window.location.hostname;
+      // Set specific Android options
+      options.publicKey.rpId = window.location.hostname;
     }
-
+    
     console.log("Authentication options:", JSON.stringify({
-      ...authOptions.publicKey,
+      ...options.publicKey,
       challenge: "[Challenge Buffer]"
-    }, null, 2));
+    }));
+
+    // This is a workaround for Android - we'll use "get" which works better for fingerprint
+    // than "create" on many Android devices
+    const credential = await navigator.credentials.get(options);
     
-    // This will trigger the fingerprint prompt
-    const credential = await navigator.credentials.get(authOptions);
-    
-    console.log("Credential received:", credential ? "success" : "null");
+    console.log("Authentication successful");
     return credential;
   } catch (error) {
     console.error("Biometric verification error:", error);
