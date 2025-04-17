@@ -62,7 +62,8 @@
     
     try {
       console.log("Starting fingerprint verification attempt", verificationAttempts);
-      await verifyBiometric();
+      // Pass userId to help identify the temporary credential
+      await verifyBiometric(userId);
       
       console.log("Fingerprint verification successful");
       // Submit form for server-side verification
@@ -73,14 +74,19 @@
     } catch (error) {
       console.error('Biometric verification failed:', error);
       
-      if (verificationAttempts >= 3) {
+      if (error.name === 'NotAllowedError') {
+        loginError = 'Fingerprint verification was denied. Please try again.';
+      } else if (error.name === 'NotSupportedError') {
+        loginError = 'Your device may not support fingerprint verification. Try skipping verification.';
+        // Show skip option for cases where we incorrectly detected support
+        skipBiometric = true;
+      } else if (verificationAttempts >= 3) {
         loginError = 'Too many failed verification attempts. You will be signed out.';
         
         // After 3 attempts, force sign out
-        const form = document.getElementById('biometric-form');
-        form.elements.verified.value = 'false';
-        form.elements.skipBiometric.value = 'false';
-        form.submit();
+        setTimeout(() => {
+          window.location.href = '/signout';
+        }, 1500);
       } else {
         loginError = 'Fingerprint verification failed. Please try again.';
       }

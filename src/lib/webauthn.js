@@ -39,67 +39,76 @@ export async function hasAuthenticator() {
 }
 
 /**
- * Creates a random challenge for WebAuthn
+ * Generates a random user ID for WebAuthn 
  */
-function createChallenge() {
-  const challenge = new Uint8Array(32);
-  window.crypto.getRandomValues(challenge);
-  return challenge;
+function generateRandomUserId() {
+  const array = new Uint8Array(16);
+  window.crypto.getRandomValues(array);
+  return array;
 }
 
 /**
- * Requests fingerprint authentication specifically on Android
+ * Convert a string to an ArrayBuffer
  */
-export async function verifyBiometric() {
-  if (!isWebAuthnSupported()) {
-    throw new Error("WebAuthn is not supported in this browser");
-  }
+function stringToBuffer(str) {
+  return new TextEncoder().encode(str);
+}
 
-  const isAndroidDevice = isAndroid();
-  const challenge = createChallenge();
-
+/**
+ * A simplified approach that uses fingerprint directly on Android
+ * This creates a temporary credential specific for this authentication check
+ */
+export async function verifyBiometric(userId = null) {
+  // This userId is just for the temporary credential
+  const tempUserId = userId || generateRandomUserId();
+  const challenge = new Uint8Array(32);
+  window.crypto.getRandomValues(challenge);
+  
+  // Device identifier
+  const deviceId = `${window.navigator.userAgent.replace(/\W+/g, '_').toLowerCase()}_${window.location.hostname}`;
+  
   try {
-    console.log("Attempting biometric verification on", isAndroidDevice ? "Android" : "non-Android device");
+    console.log("Starting fingerprint verification");
     
-    // Configure options specifically for fingerprint on Android
-    // This approach avoids triggering the passkey selection UI
-    const options = {
+    // For Android, we create a temporary authenticator that forces fingerprint use
+    const createOptions = {
       publicKey: {
         challenge: challenge.buffer,
-        timeout: 60000,
-        // For Android fingerprint, we need to set this to discouraged to avoid passkeys
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          requireResidentKey: false,
-          userVerification: "required"
+        rp: {
+          name: "SCG Dress Shoppe JOMS",
+          id: window.location.hostname
         },
-        // Using an empty allowCredentials forces the browser to use the platform authenticator (fingerprint)
-        allowCredentials: [],
-        // This helps on Android to specify we want fingerprint
-        extensions: {
-          uvm: true
-        }
+        user: {
+          id: typeof tempUserId === 'string' ? stringToBuffer(tempUserId) : tempUserId,
+          name: `temp_auth_${deviceId}`,
+          displayName: "Temporary Authentication"
+        },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 }, // ES256
+          { type: "public-key", alg: -257 } // RS256
+        ],
+        timeout: 60000,
+        authenticatorSelection: {
+          authenticatorAttachment: "platform", // Use built-in authenticator like fingerprint
+          userVerification: "required",
+          residentKey: "discouraged", // Avoid passkeys
+          requireResidentKey: false // Avoid passkeys
+        },
+        excludeCredentials: [], // Prevent conflicts with existing credentials
+        attestation: "none"
       }
     };
     
-    if (isAndroidDevice) {
-      // Set specific Android options
-      options.publicKey.rpId = window.location.hostname;
+    console.log("Creating temporary credential to force fingerprint...");
+    const credential = await navigator.credentials.create(createOptions);
+    
+    if (credential) {
+      console.log("Fingerprint verification successful");
+      return true;
     }
-    
-    console.log("Authentication options:", JSON.stringify({
-      ...options.publicKey,
-      challenge: "[Challenge Buffer]"
-    }));
-
-    // This is a workaround for Android - we'll use "get" which works better for fingerprint
-    // than "create" on many Android devices
-    const credential = await navigator.credentials.get(options);
-    
-    console.log("Authentication successful");
-    return credential;
+    return false;
   } catch (error) {
-    console.error("Biometric verification error:", error);
+    console.error("Fingerprint verification error:", error);
     throw error;
   }
 }

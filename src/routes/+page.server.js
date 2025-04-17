@@ -81,19 +81,18 @@ export const actions = {
         const skipBiometric = formData.get('skipBiometric') === 'true';
         const role = formData.get('role');
 
-        // Only allow skipping if explicit "skip" flag is provided AND device doesn't support biometrics
+        // If verification failed and wasn't skipped, sign them out
         if (!verified && !skipBiometric) {
-            // Failed biometric verification - sign out
+            // Clear all cookies
             cookies.delete('sb-access-token', { path: '/' });
             cookies.delete('sb-refresh-token', { path: '/' });
             cookies.delete('biometric-verified', { path: '/' });
             
-            return fail(401, {
-                error: 'Biometric verification failed'
-            });
+            // Redirect to root instead of returning an error
+            throw redirect(303, '/');
         }
 
-        // For security, log when verification was skipped
+        // Log skips for security monitoring
         if (skipBiometric) {
             console.log('Biometric verification skipped for user with role:', role);
         }
