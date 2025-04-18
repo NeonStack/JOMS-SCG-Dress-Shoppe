@@ -82,7 +82,7 @@ export const actions = {
         const role = formData.get('role');
 
         // If verification failed and wasn't skipped, sign them out
-        if (!verified && !skipBiometric) {
+        if (!verified) {
             // Clear all cookies
             cookies.delete('sb-access-token', { path: '/' });
             cookies.delete('sb-refresh-token', { path: '/' });
@@ -94,7 +94,7 @@ export const actions = {
 
         // Log skips for security monitoring
         if (skipBiometric) {
-            console.log('Biometric verification skipped for user with role:', role);
+            console.log('Device verification skipped for user with role:', role);
         }
 
         // Set a verification cookie that expires with the session

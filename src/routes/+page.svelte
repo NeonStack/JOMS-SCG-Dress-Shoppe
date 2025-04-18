@@ -14,10 +14,9 @@
   let showBiometricPrompt = false;
   let userId = '';
   let userRole = '';
-  let skipBiometric = false;
+  let verificationAttempts = 0;
   let isAndroidDevice = false;
   let checkingCapabilities = true;
-  let verificationAttempts = 0;
 
   // Check WebAuthn support on mount with better Android handling
   onMount(async () => {
@@ -46,40 +45,30 @@
     showPassword = !showPassword;
   }
 
-  // Only for devices that don't support biometrics
-  function handleSkipVerification() {
-    skipBiometric = true;
-    const form = document.getElementById('biometric-form');
-    form.elements.verified.value = 'true';
-    form.elements.skipBiometric.value = 'true';
-    form.submit();
-  }
-
   async function handleBiometricVerification() {
     verificationAttempts++;
     loginError = "";
     loading = true;
     
     try {
-      console.log("Starting fingerprint verification attempt", verificationAttempts);
+      console.log("Starting device verification attempt", verificationAttempts);
       // Pass userId to help identify the temporary credential
       await verifyBiometric(userId);
       
-      console.log("Fingerprint verification successful");
+      console.log("Device verification successful");
       // Submit form for server-side verification
       const form = document.getElementById('biometric-form');
       form.elements.verified.value = 'true';
-      form.elements.skipBiometric.value = 'false';
       form.submit();
     } catch (error) {
-      console.error('Biometric verification failed:', error);
+      console.error('Device verification failed:', error);
       
       if (error.name === 'NotAllowedError') {
-        loginError = 'Fingerprint verification was denied. Please try again.';
+        loginError = 'Verification was denied. Please try again.';
       } else if (error.name === 'NotSupportedError') {
-        loginError = 'Your device may not support fingerprint verification. Try skipping verification.';
-        // Show skip option for cases where we incorrectly detected support
-        skipBiometric = true;
+        loginError = 'Your device doesn\'t support this verification method.';
+        // Auto-proceed to dashboard if verification isn't available
+        proceedWithoutVerification();
       } else if (verificationAttempts >= 3) {
         loginError = 'Too many failed verification attempts. You will be signed out.';
         
@@ -88,11 +77,19 @@
           window.location.href = '/signout';
         }, 1500);
       } else {
-        loginError = 'Fingerprint verification failed. Please try again.';
+        loginError = 'Verification failed. Please try again.';
       }
     } finally {
       loading = false;
     }
+  }
+  
+  // Function to proceed without verification
+  function proceedWithoutVerification() {
+    const form = document.getElementById('biometric-form');
+    form.elements.verified.value = 'true';
+    form.elements.skipBiometric.value = 'true';
+    form.submit();
   }
 
   const handleEnhance = () => {
@@ -104,6 +101,13 @@
                 showBiometricPrompt = true;
                 userId = result.data.userId;
                 userRole = result.data.role;
+                
+                // If device doesn't support biometrics, automatically proceed
+                if (!biometricSupported || !platformAuthenticatorAvailable) {
+                  console.log("Device doesn't support security verification, proceeding directly");
+                  proceedWithoutVerification();
+                }
+                
                 loading = false;
                 return;
             } else if (result.location) {
@@ -179,7 +183,7 @@
 
           {#if showBiometricPrompt}
             <div class="text-center">
-              <h3 class="text-xl font-semibold mb-4">Verify Your Identity</h3>
+              <h3 class="text-xl font-semibold mb-4">Verify Your Device</h3>
               
               {#if checkingCapabilities}
                 <p class="mb-6">Checking your device capabilities...</p>
@@ -189,60 +193,32 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </div>
-              {:else}
-                {#if !biometricSupported}
-                  <!-- Device doesn't support WebAuthn at all -->
-                  <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
-                    Your browser doesn't support biometric authentication.
-                  </div>
-                  <button
-                    on:click={handleSkipVerification}
-                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
-                  >
-                    Continue Without Verification
-                  </button>
-                {:else if !platformAuthenticatorAvailable && !isAndroidDevice}
-                  <!-- Non-Android device without biometric capabilities -->
-                  <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
-                    Your device doesn't have biometric capabilities.
-                  </div>
-                  <button
-                    on:click={handleSkipVerification}
-                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
-                  >
-                    Continue Without Verification
-                  </button>
-                {:else}
-                  <!-- Device has biometric capabilities -->
-                  {#if isAndroidDevice}
-                    <p class="mb-6">For security reasons, please verify your fingerprint to confirm you are the device owner.</p>
+              {:else if biometricSupported && platformAuthenticatorAvailable}
+                <!-- Device supports verification -->
+                <p class="mb-6">For security purposes, please verify that you are the owner of this device.</p>
+                
+                <button
+                  on:click={handleBiometricVerification}
+                  disabled={loading}
+                  class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
+                >
+                  {#if loading}
+                    <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                   {:else}
-                    <p class="mb-6">For security reasons, please verify your identity using your device's biometric authentication.</p>
+                    Verify Device Ownership
                   {/if}
-                  
-                  <button
-                    on:click={handleBiometricVerification}
-                    disabled={loading}
-                    class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
-                  >
-                    {#if loading}
-                      <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    {:else}
-                      Verify with {isAndroidDevice ? "Fingerprint" : "Biometrics"}
-                    {/if}
-                  </button>
-                  
-                  <a 
-                    href="/signout" 
-                    class="text-red-500 hover:underline block mt-6"
-                    on:click={handleSignOut}
-                  >
-                    Sign Out
-                  </a>
-                {/if}
+                </button>
+                
+                <a 
+                  href="/signout" 
+                  class="text-red-500 hover:underline block mt-6"
+                  on:click={handleSignOut}
+                >
+                  Sign Out
+                </a>
               {/if}
               
               <form id="biometric-form" method="POST" action="?/verifyBiometric">

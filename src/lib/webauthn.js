@@ -55,7 +55,7 @@ function stringToBuffer(str) {
 }
 
 /**
- * A simplified approach that uses fingerprint directly on Android
+ * A simplified approach that uses device verification for authentication check
  * This creates a temporary credential specific for this authentication check
  */
 export async function verifyBiometric(userId = null) {
@@ -72,9 +72,9 @@ export async function verifyBiometric(userId = null) {
   const deviceId = `${window.navigator.userAgent.replace(/\W+/g, '_').toLowerCase()}_${window.location.hostname}`;
   
   try {
-    console.log("Starting fingerprint verification");
+    console.log("Starting device verification");
     
-    // For Android, we create a temporary authenticator that forces fingerprint use
+    // We create a temporary authenticator that requires user verification
     const createOptions = {
       publicKey: {
         challenge: challenge.buffer,
@@ -85,7 +85,7 @@ export async function verifyBiometric(userId = null) {
         user: {
           id: typeof tempUserId === 'string' ? stringToBuffer(tempUserId) : tempUserId,
           name: `temp_auth_${deviceId}`,
-          displayName: "Temporary Authentication"
+          displayName: "Device Owner Verification"
         },
         pubKeyCredParams: [
           { type: "public-key", alg: -7 }, // ES256
@@ -93,8 +93,8 @@ export async function verifyBiometric(userId = null) {
         ],
         timeout: 60000,
         authenticatorSelection: {
-          authenticatorAttachment: "platform", // Use built-in authenticator like fingerprint
-          userVerification: "required",
+          authenticatorAttachment: "platform", // Use built-in authenticator
+          userVerification: "required", // Requires verification (fingerprint, PIN, etc)
           residentKey: "discouraged", // Avoid passkeys
           requireResidentKey: false // Avoid passkeys
         },
@@ -103,16 +103,16 @@ export async function verifyBiometric(userId = null) {
       }
     };
     
-    console.log("Creating temporary credential to force fingerprint...");
+    console.log("Creating temporary credential to verify device ownership...");
     const credential = await navigator.credentials.create(createOptions);
     
     if (credential) {
-      console.log("Fingerprint verification successful");
+      console.log("Device verification successful");
       return true;
     }
     return false;
   } catch (error) {
-    console.error("Fingerprint verification error:", error);
+    console.error("Device verification error:", error);
     throw error;
   }
 }
