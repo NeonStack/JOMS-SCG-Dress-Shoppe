@@ -18,6 +18,9 @@
   let isAndroidDevice = false;
   let checkingCapabilities = true;
   let showingVerificationUI = false;
+  let attemptingLogin = false;
+  let loginState = "initial"; // initial, authenticating, verification, redirecting
+  let loginMessage = "";
 
   // Check WebAuthn support on mount with better Android handling
   onMount(async () => {
@@ -53,9 +56,12 @@
     // automatically proceed to dashboard without showing any UI
     if (showBiometricPrompt && (!biometricSupported || !platformAuthenticatorAvailable)) {
       console.log("Device doesn't have verification capabilities, proceeding directly");
+      loginState = "redirecting";
+      loginMessage = "Taking you to your dashboard...";
       proceedWithoutVerification();
     } else if (showBiometricPrompt && biometricSupported && platformAuthenticatorAvailable) {
       // Only show the verification UI if device actually has capabilities
+      loginState = "verification";
       showingVerificationUI = true;
     }
   });
@@ -105,6 +111,8 @@
   
   // Function to proceed without verification
   function proceedWithoutVerification() {
+    loginState = "redirecting";
+    loginMessage = "Taking you to your dashboard...";
     const form = document.getElementById('biometric-form');
     form.elements.verified.value = 'true';
     form.elements.skipBiometric.value = 'true';
@@ -113,31 +121,46 @@
 
   const handleEnhance = () => {
     loading = true;
+    attemptingLogin = true;
+    loginState = "authenticating";
+    loginMessage = "Signing you in...";
+    
     return async ({ result }) => {
+        attemptingLogin = false;
+        
         if (result.type === 'success') {
             if (result.data?.requiresBiometric) {
-                // Show biometric prompt for admin/superadmin
+                // Store biometric info for admin/superadmin
                 showBiometricPrompt = true;
                 userId = result.data.userId;
                 userRole = result.data.role;
                 
-                // If device doesn't support biometrics, immediately proceed without showing any UI
+                // Check if device supports biometrics
                 if (checkingCapabilities) {
-                  // Wait for capability check to complete
-                  setTimeout(() => {
-                    if (!biometricSupported || !platformAuthenticatorAvailable) {
-                      console.log("Device doesn't support security verification, proceeding directly");
-                      proceedWithoutVerification();
+                  loginState = "authenticating";
+                  loginMessage = "Checking device capabilities...";
+                  
+                  // Set a timer to check again after capabilities detection completes
+                  setTimeout(function checkCapabilities() {
+                    if (!checkingCapabilities) {
+                      if (!biometricSupported || !platformAuthenticatorAvailable) {
+                        console.log("Device confirmed to not support security verification, proceeding directly");
+                        proceedWithoutVerification();
+                      } else {
+                        loginState = "verification";
+                        showingVerificationUI = true;
+                      }
                     } else {
-                      showingVerificationUI = true;
+                      setTimeout(checkCapabilities, 100);
                     }
-                  }, 500);
+                  }, 100);
                 } else if (!biometricSupported || !platformAuthenticatorAvailable) {
-                  // If we already know the device doesn't have capabilities, proceed immediately
-                  console.log("Device already confirmed to not support security verification, proceeding directly");
+                  // Device doesn't support biometrics, proceed without showing verification UI
+                  console.log("Device doesn't support security verification, proceeding directly");
                   proceedWithoutVerification();
                 } else {
                   // Device has verification capabilities, show the UI
+                  loginState = "verification";
                   showingVerificationUI = true;
                 }
                 
@@ -145,18 +168,23 @@
                 return;
             } else if (result.location) {
                 // No biometric needed, redirect
+                loginState = "redirecting";
+                loginMessage = "Taking you to your dashboard...";
                 window.location.href = result.location;
                 return;
             }
         }
         
         if (result.type === 'redirect') {
+            loginState = "redirecting";
+            loginMessage = "Redirecting...";
             window.location.href = result.location || '/';
             return;
         }
         
         if (result.type === 'failure') {
             loginError = result.data?.error || 'Failed to sign in';
+            loginState = "initial";
         }
         loading = false;
     };
@@ -214,58 +242,47 @@
             </div>
           {/if}
 
-          {#if showBiometricPrompt && showingVerificationUI}
+          <!-- Use loginState to control what UI is shown -->
+          {#if loginState === "verification" && showingVerificationUI}
+            <!-- Verification UI -->
             <div class="text-center">
               <h3 class="text-xl font-semibold mb-4">Verify Your Device</h3>
+              <p class="mb-6">For security purposes, please verify that you are the owner of this device.</p>
               
-              {#if checkingCapabilities}
-                <p class="mb-6">Checking your device capabilities...</p>
-                <div class="flex justify-center my-6">
-                  <svg class="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <button
+                on:click={handleBiometricVerification}
+                disabled={loading}
+                class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
+              >
+                {#if loading}
+                  <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                </div>
-              {:else}
-                <!-- Device supports verification - only show this UI for capable devices -->
-                <p class="mb-6">For security purposes, please verify that you are the owner of this device.</p>
-                
-                <button
-                  on:click={handleBiometricVerification}
-                  disabled={loading}
-                  class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all disabled:opacity-50"
-                >
-                  {#if loading}
-                    <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  {:else}
-                    Verify Device Ownership
-                  {/if}
-                </button>
-                
-                <a 
-                  href="/signout" 
-                  class="text-red-500 hover:underline block mt-6"
-                  on:click={handleSignOut}
-                >
-                  Sign Out
-                </a>
-              {/if}
-            </div>
-          {:else if showBiometricPrompt}
-            <!-- For devices without verification capability, show nothing during auto-redirect -->
-            <div class="hidden">
-              <button 
-                id="proceed-without-verification"
-                class="hidden"
-                on:click={proceedWithoutVerification}
-              >
-                Continue
+                {:else}
+                  Verify Device Ownership
+                {/if}
               </button>
+              
+              <a 
+                href="/signout" 
+                class="text-red-500 hover:underline block mt-6"
+                on:click={handleSignOut}
+              >
+                Sign Out
+              </a>
+            </div>
+          {:else if loginState === "authenticating" || loginState === "redirecting"}
+            <!-- Loading/waiting UI -->
+            <div class="text-center py-10">
+              <svg class="animate-spin h-10 w-10 text-primary mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p class="text-lg text-foreground">{loginMessage}</p>
             </div>
           {:else}
+            <!-- Initial login form -->
             <form 
               class="space-y-6" 
               method="POST"
@@ -283,7 +300,8 @@
                   id="username"
                   name="username"
                   bind:value={username}
-                  class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                  disabled={loading || attemptingLogin}
+                  class="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all disabled:opacity-50"
                   placeholder="Enter your username"
                   required
                 />
@@ -302,7 +320,8 @@
                       id="password"
                       name="password"
                       bind:value={password}
-                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                      disabled={loading || attemptingLogin}
+                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all disabled:opacity-50"
                       placeholder="Enter your password"
                       required
                     />
@@ -312,7 +331,8 @@
                       id="password"
                       name="password"
                       bind:value={password}
-                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all"
+                      disabled={loading || attemptingLogin}
+                      class="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all disabled:opacity-50"
                       placeholder="Enter your password"
                       required
                     />
@@ -320,6 +340,7 @@
                   <button
                     type="button"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                    disabled={loading || attemptingLogin}
                     on:click={togglePasswordVisibility}
                   >
                     {#if showPassword}
@@ -359,10 +380,10 @@
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || attemptingLogin}
                 class="w-full bg-primary text-accent-foreground py-3 rounded-lg font-semibold hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all select-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {#if loading}
+                {#if loading || attemptingLogin}
                 <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
