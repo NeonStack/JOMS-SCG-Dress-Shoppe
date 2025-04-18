@@ -17,6 +17,7 @@
   let verificationAttempts = 0;
   let isAndroidDevice = false;
   let checkingCapabilities = true;
+  let showingVerificationUI = false;
 
   // Check WebAuthn support on mount with better Android handling
   onMount(async () => {
@@ -24,21 +25,39 @@
     biometricSupported = isWebAuthnSupported();
     
     if (biometricSupported) {
-      // For Android, we need to make a special assumption
-      if (isAndroidDevice) {
-        platformAuthenticatorAvailable = true;
-        console.log("Android device detected, assuming biometrics available");
-      } else {
-        platformAuthenticatorAvailable = await hasAuthenticator();
+      try {
+        // For Android, we need to make a special assumption
+        if (isAndroidDevice) {
+          platformAuthenticatorAvailable = true;
+          console.log("Android device detected, assuming biometrics available");
+        } else {
+          platformAuthenticatorAvailable = await hasAuthenticator();
+          console.log("Platform authenticator available:", platformAuthenticatorAvailable);
+        }
+      } catch (error) {
+        console.error("Error checking authenticator:", error);
+        platformAuthenticatorAvailable = false;
       }
+    } else {
+      platformAuthenticatorAvailable = false;
     }
     
     checkingCapabilities = false;
-    console.log("Device capabilities:", { 
+    console.log("Final device capabilities:", { 
       isAndroidDevice, 
       biometricSupported, 
       platformAuthenticatorAvailable 
     });
+    
+    // If we're already at the biometric prompt and device doesn't support verification,
+    // automatically proceed to dashboard without showing any UI
+    if (showBiometricPrompt && (!biometricSupported || !platformAuthenticatorAvailable)) {
+      console.log("Device doesn't have verification capabilities, proceeding directly");
+      proceedWithoutVerification();
+    } else if (showBiometricPrompt && biometricSupported && platformAuthenticatorAvailable) {
+      // Only show the verification UI if device actually has capabilities
+      showingVerificationUI = true;
+    }
   });
 
   function togglePasswordVisibility() {
@@ -102,10 +121,24 @@
                 userId = result.data.userId;
                 userRole = result.data.role;
                 
-                // If device doesn't support biometrics, automatically proceed
-                if (!biometricSupported || !platformAuthenticatorAvailable) {
-                  console.log("Device doesn't support security verification, proceeding directly");
+                // If device doesn't support biometrics, immediately proceed without showing any UI
+                if (checkingCapabilities) {
+                  // Wait for capability check to complete
+                  setTimeout(() => {
+                    if (!biometricSupported || !platformAuthenticatorAvailable) {
+                      console.log("Device doesn't support security verification, proceeding directly");
+                      proceedWithoutVerification();
+                    } else {
+                      showingVerificationUI = true;
+                    }
+                  }, 500);
+                } else if (!biometricSupported || !platformAuthenticatorAvailable) {
+                  // If we already know the device doesn't have capabilities, proceed immediately
+                  console.log("Device already confirmed to not support security verification, proceeding directly");
                   proceedWithoutVerification();
+                } else {
+                  // Device has verification capabilities, show the UI
+                  showingVerificationUI = true;
                 }
                 
                 loading = false;
@@ -181,7 +214,7 @@
             </div>
           {/if}
 
-          {#if showBiometricPrompt}
+          {#if showBiometricPrompt && showingVerificationUI}
             <div class="text-center">
               <h3 class="text-xl font-semibold mb-4">Verify Your Device</h3>
               
@@ -193,8 +226,8 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </div>
-              {:else if biometricSupported && platformAuthenticatorAvailable}
-                <!-- Device supports verification -->
+              {:else}
+                <!-- Device supports verification - only show this UI for capable devices -->
                 <p class="mb-6">For security purposes, please verify that you are the owner of this device.</p>
                 
                 <button
@@ -220,13 +253,17 @@
                   Sign Out
                 </a>
               {/if}
-              
-              <form id="biometric-form" method="POST" action="?/verifyBiometric">
-                <input type="hidden" name="verified" value="false" />
-                <input type="hidden" name="skipBiometric" value="false" />
-                <input type="hidden" name="role" value={userRole} />
-                <input type="hidden" name="userId" value={userId} />
-              </form>
+            </div>
+          {:else if showBiometricPrompt}
+            <!-- For devices without verification capability, show nothing during auto-redirect -->
+            <div class="hidden">
+              <button 
+                id="proceed-without-verification"
+                class="hidden"
+                on:click={proceedWithoutVerification}
+              >
+                Continue
+              </button>
             </div>
           {:else}
             <form 
@@ -336,6 +373,13 @@
               </button>
             </form>
           {/if}
+          
+          <form id="biometric-form" method="POST" action="?/verifyBiometric" class="hidden">
+            <input type="hidden" name="verified" value="false" />
+            <input type="hidden" name="skipBiometric" value="false" />
+            <input type="hidden" name="role" value={userRole} />
+            <input type="hidden" name="userId" value={userId} />
+          </form>
         </div>
       </div>
     </div>

@@ -21,6 +21,7 @@ export function isWebAuthnSupported() {
 
 /**
  * Checks if the device has a platform authenticator (fingerprint, face ID, PIN)
+ * More robust implementation to handle edge cases
  */
 export async function hasAuthenticator() {
   if (!isWebAuthnSupported()) {
@@ -28,12 +29,77 @@ export async function hasAuthenticator() {
   }
   
   try {
+    // First check using the standard API
     if (typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-      return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      
+      // Secondary test - some devices incorrectly report availability
+      if (available) {
+        try {
+          // Try to create a temporary credential to verify if platform authenticator really works
+          const tempUserId = new Uint8Array(16);
+          window.crypto.getRandomValues(tempUserId);
+          
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+          
+          const options = {
+            publicKey: {
+              challenge: challenge.buffer,
+              rp: { name: "Verification Check", id: window.location.hostname },
+              user: {
+                id: tempUserId,
+                name: "verification_check",
+                displayName: "Verification Check",
+              },
+              pubKeyCredParams: [
+                { type: "public-key", alg: -7 },
+                { type: "public-key", alg: -257 },
+              ],
+              timeout: 2000, // Short timeout for quick check
+              authenticatorSelection: {
+                authenticatorAttachment: "platform",
+                userVerification: "required",
+              },
+            }
+          };
+          
+          // Just checking if the request starts - we don't wait for user interaction
+          const abortController = new AbortController();
+          const signal = abortController.signal;
+          
+          const credPromise = navigator.credentials.create({ ...options, signal });
+          
+          // We immediately abort - we're just checking if the API works
+          setTimeout(() => abortController.abort(), 100);
+          
+          try {
+            await credPromise;
+            console.log("Platform authenticator seems to work");
+            return true;
+          } catch (e) {
+            // If we get an abort error, that's good - it means the API was working before we aborted
+            if (e.name === 'AbortError' || e.name === 'NotAllowedError') {
+              console.log("Platform authenticator API responded before abort");
+              return true;
+            }
+            
+            // If we get other errors, the device might not have a real authenticator
+            console.warn("Platform authenticator test failed:", e);
+            return false;
+          }
+        } catch (testError) {
+          console.warn("Platform authenticator verification error:", testError);
+          // Fall back to the initial API result
+          return available;
+        }
+      }
+      
+      return available;
     }
     return false;
   } catch (error) {
-    console.error("Error checking for authenticator:", error);
+    console.error("Error checking for platform authenticator:", error);
     return false;
   }
 }
