@@ -4,81 +4,82 @@
 
   $: metaData = {
     "/": {
-      title: "Sign In | SCG Dress Shoppe JOMS",
+      title: "SCG Dress Shoppe | Job Order Monitoring System",
       description:
-      "Secure login portal for SCG Dress Shoppe's comprehensive job order management system. Access tailoring services, order tracking and uniform management tools.",
-      keywords: "SCG JOMS, login, sign in, uniform management",
+        "SCG Dress Shoppe's Job Order Monitoring System (JOMS) - A comprehensive platform for managing student uniform orders, measurements, and tailoring operations.",
+      keywords:
+        "SCG Dress Shoppe, JOMS, uniform management, job order, tailoring system, order tracking, student measurements",
     },
     "/employee/orders": {
       title: "Tailor Orders | SCG Dress Shoppe JOMS",
       description:
-      "Comprehensive order list management interface for SCG Dress Shoppe staff. View, sort, and process customer uniform orders efficiently.",
+        "Comprehensive order list management interface for SCG Dress Shoppe staff. View, sort, and process customer uniform orders efficiently.",
       keywords: "SCG JOMS, orders, uniform orders, order management",
     },
     "/employee/dashboard": {
       title: "Tailor Dashboard | SCG Dress Shoppe JOMS",
       description:
-      "Central dashboard for SCG Dress Shoppe staff to monitor orders, track metrics, and manage daily tasks efficiently.",
+        "Central dashboard for SCG Dress Shoppe staff to monitor orders, track metrics, and manage daily tasks efficiently.",
       keywords: "SCG JOMS, dashboard, tailor dashboard, tasks",
     },
     "/employee/students": {
       title: "Student Management | SCG Dress Shoppe JOMS",
       description:
-      "Manage and access student uniform records, measurements, and order history for SCG Dress Shoppe uniform services.",
+        "Manage and access student uniform records, measurements, and order history for SCG Dress Shoppe uniform services.",
       keywords: "SCG JOMS, students, measurements, uniforms",
     },
     "/employee/profile": {
       title: "Tailor Profile | SCG Dress Shoppe JOMS",
       description:
-      "Manage your SCG Dress Shoppe staff profile, view work history, and update personal information.",
+        "Manage your SCG Dress Shoppe staff profile, view work history, and update personal information.",
       keywords: "SCG JOMS, profile, tailor profile, staff",
     },
     "/admin/dashboard": {
       title: "Admin Dashboard | SCG Dress Shoppe JOMS",
       description:
-      "Comprehensive analytics dashboard for SCG Dress Shoppe administrators. Monitor orders, revenue, student demographics and tailor performance metrics.",
+        "Comprehensive analytics dashboard for SCG Dress Shoppe administrators. Monitor orders, revenue, student demographics and tailor performance metrics.",
       keywords: "SCG JOMS, admin dashboard, analytics, metrics",
     },
     "/admin/tailor-performance": {
       title: "Tailor Performance | SCG Dress Shoppe JOMS",
       description:
-      "Track and analyze tailor productivity, completion rates, order quality and efficiency metrics for SCG Dress Shoppe staff.",
+        "Track and analyze tailor productivity, completion rates, order quality and efficiency metrics for SCG Dress Shoppe staff.",
       keywords: "SCG JOMS, tailor performance, metrics, productivity",
     },
     "/admin/course": {
       title: "Course Management | SCG Dress Shoppe JOMS",
       description:
-      "Manage academic programs and courses for SCG Dress Shoppe uniform system. Add, edit and organize student course information.",
+        "Manage academic programs and courses for SCG Dress Shoppe uniform system. Add, edit and organize student course information.",
       keywords: "SCG JOMS, courses, programs, academic",
     },
     "/admin/measurement": {
       title: "Measurement Types | SCG Dress Shoppe JOMS",
       description:
-      "Configure and manage uniform measurement specifications and standards for SCG Dress Shoppe tailoring system.",
+        "Configure and manage uniform measurement specifications and standards for SCG Dress Shoppe tailoring system.",
       keywords: "SCG JOMS, measurements, specifications, standards",
     },
     "/admin/uniform-configuration": {
       title: "Uniform Configuration | SCG Dress Shoppe JOMS",
       description:
-      "Set up and manage uniform specifications, pricing, and measurement requirements by course and gender.",
+        "Set up and manage uniform specifications, pricing, and measurement requirements by course and gender.",
       keywords: "SCG JOMS, uniform config, specifications, pricing",
     },
     "/admin/account-management": {
       title: "Account Management | SCG Dress Shoppe JOMS",
       description:
-      "Manage staff accounts, roles and access permissions for SCG Dress Shoppe JOMS platform.",
+        "Manage staff accounts, roles and access permissions for SCG Dress Shoppe JOMS platform.",
       keywords: "SCG JOMS, accounts, roles, permissions",
     },
     "/admin/orders": {
       title: "Order Management | SCG Dress Shoppe JOMS",
       description:
-      "Central order management system for processing uniform orders, tracking status and managing tailor assignments.",
+        "Central order management system for processing uniform orders, tracking status and managing tailor assignments.",
       keywords: "SCG JOMS, orders, tracking, management",
     },
     "/admin/students": {
       title: "Student Management | SCG Dress Shoppe JOMS",
       description:
-      "Manage student profiles, measurements and uniform orders for SCG Dress Shoppe system.",
+        "Manage student profiles, measurements and uniform orders for SCG Dress Shoppe system.",
       keywords: "SCG JOMS, students, profiles, uniforms",
     },
   }[$page.url.pathname];
