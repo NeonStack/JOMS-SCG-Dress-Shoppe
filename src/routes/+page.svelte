@@ -7,7 +7,7 @@
     isAndroid,
   } from "$lib/webauthn";
   import { onMount } from "svelte";
-  import { slide, fade } from 'svelte/transition'
+  import { slide, fade, draw } from "svelte/transition";
 
   let username = "";
   let password = "";
@@ -40,7 +40,8 @@
         </svg>
       `,
       title: "AI Sales Forecasting",
-      description: "View monthly and yearly income projections powered by the Prophet algorithm. Includes prediction bounds for data-driven planning and seasonality awareness."
+      description:
+        "View monthly and yearly income projections powered by the Prophet algorithm. Includes prediction bounds for data-driven planning and seasonality awareness.",
     },
     {
       icon: `
@@ -49,7 +50,8 @@
         </svg>
       `,
       title: "Admin Dashboard & Analytics",
-      description: "Monitor order volume, payment breakdowns, order status counts, and overdue metrics. Visual breakdowns for smarter decision-making."
+      description:
+        "Monitor order volume, payment breakdowns, order status counts, and overdue metrics. Visual breakdowns for smarter decision-making.",
     },
     {
       icon: `
@@ -58,7 +60,8 @@
         </svg>
       `,
       title: "Tailor Performance Monitoring",
-      description: "Track each employee's order completion history, volume, and timelines. Identify top performers and support performance-based decision making."
+      description:
+        "Track each employee's order completion history, volume, and timelines. Identify top performers and support performance-based decision making.",
     },
     {
       icon: `
@@ -67,10 +70,11 @@
         </svg>
       `,
       title: "Order Management",
-      description: "Access all customer orders. Assign orders to tailors, update status, manage due dates and payments. Generate receipts with QR codes."
-    }
+      description:
+        "Access all customer orders. Assign orders to tailors, update status, manage due dates and payments. Generate receipts with QR codes.",
+    },
   ];
-  
+
   const moreAdminFeatures = [
     {
       icon: `
@@ -79,7 +83,8 @@
         </svg>
       `,
       title: "Student Records Management",
-      description: "Centralized system for student profiles. Includes gender, course, measurements, order history, and contact info."
+      description:
+        "Centralized system for student profiles. Includes gender, course, measurements, order history, and contact info.",
     },
     {
       icon: `
@@ -88,7 +93,8 @@
         </svg>
       `,
       title: "Uniform Configuration",
-      description: "Define pricing logic per course, gender, and wear type. Set measurement specifications and additional per-cm charges."
+      description:
+        "Define pricing logic per course, gender, and wear type. Set measurement specifications and additional per-cm charges.",
     },
     {
       icon: `
@@ -97,7 +103,8 @@
         </svg>
       `,
       title: "Course & Measurement Type Management",
-      description: "Add and update academic courses and measurement categories. Keeps measurement options consistent across orders."
+      description:
+        "Add and update academic courses and measurement categories. Keeps measurement options consistent across orders.",
     },
     {
       icon: `
@@ -106,10 +113,11 @@
         </svg>
       `,
       title: "Admin Role & Access Control",
-      description: "Assign and revoke access to specific routes and modules. Manage superadmin/admin roles via admin_permissions."
-    }
+      description:
+        "Assign and revoke access to specific routes and modules. Manage superadmin/admin roles via admin_permissions.",
+    },
   ];
-  
+
   const tailorFeatures = [
     {
       icon: `
@@ -118,7 +126,8 @@
         </svg>
       `,
       title: "Assigned Orders",
-      description: "View and manage only the orders assigned to them. Track deadlines, order status, and update progress accordingly."
+      description:
+        "View and manage only the orders assigned to them. Track deadlines, order status, and update progress accordingly.",
     },
     {
       icon: `
@@ -127,7 +136,8 @@
         </svg>
       `,
       title: "Tailor Dashboard",
-      description: "See a personalized overview of current tasks, in-progress jobs, and order summaries. Fast access to important work data."
+      description:
+        "See a personalized overview of current tasks, in-progress jobs, and order summaries. Fast access to important work data.",
     },
     {
       icon: `
@@ -136,7 +146,8 @@
         </svg>
       `,
       title: "Student Lookup",
-      description: "Quickly search for student profiles. View and update measurements as needed for order accuracy."
+      description:
+        "Quickly search for student profiles. View and update measurements as needed for order accuracy.",
     },
     {
       icon: `
@@ -145,10 +156,11 @@
         </svg>
       `,
       title: "Profile Management",
-      description: "Update personal details like contact info, address, and position. Review work history via linked orders."
-    }
+      description:
+        "Update personal details like contact info, address, and position. Review work history via linked orders.",
+    },
   ];
-  
+
   const securityFeature = {
     icon: `
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
@@ -156,26 +168,41 @@
       </svg>
     `,
     title: "Device Ownership Verification",
-    description: "When logging in, the system checks if the device supports platform-level authentication. If supported, the user must prove ownership before proceeding."
+    description:
+      "When logging in, the system checks if the device supports platform-level authentication. If supported, the user must prove ownership before proceeding.",
   };
+
+  function loadViewPreference() {
+    if (typeof window !== 'undefined') {
+      const storedPreference = localStorage.getItem('joms-view-preference');
+      // Only update if a preference exists
+      if (storedPreference !== null) {
+        showHomepage = storedPreference === 'homepage';
+      }
+    }
+  }
+
+  // Function to save the user's preference to localStorage
+  function saveViewPreference(isHomepage) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('joms-view-preference', isHomepage ? 'homepage' : 'signin');
+    }
+  }
 
   // Smooth transition between homepage and login
   function toggleView() {
     if (transitioning) return;
-
     transitioning = true;
-    const container = document.getElementById("main-container");
 
-    container.classList.add("opacity-0");
+    // Immediately change state without waiting
+    showHomepage = !showHomepage;
 
+    saveViewPreference(showHomepage);
+
+    // Reset transitioning flag after a minimal duration
     setTimeout(() => {
-      showHomepage = !showHomepage;
-
-      setTimeout(() => {
-        container.classList.remove("opacity-0");
-        transitioning = false;
-      }, 50);
-    }, 300);
+      transitioning = false;
+    }, 100);
   }
 
   // Check WebAuthn support on mount with better Android handling
@@ -388,10 +415,11 @@
 
   // Function to render a feature card
   function renderFeatureCard(feature, style = "admin") {
-    const bgClass = style === "tailor" ? 
-      "bg-gray-50 hover:bg-white" : 
-      "bg-white hover:bg-gray-50";
-    
+    const bgClass =
+      style === "tailor"
+        ? "bg-gray-50 hover:bg-white"
+        : "bg-white hover:bg-gray-50";
+
     return `
       <div class="${bgClass} transition-all rounded-xl p-6 border-2 border-gray-200 hover:border-primary shadow-md hover:shadow-lg overflow-hidden relative group">
         <div class="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-primary to-accent transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
@@ -433,82 +461,83 @@
   let heroCircle2AnimState = { x: 0, y: 0, delay: 300 };
   let signInCircle1AnimState = { x: 0, y: 0, scale: 1, delay: 100 };
   let signInCircle2AnimState = { x: 0, y: 0, scale: 1, delay: 400 };
-  
+
   // Function to animate decorative circles with subtle random movement
   function animateCircles() {
     // Helper to get random movement values
     const getRandomMovement = (min, max) => Math.random() * (max - min) + min;
-    
+
     // Update hero circles position
     heroCircle1AnimState = {
       x: getRandomMovement(-8, 8),
       y: getRandomMovement(-8, 8),
-      delay: getRandomMovement(0, 300)
+      delay: getRandomMovement(0, 300),
     };
-    
+
     heroCircle2AnimState = {
       x: getRandomMovement(-8, 8),
       y: getRandomMovement(-8, 8),
-      delay: getRandomMovement(0, 300)
+      delay: getRandomMovement(0, 300),
     };
-    
+
     // Update signin page circles
     signInCircle1AnimState = {
       x: getRandomMovement(-10, 10),
       y: getRandomMovement(-10, 10),
       scale: getRandomMovement(0.95, 1.05),
-      delay: getRandomMovement(0, 300)
+      delay: getRandomMovement(0, 300),
     };
-    
+
     signInCircle2AnimState = {
       x: getRandomMovement(-15, 15),
       y: getRandomMovement(-15, 15),
       scale: getRandomMovement(0.9, 1.1),
-      delay: getRandomMovement(0, 300)
+      delay: getRandomMovement(0, 300),
     };
-    
+
     // Schedule next animation
     setTimeout(animateCircles, 6000);
   }
-  
+
   onMount(() => {
+    loadViewPreference();
+
     // Start the circle animations after a short delay
     setTimeout(animateCircles, 1000);
   });
 </script>
 
-<style>
-  /* Circle animation styles */
-  .floating-circle {
-    transition: transform 6s cubic-bezier(0.21, 0.68, 0.55, 0.9);
-  }
-</style>
-
 <div class="min-h-screen bg-white">
   <!-- Updated navigation with proper transitions -->
-  <header class="w-full py-4 px-6 md:px-10 bg-white shadow-md border-b-4 border-primary">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
+  <header
+    class="w-full py-4 px-6 md:px-10 bg-white shadow-md border-b-4 border-primary"
+  >
+    <div
+      class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4"
+    >
       <div>
         <img
           src="./SCGHorizontal.png"
           alt="SCG logo"
-          class="h-12 md:h-14 w-auto"
+          class="h-10 sm:h-12 md:h-14 w-auto"
         />
       </div>
       <div class="flex items-center">
-        <div class="inline-flex rounded-lg overflow-hidden border-2 border-primary relative">
+        <div
+          class="inline-flex rounded-lg overflow-hidden border-2 border-primary relative"
+        >
           <!-- Track background -->
           <div class="absolute inset-0 bg-white"></div>
-          
+
           <!-- Sliding active background -->
-          <div 
+          <div
             class="absolute top-0 bottom-0 w-1/2 bg-primary transition-all duration-300 ease-in-out rounded-sm"
-            style={`left: ${showHomepage ? '0' : '50%'}`}
+            style={`left: ${showHomepage ? "0" : "50%"}`}
             transition:slide={{ duration: 200 }}
           ></div>
-          
+
           <!-- Buttons -->
-          <button 
+          <button
             on:click={() => {
               if (!showHomepage) toggleView();
             }}
@@ -518,7 +547,7 @@
           >
             Home
           </button>
-          <button 
+          <button
             on:click={() => {
               if (showHomepage) toggleView();
             }}
@@ -533,32 +562,41 @@
     </div>
   </header>
 
-  <div id="main-container" class="transition-opacity duration-300 ease-in-out w-full">
+  <div id="main-container" class="w-full">
     {#if showHomepage}
       <!-- Homepage Content with improved features section -->
-      <div class="overflow-x-hidden w-full flex flex-col">
+      <div class="overflow-x-hidden w-full flex flex-col" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
         <!-- Hero section with animated circles -->
-        <section class="w-full flex-1 flex flex-col items-center justify-center px-6 py-24 md:py-32 relative">
+        <section
+          class="w-full flex-1 flex flex-col items-center justify-center px-6 py-24 md:py-32 relative"
+        >
           <!-- Decorative background elements with animation -->
-          <div 
+          <div
             class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 floating-circle"
             style="transform: translate({heroCircle1AnimState.x}px, {heroCircle1AnimState.y}px); transition-delay: {heroCircle1AnimState.delay}ms;"
           ></div>
-          <div 
+          <div
             class="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full translate-y-1/3 -translate-x-1/4 floating-circle"
             style="transform: translate({heroCircle2AnimState.x}px, {heroCircle2AnimState.y}px); transition-delay: {heroCircle2AnimState.delay}ms;"
           ></div>
 
           <div class="max-w-6xl mx-auto text-center relative z-10">
-            <div class="inline-block mb-8 px-4 py-1 bg-primary/10 rounded-full text-primary font-semibold">
+            <div
+              class="inline-block mb-8 px-4 py-1 bg-primary/10 rounded-full text-primary font-semibold"
+            >
               SCG Dress Shoppe
             </div>
 
-            <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
+            <h1
+              class="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6"
+            >
               Job Order <span class="text-primary">Monitoring</span> System
             </h1>
-            <p class="text-xl md:text-2xl text-secondary mb-10 max-w-3xl mx-auto">
-              A comprehensive platform for managing student uniform orders, measurements, and tailoring operations.
+            <p
+              class="text-xl md:text-2xl text-secondary mb-10 max-w-3xl mx-auto"
+            >
+              A comprehensive platform for managing student uniform orders,
+              measurements, and tailoring operations.
             </p>
             <button
               on:click={toggleView}
@@ -568,7 +606,9 @@
             </button>
 
             <!-- Colorful accent line -->
-            <div class="max-w-xs mx-auto mt-16 h-1 bg-gradient-to-r from-primary to-accent"></div>
+            <div
+              class="max-w-xs mx-auto mt-16 h-1 bg-gradient-to-r from-primary to-accent"
+            ></div>
           </div>
         </section>
 
@@ -576,7 +616,9 @@
         <section class="w-full py-16 px-6 bg-gray-50">
           <div class="max-w-6xl mx-auto">
             <div class="text-center mb-12">
-              <div class="inline-block px-4 py-1 bg-primary/10 rounded-full text-primary font-medium mb-4">
+              <div
+                class="inline-block px-4 py-1 bg-primary/10 rounded-full text-primary font-medium mb-4"
+              >
                 For Administrators
               </div>
               <h2 class="text-3xl md:text-4xl font-bold text-foreground mb-6">
@@ -603,7 +645,9 @@
         <section class="w-full py-16 px-6 bg-white">
           <div class="max-w-6xl mx-auto">
             <div class="text-center mb-12">
-              <div class="inline-block px-4 py-1 bg-primary/10 rounded-full text-primary font-medium mb-4">
+              <div
+                class="inline-block px-4 py-1 bg-primary/10 rounded-full text-primary font-medium mb-4"
+              >
                 For Tailors
               </div>
               <h2 class="text-3xl md:text-4xl font-bold text-foreground mb-6">
@@ -628,7 +672,9 @@
         </section>
 
         <!-- Footer section with gradient accent -->
-        <footer class="w-full py-10 md:py-8 px-6 md:px-10 bg-white border-t border-gray-200">
+        <footer
+          class="w-full py-10 md:py-8 px-6 md:px-10 bg-white border-t border-gray-200"
+        >
           <div class="max-w-6xl mx-auto">
             <div
               class="h-1 w-full bg-gradient-to-r from-primary to-accent mb-8"
@@ -650,14 +696,15 @@
       </div>
     {:else}
       <!-- Sign In Content -->
-      <div class="flex items-center justify-center min-h-[calc(100vh-88px)] p-4 bg-white">
+      <div class="flex items-center justify-center min-h-[calc(100vh-88px)] p-4 bg-white" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
+
         <div class="max-w-6xl mx-auto w-full">
           <div
-            class="flex flex-col lg:flex-row overflow-hidden rounded-2xl shadow-xl border-2 border-primary"
+            class="flex flex-col-reverse lg:flex-row overflow-hidden rounded-2xl shadow-xl border-2 border-primary"
           >
             <!-- Left panel with brand colors and animated circles -->
             <div
-              class="lg:w-5/12 bg-gradient-to-br from-primary to-accent p-8 md:p-12 text-white relative"
+              class="lg:w-5/12 hidden lg:block bg-gradient-to-br from-primary to-accent p-8 md:p-12 text-white relative"
             >
               <div class="mt-4 relative z-10">
                 <h2 class="text-3xl font-bold text-white mb-6">Welcome Back</h2>
@@ -689,7 +736,7 @@
               </div>
             </div>
 
-            <!-- Keep existing right panel code for sign in form -->
+            <!--right panel for sign in form -->
             <div class="lg:w-7/12 bg-white p-8 md:p-12">
               <h2 class="text-3xl font-bold text-primary mb-10 text-center">
                 Sign In
@@ -818,7 +865,7 @@
                         name="username"
                         bind:value={username}
                         disabled={loading || attemptingLogin}
-                        class="w-full pl-10 px-4 py-3 rounded-lg border border-gray-300 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
+                        class="w-full pl-10 px-4 py-3 rounded-lg border border-gray-600 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
                         placeholder="Enter your username"
                         required
                       />
@@ -857,9 +904,10 @@
                           name="password"
                           bind:value={password}
                           disabled={loading || attemptingLogin}
-                          class="w-full pl-10 px-4 py-3 pr-10 rounded-lg border border-gray-300 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
+                          class="w-full pl-10 px-4 py-3 pr-10 rounded-lg border border-gray-600 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
                           placeholder="Enter your password"
                           required
+                          autocomplete="off"
                         />
                       {:else}
                         <input
@@ -868,9 +916,10 @@
                           name="password"
                           bind:value={password}
                           disabled={loading || attemptingLogin}
-                          class="w-full pl-10 px-4 py-3 pr-10 rounded-lg border border-gray-300 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
+                          class="w-full pl-10 px-4 py-3 pr-10 rounded-lg border border-gray-600 focus:border-primary bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
                           placeholder="Enter your password"
                           required
+                          autocomplete="off"
                         />
                       {/if}
                       <button
@@ -965,3 +1014,10 @@
     {/if}
   </div>
 </div>
+
+<style>
+  /* Circle animation styles */
+  .floating-circle {
+    transition: transform 6s cubic-bezier(0.21, 0.68, 0.55, 0.9);
+  }
+</style>
