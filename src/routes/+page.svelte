@@ -173,19 +173,22 @@
   };
 
   function loadViewPreference() {
-    if (typeof window !== 'undefined') {
-      const storedPreference = localStorage.getItem('joms-view-preference');
+    if (typeof window !== "undefined") {
+      const storedPreference = localStorage.getItem("joms-view-preference");
       // Only update if a preference exists
       if (storedPreference !== null) {
-        showHomepage = storedPreference === 'homepage';
+        showHomepage = storedPreference === "homepage";
       }
     }
   }
 
   // Function to save the user's preference to localStorage
   function saveViewPreference(isHomepage) {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('joms-view-preference', isHomepage ? 'homepage' : 'signin');
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "joms-view-preference",
+        isHomepage ? "homepage" : "signin"
+      );
     }
   }
 
@@ -517,6 +520,9 @@
     >
       <div>
         <img
+          on:click={() => {
+            if (!showHomepage) toggleView();
+          }}
           src="./SCGHorizontal.png"
           alt="SCG logo"
           class="h-10 sm:h-12 md:h-14 w-auto"
@@ -565,7 +571,11 @@
   <div id="main-container" class="w-full">
     {#if showHomepage}
       <!-- Homepage Content with improved features section -->
-      <div class="overflow-x-hidden w-full flex flex-col" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
+      <div
+        class="overflow-x-hidden w-full flex flex-col"
+        in:fade={{ duration: 200 }}
+        out:fade={{ duration: 150 }}
+      >
         <!-- Hero section with animated circles -->
         <section
           class="w-full flex-1 flex flex-col items-center justify-center px-6 py-24 md:py-32 relative"
@@ -696,8 +706,11 @@
       </div>
     {:else}
       <!-- Sign In Content -->
-      <div class="flex items-center justify-center min-h-[calc(100vh-88px)] p-4 bg-white" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
-
+      <div
+        class="flex items-center justify-center min-h-[calc(100vh-88px)] p-4 bg-white"
+        in:fade={{ duration: 200 }}
+        out:fade={{ duration: 150 }}
+      >
         <div class="max-w-6xl mx-auto w-full">
           <div
             class="flex flex-col-reverse lg:flex-row overflow-hidden rounded-2xl shadow-xl border-2 border-primary"
