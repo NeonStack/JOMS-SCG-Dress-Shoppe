@@ -146,22 +146,55 @@
   });
 
   $: filteredOrders = sortedOrders.filter((order) => {
-    // First apply search filter
-    const studentName =
-      `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
-    const employeeName =
-      `${order.employee?.first_name} ${order.employee?.last_name}`.toLowerCase();
+    // Apply search filter to all relevant fields
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    // Common fields
+    const id = order.id.toString();
+    const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
+    const uniformType = (order.uniform_type || "").toLowerCase();
+    const orderDate = format(new Date(order.created_at), "MMM d, yyyy h:mm a").toLowerCase();
+    const dueDate = format(new Date(order.due_date), "MMM d, yyyy").toLowerCase();
     const totalAmount = order.total_amount.toString();
-    const matchesSearch =
-      studentName.includes(searchTerm.toLowerCase()) ||
-      employeeName.includes(searchTerm.toLowerCase()) ||
-      totalAmount.includes(searchTerm);
+    const status = (order.status || "").toLowerCase();
+    
+    // Employee related fields
+    const employeeName = order.employee 
+      ? `${order.employee.first_name} ${order.employee.last_name}`.toLowerCase() 
+      : "";
+    const assignedBy = (order.assigned_by || "").toLowerCase();
+    
+    // Payment related fields
+    const amountPaid = order.amount_paid.toString();
+    const balance = order.balance.toString();
+    const paymentDate = order.payment_date 
+      ? format(new Date(order.payment_date), "MMM d, yyyy").toLowerCase() 
+      : "";
+    const paymentStatus = (order.payment_status || "").toLowerCase();  
+    const paymentUpdatedBy = (order.payment_updated_by || "").toLowerCase();
+    
+    const matchesSearch = 
+      id.includes(searchTermLower) ||
+      studentName.includes(searchTermLower) ||
+      uniformType.includes(searchTermLower) ||
+      orderDate.includes(searchTermLower) ||
+      dueDate.includes(searchTermLower) ||
+      totalAmount.includes(searchTermLower) ||
+      status.includes(searchTermLower) ||
+      employeeName.includes(searchTermLower) ||
+      assignedBy.includes(searchTermLower) ||
+      amountPaid.includes(searchTermLower) ||
+      balance.includes(searchTermLower) ||
+      paymentDate.includes(searchTermLower) ||
+      paymentStatus.includes(searchTermLower) ||
+      paymentUpdatedBy.includes(searchTermLower);
 
     // Then apply date filter if dates are set
     if (dateRange.start && dateRange.end) {
       const orderDate = new Date(order.due_date);
       const startDate = new Date(dateRange.start);
       const endDate = new Date(dateRange.end);
+      endDate.setHours(23, 59, 59, 999); // Set to end of day
       return matchesSearch && orderDate >= startDate && orderDate <= endDate;
     }
 

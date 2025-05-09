@@ -1,4 +1,5 @@
 <script>
+  import { format } from "date-fns";
   import { createEventDispatcher } from "svelte";
   
   export let orders = [];
@@ -19,7 +20,7 @@
   
   function formatPaymentDate(date) {
     return date 
-      ? new Date(date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+      ? format(new Date(date), "MMM d, yyyy")
       : "No payment";
   }
   
@@ -115,7 +116,7 @@
       <!-- Pagination controls -->
       <div class="flex items-center justify-between px-4 py-3 border-t">
         <div class="flex items-center text-sm text-gray-500">
-          Showing {(currentPage - 1) * paginatedOrders.length + 1} to {Math.min(currentPage * paginatedOrders.length, orders.length)} of {orders.length} entries
+          Showing {orders.length > 0 ? (currentPage - 1) * paginatedOrders.length + 1 : 0} to {Math.min(currentPage * paginatedOrders.length, orders.length)} of {orders.length} entries
         </div>
         <div class="flex items-center gap-2">
           <button

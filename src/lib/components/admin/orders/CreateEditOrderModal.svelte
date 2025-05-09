@@ -201,6 +201,11 @@
       }
     };
   };
+
+  // Get tomorrow's date for the datepicker minimum value
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDueDate = tomorrow.toISOString().split('T')[0];
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -316,7 +321,7 @@
                   type="date"
                   name="dueDate"
                   bind:value={selectedDueDate}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={minDueDate}
                   class="w-full p-2 border rounded"
                   required
                 />
