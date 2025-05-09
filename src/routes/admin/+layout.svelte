@@ -121,7 +121,7 @@
   let isPageLoading = false; 
   let initialMountDone = false;
   
-  const sliderAnimationSpeed = 300;
+  const sliderAnimationSpeed = 400;
   const sliderProps = tweened(
     { top: 0, height: 0, opacity: 0 },
     { duration: sliderAnimationSpeed, easing: cubicOut }
