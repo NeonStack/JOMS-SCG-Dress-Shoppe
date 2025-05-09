@@ -2,50 +2,37 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { onMount, tick } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { tweened } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
 
-  // Managing the sidebar visibility for mobile devices
   let showSidebar = false;
   const { userRole, userProfile, permissions = $page.data.permissions || [] } = $page.data;
   
-  // Profile modal state
   let showProfileModal = false;
   let isEditingProfile = false;
 
-  // Default profile image if user doesn't have one
   let profileImage = userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent((userProfile?.first_name?.[0] || "") + (userProfile?.last_name?.[0] || ""))}&background=B73233&color=fff`;
   
-  // Format user's name from profile data
   $: userName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : (userRole === "superadmin" ? "Super Administrator" : "Administrator");
-
-  // Check if user has access to account management
   $: canEditProfile = userRole === 'superadmin' || permissions.includes('/admin/account-management');
 
-  // Toggle profile modal
   function toggleProfileModal() {
     showProfileModal = !showProfileModal;
   }
 
-  // Navigate to account management with admins tab
   async function editProfile() {
     try {
       isEditingProfile = true;
-      const navigationPromise = goto("/admin/account-management?tab=admins");
-      await navigationPromise;
+      await goto("/admin/account-management?tab=admins");
       showProfileModal = false;
     } catch (error) {
       console.error("Navigation error:", error);
-      // isEditingProfile remains true to allow user to see the button state or retry
     } finally {
-      if (isEditingProfile) { // Only reset if it was true and navigation didn't hide modal
-          isEditingProfile = false;
-      }
+      isEditingProfile = false;
     }
   }
 
-  // Close modal when clicking outside
   function handleClickOutside(event) {
     const modal = document.getElementById('profileModal');
     if (modal && !modal.contains(event.target) && !isEditingProfile) {
@@ -53,7 +40,6 @@
     }
   }
 
-  // Base navigation list
   const fullNavigationList = [
     {
       name: "Dashboard",
@@ -104,9 +90,8 @@
   
   let navigation = [];
 
-  // Reactive block to set navigation based on userRole and permissions
   $: {
-    let tempNav = [...fullNavigationList]; // Start with a copy of the full list
+    let tempNav = [...fullNavigationList];
     if (userRole === 'superadmin') {
       const adminPermissionsItem = {
         name: "Admin Permissions",
@@ -117,206 +102,123 @@
       if (signOutIndex !== -1) {
         tempNav.splice(signOutIndex, 0, adminPermissionsItem);
       } else {
-        tempNav.push(adminPermissionsItem); // Fallback if Sign Out is not found
+        tempNav.push(adminPermissionsItem);
       }
       navigation = tempNav;
     } else if (userRole === 'admin') {
-      const currentAdminPermissions = $page.data.permissions || [];
       navigation = fullNavigationList.filter(item => 
         item.href === '/admin/dashboard' ||
         item.href === '/signout' ||
-        currentAdminPermissions.includes(item.href)
+        permissions.includes(item.href)
       );
     } else {
-      // For any other role or if role is not defined, use the full list
       navigation = tempNav;
     }
   }
 
-  // Slider and navigation state
   let navItemElements = []; 
   let currentAnimatingHref = $page.url.pathname; 
   let isPageLoading = false; 
-  let initialMountDone = false; // Flag to control initial animation for slider
+  let initialMountDone = false;
   
-  // Animation speed in milliseconds - adjust this to change slider speed
-  const sliderAnimationSpeed = 300; // You can change this to make animation faster or slower
-
+  const sliderAnimationSpeed = 300;
   const sliderProps = tweened(
     { top: 0, height: 0, opacity: 0 },
     { duration: sliderAnimationSpeed, easing: cubicOut }
   );
 
   function updateSliderPosition(targetHref, animate = true) {
-    if (typeof window === 'undefined' || !navigation || navigation.length === 0) {
+    if (typeof window === 'undefined' || !navigation.length) {
       sliderProps.set({ top: 0, height: 0, opacity: 0 }, { duration: 0 });
       return;
     }
+    
     const itemIndex = navigation.findIndex(item => item.href === targetHref);
-
-    if (itemIndex !== -1 && navItemElements[itemIndex] && navItemElements[itemIndex].isConnected) {
+    if (itemIndex !== -1 && navItemElements[itemIndex]?.isConnected) {
       const buttonElement = navItemElements[itemIndex];
-      const newTop = buttonElement.offsetTop;
-      const newHeight = buttonElement.offsetHeight;
-      
-      // Use the configurable animation speed when animating
-      const animationDuration = (animate && initialMountDone) ? sliderAnimationSpeed : 0;
-      sliderProps.set({ top: newTop, height: newHeight, opacity: 1 }, { duration: animationDuration });
+      sliderProps.set({ 
+        top: buttonElement.offsetTop, 
+        height: buttonElement.offsetHeight, 
+        opacity: 1 
+      }, { 
+        duration: (animate && initialMountDone) ? sliderAnimationSpeed : 0 
+      });
     } else {
-      // If target item not found or element not ready, hide slider
-      sliderProps.set({ ...$sliderProps, opacity: 0 }, { duration: (animate && initialMountDone) ? sliderAnimationSpeed : 0 });
+      sliderProps.set({ ...$sliderProps, opacity: 0 }, { 
+        duration: (animate && initialMountDone) ? sliderAnimationSpeed : 0 
+      });
     }
   }
   
   onMount(async () => {
     currentAnimatingHref = $page.url.pathname;
-    // Allow bind:this to populate navItemElements for the initial navigation list
-    await tick(); 
-    // The main reactive block for slider updates will handle the first positioning.
-    // Since initialMountDone is false, it won't animate.
-    initialMountDone = true; // Subsequent updates triggered by navigation can animate.
+    await tick();
+    initialMountDone = true;
   });
 
-  // Reactive update for navItemElements array structure when `navigation` list changes
-  $: if (typeof window !== 'undefined' && navigation) {
-    if (navItemElements.length !== navigation.length) {
-        navItemElements = Array(navigation.length).fill(null);
-        // bind:this in the template will populate the new array.
-        // The main reactive slider update block will then pick up changes to navItemElements.
-    }
+  $: if (typeof window !== 'undefined' && navigation.length !== navItemElements.length) {
+    navItemElements = Array(navigation.length).fill(null);
   }
 
-  // Main reactive effect for slider position.
-  // Depends on the target href, readiness of DOM elements, and layout-affecting properties.
-  $: if (typeof window !== 'undefined') {
-    // Explicitly list dependencies for Svelte's reactivity system
-    const _currentHref = currentAnimatingHref;
-    const _navLength = navigation.length; // React to navigation list changes
-    const _padding = navItemPadding;     // React to padding changes
-    const _sidebarH = sidebarHeight;     // React to sidebar height changes
-    // React to individual elements being bound and connected
-    const _elementsReady = navItemElements.map(e => e?.isConnected); 
-
-    if (_currentHref && _navLength > 0) {
-      // Use a microtask to ensure DOM measurements are stable after Svelte updates (e.g., bind:this, style changes)
-      Promise.resolve().then(() => {
-        updateSliderPosition(_currentHref, true); 
-      });
-    } else if (_navLength === 0) {
-      // No navigation items, hide slider
-      Promise.resolve().then(() => {
-        sliderProps.set({ top: 0, height: 0, opacity: 0 }, { duration: 0 });
-      });
-    }
+  $: if (typeof window !== 'undefined' && currentAnimatingHref && navigation.length) {
+    Promise.resolve().then(() => updateSliderPosition(currentAnimatingHref, true));
   }
 
-  // React to actual page URL changes from Svelte Kit navigation or browser actions
   $: if (typeof window !== 'undefined' && $page.url.pathname) {
-    // When actual URL matches the target we're navigating to, reset loading state
     if (isPageLoading && currentAnimatingHref === $page.url.pathname) {
       isPageLoading = false;
-    }
-    
-    // If URL changes unexpectedly (e.g., browser back button), update currentAnimatingHref
-    if (!isPageLoading && currentAnimatingHref !== $page.url.pathname) {
+    } else if (!isPageLoading && currentAnimatingHref !== $page.url.pathname) {
       currentAnimatingHref = $page.url.pathname;
     }
   }
 
   async function handleNavigation(path) {
-    if (path === $page.url.pathname) {
-      return; // Already on this page, do nothing
-    }
-    
-    if (isPageLoading) {
-      return; // Already navigating somewhere, prevent multiple navigations
-    }
+    if (path === $page.url.pathname || isPageLoading) return;
 
-    // Set the target path and update the slider with animation
     const previousHref = currentAnimatingHref;
     currentAnimatingHref = path;
-    
-    // Start the animation immediately
-    updateSliderPosition(path, true); // Keep animation, but start immediately
-    
-    // Then start the navigation and show loading state
+    updateSliderPosition(path, true);
     isPageLoading = true;
     
     try {
       await goto(path);
-      // $page reactive block will reset isPageLoading when URL updates
-      
-      if (window.innerWidth < 1024) {
-        showSidebar = false;
-      }
+      if (window.innerWidth < 1024) showSidebar = false;
     } catch (error) {
       console.error("Navigation error:", error);
       isPageLoading = false;
-      // If navigation fails, revert to previous state
       currentAnimatingHref = previousHref;
       updateSliderPosition(previousHref, true);
     }
   }
   
-  // Calculate number of navigation items
-  $: navCount = navigation.length;
-  
-  // Variables for calculating available space
   let sidebarHeight;
-  
-  // Dynamically calculate optimal nav item padding based on available space
+  $: navCount = navigation.length;
   $: navItemPadding = calculateNavItemPadding(sidebarHeight, navCount);
   
-  // Calculate optimal nav item padding based on available space and item count
   function calculateNavItemPadding(height, count) {
-    if (!height || count === 0) return 'py-2'; 
+    if (!height || !count) return 'py-2';
     
-    const headerHeight = 40; 
-    const profileHeight = 64; 
-    const footerHeight = 28; 
-    const availableHeight = height - headerHeight - profileHeight - footerHeight;
+    const availableHeight = height - 132; // header(40) + profile(64) + footer(28)
+    const standardHeight = count * 36;
     
-    const standardItemHeight = 36; 
-    const totalRequiredHeight = count * standardItemHeight;
-    
-    if (totalRequiredHeight <= availableHeight) {
-      return 'py-3';
-    }
-    
-    const compactItemHeight = 30; 
-    const totalCompactHeight = count * compactItemHeight;
-    
-    if (totalCompactHeight <= availableHeight) {
-      return 'py-2';
-    }
-    
+    if (standardHeight <= availableHeight) return 'py-3';
+    if (count * 30 <= availableHeight) return 'py-2';
     return 'py-1';
   }
 </script>
 
-<!-- Main container with overflow hidden -->
 <div class="flex h-screen overflow-hidden bg-background text-foreground">
-  <!-- Overlay for mobile nav -->
   {#if showSidebar}
-    <div 
-      class="fixed inset-0 bg-black/50 z-40 lg:hidden" 
-      on:click={() => showSidebar = false}
-    ></div>
+    <div class="fixed inset-0 bg-black/50 z-40 lg:hidden" on:click={() => showSidebar = false}></div>
   {/if}
 
-  <!-- Profile Modal Overlay -->
   {#if showProfileModal}
     <div 
       class="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4"
       on:click={handleClickOutside}
       transition:fade={{ duration: 150 }}
     >
-      <!-- Profile Modal -->
-      <div 
-        id="profileModal"
-        class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-scale"
-      >
-        <!-- Modal Header -->
+      <div id="profileModal" class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-scale">
         <div class="bg-primary text-white p-4 flex justify-between items-center">
           <h3 class="font-bold text-lg">Profile Information</h3>
           <button 
@@ -330,7 +232,6 @@
           </button>
         </div>
         
-        <!-- Modal Content -->
         <div class="p-5">
           <div class="flex items-center gap-4 mb-5">
             <img src={profileImage} alt="Profile" class="w-16 h-16 rounded-full object-cover border-2 border-primary" />
@@ -369,10 +270,21 @@
                 </div>
               </div>
             {/if}
+            
+            {#if userProfile?.created_at}
+              <div class="flex items-start gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary mt-0.5" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m4.2 14.2L11 13V7h1.5v5.2l4.5 2.7l-.8 1.3Z"/>
+                </svg>
+                <div>
+                  <p class="text-xs text-gray-500 mb-0.5">Joined</p>
+                  <p>{new Date(userProfile.created_at).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})}</p>
+                </div>
+              </div>
+            {/if}
           </div>
         </div>
         
-        <!-- Modal Footer -->
         <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
           <button 
             on:click={toggleProfileModal}
@@ -407,20 +319,16 @@
     </div>
   {/if}
 
-  <!-- Fixed Sidebar - Now with FIXED WIDTH! -->
   <aside
-    class="{showSidebar
-      ? 'fixed inset-0 z-50 w-64 translate-x-0'
-      : 'fixed inset-0 z-50 w-64 -translate-x-full'} lg:relative lg:block lg:w-64 lg:translate-x-0 bg-primary text-white transition-transform duration-200 shadow-lg"
+    class="{showSidebar ? 'fixed inset-0 z-50 w-64 translate-x-0' : 'fixed inset-0 z-50 w-64 -translate-x-full'} 
+           lg:relative lg:block lg:w-64 lg:translate-x-0 bg-primary text-white transition-transform duration-200 shadow-lg"
     bind:clientHeight={sidebarHeight}
   >
     <div class="sticky top-0 h-screen flex flex-col">
-      <!-- Compact Brand Header -->
       <div class="px-3 py-2 flex items-center justify-center border-b border-primary-dark">
         <h1 class="font-bold text-base tracking-tight whitespace-nowrap">SCG DRESS SHOPPE</h1>
       </div>
 
-      <!-- Clickable User profile section -->
       <button 
         on:click={toggleProfileModal}
         class="flex items-center gap-2 py-2 px-3 w-full text-left hover:bg-white/10 transition-colors border-b border-primary-dark"
@@ -437,10 +345,8 @@
         </svg>
       </button>
       
-      <!-- Navigation Menu with consistent sizing and overflow when needed -->
       <nav class="flex-1 overflow-y-auto py-4 relative">
         <ul class="space-y-1 px-2">
-          <!-- Slider Element -->
           <div 
             class="absolute left-2 right-2 rounded bg-white shadow-sm" 
             style="top: {$sliderProps.top}px; height: {$sliderProps.height}px; opacity: {$sliderProps.opacity}; z-index: 0;"
@@ -473,19 +379,14 @@
         </ul>
       </nav>
       
-      <!-- System Info -->
       <div class="px-3 py-2 text-[10px] opacity-70 border-t border-primary-dark">
         <div class="truncate">JOMS SCG Dress Shoppe v1.2.0</div>
       </div>
     </div>
   </aside>
 
-  <!-- Content wrapper -->
   <div class="flex-1 flex flex-col lg:relative">
-    <!-- Mobile Header -->
-    <div
-      class="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-3 w-full shadow-sm"
-    >
+    <div class="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-3 w-full shadow-sm">
       <div class="font-semibold text-primary">SCG DRESS SHOPPE</div>
       
       <div class="flex items-center">
@@ -500,7 +401,6 @@
       </div>
     </div>
 
-    <!-- Page Content -->
     <main class="flex-1 overflow-y-auto p-4 md:p-6">
       <div class="h-full">
         <slot />
@@ -510,26 +410,6 @@
 </div>
 
 <style>
-  /* Clean scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
-  }
-  
-  /* Ensure the nav items have proper text wrapping */
   nav button span {
     white-space: nowrap;
     overflow: hidden;
