@@ -40,6 +40,8 @@
   let employeeSearchTerm = "";
   let isLoading = false;
   let orderForReceipt = null;
+  let filterUpdateTrigger = 0; // Used to force reactive updates
+  let dateFilteredOrders = []; // Add this line to declare the variable
 
   // Add pagination state
   let rowsPerPage = 10;
@@ -50,12 +52,214 @@
     payments: 1
   };
 
+  // Function to manually trigger reactive updates
+  function triggerFilterUpdate() {
+    filterUpdateTrigger += 1;
+    console.log("Filter update triggered:", filterUpdateTrigger);
+  }
+
+  $: filteredStudents = data.students.filter((student) =>
+    `${student.first_name} ${student.last_name} ${student.course?.course_code}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
+
+  $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
+    let comparison = 0;
+    if (sortField === "id") {
+      comparison = a.id - b.id;
+    } else if (sortField === "student") {
+      comparison =
+        `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
+          `${b.student?.first_name} ${b.student?.last_name}`
+        );
+    } else if (sortField === "created_at" || sortField === "due_date" || sortField === "payment_date") {
+      comparison = new Date(a[sortField] || 0) - new Date(b[sortField] || 0);
+    } else {
+      comparison = (a[sortField] || "")
+        .toString()
+        .localeCompare((b[sortField] || "").toString());
+    }
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  // Simplified date filter function
+  function matchesDateFilter(order) {
+    filterUpdateTrigger; // Make this function react to trigger updates
+    
+    if (!dateRange.start || !dateRange.end) return true;
+    
+    try {
+
+      if (!order.due_date || typeof order.due_date !== 'string') {
+        return false; // Or true if you want to include orders with missing/invalid due_dates
+      }
+
+      // Convert strings to Date objects
+      const orderDueDate = new Date(order.due_date);
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+
+      // Check if parsing resulted in an Invalid Date
+      if (isNaN(orderDueDate.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        // console.warn("Invalid date encountered in filter:", { 
+        //   order_id: order.id, 
+        //   order_due_date: order.due_date, 
+        //   range_start: dateRange.start, 
+        //   range_end: dateRange.end 
+        // });
+        return false; // Do not include if any date is invalid
+      }
+      
+      // Ensure we're comparing dates properly by normalizing times
+      orderDueDate.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0); 
+      endDate.setHours(23, 59, 59, 999);
+      
+      return orderDueDate >= startDate && orderDueDate <= endDate;
+    } catch (e) {
+      console.error("Date filtering error:", e, { 
+        order_id: order.id, 
+        order_due_date: order.due_date,
+        message: e.message
+      });
+      return false; // Change to false: if an error occurs, the order does not match the filter.
+    }
+  }
+
+  // Apply date filter first, then search filter
+  $: {
+    // Make this statement directly dependent on dateRange values
+    dateFilteredOrders = sortedOrders.filter(order => matchesDateFilter(order));
+    console.log("Date filtering applied", dateRange);
+  }
+
+  // Then apply search filter to the date-filtered orders for regular tabs
+  $: searchFilteredOrders = dateFilteredOrders.filter(order => {
+    // If no search term, return all date-filtered orders
+    if (!searchTerm.trim()) return true;
+    
+    // Apply search filter to all relevant fields
+    const searchTermLower = searchTerm.toLowerCase().trim();
+    
+    try {
+      // Common fields
+      const id = order.id.toString();
+      
+      // Special handling for ID search - must match from the beginning
+      const isNumericSearch = /^\d+$/.test(searchTermLower);
+      const idMatches = isNumericSearch 
+        ? id === searchTermLower || id.startsWith(searchTermLower)
+        : false;
+      
+      const studentName = order.student 
+        ? `${order.student.first_name} ${order.student.last_name}`.toLowerCase() 
+        : "";
+      const uniformType = (order.uniform_type || "").toLowerCase();
+      
+      // Convert dates safely
+      let orderDate = "";
+      let dueDate = "";
+      
+      try {
+        if (order.created_at) {
+          orderDate = format(new Date(order.created_at), "MMM d, yyyy h:mm a").toLowerCase();
+        }
+        if (order.due_date) {
+          dueDate = format(new Date(order.due_date), "MMM d, yyyy").toLowerCase();
+        }
+      } catch (e) {
+        console.error("Date formatting error:", e);
+      }
+      
+      const totalAmount = (order.total_amount || "").toString();
+      const status = (order.status || "").toLowerCase();
+      
+      // Employee related fields
+      const employeeName = order.employee 
+        ? `${order.employee.first_name} ${order.employee.last_name}`.toLowerCase() 
+        : "";
+      const assignedBy = (order.assigned_by || "").toLowerCase();
+      
+      return idMatches || 
+        studentName.includes(searchTermLower) ||
+        uniformType.includes(searchTermLower) ||
+        orderDate.includes(searchTermLower) ||
+        dueDate.includes(searchTermLower) ||
+        totalAmount.includes(searchTermLower) ||
+        status.includes(searchTermLower) ||
+        employeeName.includes(searchTermLower) ||
+        assignedBy.includes(searchTermLower);
+    } catch (error) {
+      console.error("Error filtering order:", error, order);
+      return false;
+    }
+  });
+
+  // Filter for payments tab
+  $: filteredPayments = dateFilteredOrders.filter(order => {
+    // If no search term, return all date-filtered orders
+    if (!searchTerm.trim()) return true;
+    
+    const searchTermLower = searchTerm.toLowerCase().trim();
+    
+    try {
+      // Payment-specific fields
+      const id = order.id.toString();
+      
+      // Special handling for ID search - must match from the beginning
+      const isNumericSearch = /^\d+$/.test(searchTermLower);
+      const idMatches = isNumericSearch 
+        ? id === searchTermLower || id.startsWith(searchTermLower)
+        : false;
+      
+      const studentName = order.student 
+        ? `${order.student.first_name} ${order.student.last_name}`.toLowerCase() 
+        : "";
+      const status = (order.status || "").toLowerCase();
+      const totalAmount = (order.total_amount || "").toString();
+      const amountPaid = (order.amount_paid || "").toString();
+      const balance = (order.balance || "").toString();
+      
+      // Format payment date
+      let paymentDate = "";
+      try {
+        if (order.payment_date) {
+          paymentDate = format(new Date(order.payment_date), "MMM d, yyyy").toLowerCase();
+        }
+      } catch (e) {
+        console.error("Date formatting error:", e);
+      }
+      
+      const paymentStatus = (order.payment_status || "").toLowerCase();
+      const paymentUpdatedBy = (order.payment_updated_by || "").toLowerCase();
+      
+      return idMatches || 
+        studentName.includes(searchTermLower) ||
+        status.includes(searchTermLower) ||
+        totalAmount.includes(searchTermLower) ||
+        amountPaid.includes(searchTermLower) ||
+        balance.includes(searchTermLower) ||
+        paymentDate.includes(searchTermLower) ||
+        paymentStatus.includes(searchTermLower) ||
+        paymentUpdatedBy.includes(searchTermLower);
+    } catch (error) {
+      console.error("Error filtering payment:", error, order);
+      return false;
+    }
+  });
+
+  // Filter search results by status
+  $: pendingOrders = searchFilteredOrders.filter(order => order.status === "pending");
+  $: inProgressOrders = searchFilteredOrders.filter(order => order.status === "in progress");
+  $: completedOrders = searchFilteredOrders.filter(order => order.status === "completed");
+
   // Calculate total pages for each tab
   $: totalPages = {
     pending: Math.ceil(pendingOrders.length / rowsPerPage),
     in_progress: Math.ceil(inProgressOrders.length / rowsPerPage),
     completed: Math.ceil(completedOrders.length / rowsPerPage),
-    payments: Math.ceil(sortedOrders.length / rowsPerPage)
+    payments: Math.ceil(filteredPayments.length / rowsPerPage)
   };
 
   // Get paginated orders for each tab
@@ -72,7 +276,7 @@
       (currentPage.completed - 1) * rowsPerPage,
       currentPage.completed * rowsPerPage
     ),
-    payments: sortedOrders.slice(
+    payments: filteredPayments.slice(
       (currentPage.payments - 1) * rowsPerPage,
       currentPage.payments * rowsPerPage
     )
@@ -112,109 +316,41 @@
     };
   }
 
+  // Set default sort field based on tab
   $: {
-    if (activeTab === "payments") {
+    if (activeTab === "payments" && sortField !== "payment_date") {
       sortField = "payment_date";
-    } else {
+    } else if (activeTab !== "payments" && sortField === "payment_date") {
       sortField = "created_at";
     }
   }
 
-  $: filteredStudents = data.students.filter((student) =>
-    `${student.first_name} ${student.last_name} ${student.course?.course_code}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
-
-  $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
-    let comparison = 0;
-    if (sortField === "id") {
-      comparison = a.id - b.id;
-    } else if (sortField === "student") {
-      comparison =
-        `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
-          `${b.student?.first_name} ${b.student?.last_name}`
-        );
-    } else if (sortField === "created_at" || sortField === "due_date") {
-      comparison = new Date(a[sortField]) - new Date(b[sortField]);
-    } else {
-      comparison = (a[sortField] || "")
-        .toString()
-        .localeCompare((b[sortField] || "").toString());
-    }
-    return sortDirection === "asc" ? comparison : -comparison;
-  });
-
-  $: filteredOrders = sortedOrders.filter((order) => {
-    // Apply search filter to all relevant fields
-    const searchTermLower = searchTerm.toLowerCase();
+  // Filter reset function
+  function resetAllFilters() {
+    searchTerm = "";
     
-    // Common fields
-    const id = order.id.toString();
-    const studentName = `${order.student?.first_name} ${order.student?.last_name}`.toLowerCase();
-    const uniformType = (order.uniform_type || "").toLowerCase();
-    const orderDate = format(new Date(order.created_at), "MMM d, yyyy h:mm a").toLowerCase();
-    const dueDate = format(new Date(order.due_date), "MMM d, yyyy").toLowerCase();
-    const totalAmount = order.total_amount.toString();
-    const status = (order.status || "").toLowerCase();
+    // Clear date range
+    dateRange = { start: "", end: "" };
     
-    // Employee related fields
-    const employeeName = order.employee 
-      ? `${order.employee.first_name} ${order.employee.last_name}`.toLowerCase() 
-      : "";
-    const assignedBy = (order.assigned_by || "").toLowerCase();
+    // Reset pagination
+    currentPage = {
+      pending: 1,
+      in_progress: 1,
+      completed: 1,
+      payments: 1
+    };
     
-    // Payment related fields
-    const amountPaid = order.amount_paid.toString();
-    const balance = order.balance.toString();
-    const paymentDate = order.payment_date 
-      ? format(new Date(order.payment_date), "MMM d, yyyy").toLowerCase() 
-      : "";
-    const paymentStatus = (order.payment_status || "").toLowerCase();  
-    const paymentUpdatedBy = (order.payment_updated_by || "").toLowerCase();
+    // Force filter update
+    triggerFilterUpdate();
     
-    const matchesSearch = 
-      id.includes(searchTermLower) ||
-      studentName.includes(searchTermLower) ||
-      uniformType.includes(searchTermLower) ||
-      orderDate.includes(searchTermLower) ||
-      dueDate.includes(searchTermLower) ||
-      totalAmount.includes(searchTermLower) ||
-      status.includes(searchTermLower) ||
-      employeeName.includes(searchTermLower) ||
-      assignedBy.includes(searchTermLower) ||
-      amountPaid.includes(searchTermLower) ||
-      balance.includes(searchTermLower) ||
-      paymentDate.includes(searchTermLower) ||
-      paymentStatus.includes(searchTermLower) ||
-      paymentUpdatedBy.includes(searchTermLower);
+    console.log("All filters have been reset");
+  }
 
-    // Then apply date filter if dates are set
-    if (dateRange.start && dateRange.end) {
-      const orderDate = new Date(order.due_date);
-      const startDate = new Date(dateRange.start);
-      const endDate = new Date(dateRange.end);
-      endDate.setHours(23, 59, 59, 999); // Set to end of day
-      return matchesSearch && orderDate >= startDate && orderDate <= endDate;
-    }
-
-    return matchesSearch;
-  });
-
-  $: pendingOrders = filteredOrders.filter(
-    (order) => order.status === "pending"
-  );
-  $: inProgressOrders = filteredOrders.filter(
-    (order) => order.status === "in progress"
-  );
-  $: completedOrders = filteredOrders.filter(
-    (order) => order.status === "completed"
-  );
-
-  // Add this function for tab switching
+  // Tab switching
   function switchTab(tab) {
     activeTab = tab;
     selectedOrders = []; // Clear selections when switching tabs
+    
     if (browser) {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", tab);
@@ -273,6 +409,11 @@
     }
   }
 
+  // Simplify sorting - no need for a separate function for payments
+  function handleSort(event) {
+    sort(event.detail.field);
+  }
+
   function resetForm() {
     selectedStudent = null;
     selectedUniformType = "upper";
@@ -319,6 +460,7 @@
     }
   }
 
+  // Set active tab from URL on page load
   $: {
     if (browser) {
       const params = new URLSearchParams(window.location.search);
@@ -489,116 +631,131 @@
           : ''}"
         on:click={() => switchTab("payments")}
       >
-        Payments ({data.orders.length})
+        Payments ({filteredPayments.length})
       </button>
     </div>
 
-    {#if activeTab !== "payments"}
-      <div class="flex flex-col md:flex-row items-center gap-4 mb-4 bg-muted p-4 rounded-lg">
-        <span class="font-medium text-gray-700">Filter by Due Date:</span>
-        <div class="flex flex-wrap gap-4 items-center">
-          <div class="flex items-center gap-2 max-md:flex-col">
-            <input
-              type="date"
-              bind:value={dateRange.start}
-              class="border rounded p-2"
-              placeholder="Start date"
-            />
-            <span class="text-gray-500">to</span>
-            <input
-              type="date"
-              bind:value={dateRange.end}
-              class="border rounded p-2"
-              placeholder="End date"
-            />
-          </div>
-
-          {#if dateRange.start || dateRange.end}
-            <button
-              class="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50 flex items-center gap-2"
-              on:click={() => {
-                dateRange.start = "";
-                dateRange.end = "";
-              }}
+    <!-- Filter controls -->
+    <div class="mb-6 bg-muted p-4 rounded-lg">
+      <div class="mb-2 flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">Date Filter</h3>
+        {#if dateRange.start || dateRange.end || searchTerm}
+          <button
+            class="ml-auto px-3 py-1 text-xs text-gray-600 border rounded hover:bg-gray-50 flex items-center gap-1"
+            on:click={resetAllFilters}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-              Clear Filter
-            </button>
-          {/if}
-        </div>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+            Clear Filters
+          </button>
+        {/if}
       </div>
-    {/if}
+      
+      <div class="flex items-center gap-2 flex-1">
+  <input
+    type="date"
+    bind:value={dateRange.start}
+    on:input={() => {
+      // Changed from on:change to on:input for more immediate reactivity
+      triggerFilterUpdate();
+      // Reset to first page when filters change
+      currentPage[activeTab] = 1;
+      
+      // If end date is now before start date, clear it
+      if (dateRange.end && dateRange.end < dateRange.start) {
+        dateRange.end = "";
+      }
+    }}
+    class="border rounded p-2 flex-1"
+    placeholder="Start date"
+  />
+  <span class="text-gray-500">to</span>
+  <input
+    type="date"
+    bind:value={dateRange.end}
+    min={dateRange.start || ""}
+    on:input={() => {
+      triggerFilterUpdate();
+      currentPage[activeTab] = 1;
+    }}
+    class="border rounded p-2 flex-1"
+    placeholder="End date"
+    disabled={!dateRange.start}
+  />
+</div>
+    </div>
 
     <!-- Tab content -->
-    {#if activeTab === "pending"}
-      <PendingOrdersTab 
-        {pendingOrders}
-        paginatedOrders={paginatedOrders.pending}
-        {sortField}
-        {sortDirection}
-        {selectedOrders}
-        {selectAll}
-        {isLoading}
-        employees={data.employees}
-        currentPage={currentPage.pending}
-        totalPages={totalPages.pending}
-        on:toggleSelection={(e) => toggleOrderSelection(e.detail.orderId)}
-        on:toggleSelectAll={toggleSelectAll}
-        on:sort={(e) => sort(e.detail.field)}
-        on:edit={(e) => handleEditClick(e.detail.order)}
-        on:delete={(e) => handleDeleteClick(e.detail.order)}
-        on:assign={handleAssign}
-        on:pageChange={handlePageChange}
-      />
-    {:else if activeTab === "in_progress"}
-      <InProgressOrdersTab 
-        {inProgressOrders}
-        paginatedOrders={paginatedOrders.in_progress}
-        {sortField}
-        {sortDirection}
-        currentPage={currentPage.in_progress}
-        totalPages={totalPages.in_progress}
-        on:sort={(e) => sort(e.detail.field)}
-        on:pageChange={handlePageChange}
-      />
-    {:else if activeTab === "completed"}
-      <CompletedOrdersTab 
-        {completedOrders}
-        paginatedOrders={paginatedOrders.completed}
-        {sortField}
-        {sortDirection}
-        currentPage={currentPage.completed}
-        totalPages={totalPages.completed}
-        on:sort={(e) => sort(e.detail.field)}
-        on:pageChange={handlePageChange}
-      />
-    {:else if activeTab === "payments"}
-      <PaymentsTab 
-        orders={sortedOrders}
-        paginatedOrders={paginatedOrders.payments}
-        {sortField}
-        {sortDirection}
-        currentPage={currentPage.payments}
-        totalPages={totalPages.payments}
-        {isLoading}
-        on:sort={(e) => sort(e.detail.field)}
-        on:recordPayment={(e) => handleRecordPayment(e.detail.order)}
-        on:generateReceipt={(e) => handleReceiptClick(e.detail.order)}
-        on:pageChange={handlePageChange}
-      />
-    {/if}
+    {#key filterUpdateTrigger}
+      {#if activeTab === "pending"}
+        <PendingOrdersTab 
+          {pendingOrders}
+          paginatedOrders={paginatedOrders.pending}
+          {sortField}
+          {sortDirection}
+          {selectedOrders}
+          {selectAll}
+          {isLoading}
+          employees={data.employees}
+          currentPage={currentPage.pending}
+          totalPages={totalPages.pending}
+          on:toggleSelection={(e) => toggleOrderSelection(e.detail.orderId)}
+          on:toggleSelectAll={toggleSelectAll}
+          on:sort={handleSort}
+          on:edit={(e) => handleEditClick(e.detail.order)}
+          on:delete={(e) => handleDeleteClick(e.detail.order)}
+          on:assign={handleAssign}
+          on:pageChange={handlePageChange}
+        />
+      {:else if activeTab === "in_progress"}
+        <InProgressOrdersTab 
+          {inProgressOrders}
+          paginatedOrders={paginatedOrders.in_progress}
+          {sortField}
+          {sortDirection}
+          currentPage={currentPage.in_progress}
+          totalPages={totalPages.in_progress}
+          on:sort={handleSort}
+          on:pageChange={handlePageChange}
+        />
+      {:else if activeTab === "completed"}
+        <CompletedOrdersTab 
+          {completedOrders}
+          paginatedOrders={paginatedOrders.completed}
+          {sortField}
+          {sortDirection}
+          currentPage={currentPage.completed}
+          totalPages={totalPages.completed}
+          on:sort={handleSort}
+          on:pageChange={handlePageChange}
+        />
+      {:else if activeTab === "payments"}
+        <PaymentsTab 
+          orders={filteredPayments}
+          paginatedOrders={paginatedOrders.payments}
+          {sortField}
+          {sortDirection}
+          currentPage={currentPage.payments}
+          totalPages={totalPages.payments}
+          {isLoading}
+          on:sort={handleSort}
+          on:recordPayment={(e) => handleRecordPayment(e.detail.order)}
+          on:generateReceipt={(e) => handleReceiptClick(e.detail.order)}
+          on:pageChange={handlePageChange}
+        />
+      {/if}
+    {/key}
   </div>
 </div>

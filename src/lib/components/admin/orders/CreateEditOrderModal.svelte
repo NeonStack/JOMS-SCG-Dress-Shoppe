@@ -1,6 +1,7 @@
 <script>
   import { enhance } from "$app/forms";
   import { createEventDispatcher } from "svelte";
+  import { onMount } from "svelte";
 
   export let isEditing = false;
   export let orderToEdit = null;
@@ -13,6 +14,27 @@
   let selectedDueDate = orderToEdit ? orderToEdit.due_date : "";
   let searchTerm = orderToEdit ? `${orderToEdit.student.first_name} ${orderToEdit.student.last_name} (${orderToEdit.student.course?.course_code})` : "";
   let isStudentDropdownOpen = false;
+  let minDueDate = ""; // Will be set in onMount
+
+  // Calculate tomorrow's date with proper timezone handling
+onMount(() => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    // Format to YYYY-MM-DD in local timezone
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    minDueDate = `${year}-${month}-${day}`;
+    
+    // Set selected due date to tomorrow if not editing and no date is selected
+    if (!isEditing && !selectedDueDate) {
+        selectedDueDate = minDueDate;
+    }
+    
+    console.log("Minimum due date set to:", minDueDate);
+});
 
   // For price calculation
   $: availableUniformTypes = selectedStudent
@@ -201,11 +223,6 @@
       }
     };
   };
-
-  // Get tomorrow's date for the datepicker minimum value
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDueDate = tomorrow.toISOString().split('T')[0];
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -325,6 +342,9 @@
                   class="w-full p-2 border rounded"
                   required
                 />
+                {#if minDueDate}
+                  <p class="text-xs text-gray-500 mt-1">Must be at least tomorrow ({minDueDate})</p>
+                {/if}
               </div>
             </div>
           </div>
