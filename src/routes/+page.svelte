@@ -661,7 +661,7 @@
                 For Tailors
               </div>
               <h2 class="text-3xl md:text-4xl font-bold text-foreground mb-6">
-                Streamlined Workflow Tools
+                Workflow Tools
               </h2>
               <div class="h-1 w-24 bg-primary mx-auto"></div>
             </div>
