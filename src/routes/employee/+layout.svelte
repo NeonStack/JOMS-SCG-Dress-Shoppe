@@ -301,7 +301,7 @@
     </div>
   </aside>
 
-  <div class="flex-1 flex flex-col lg:relative">
+  <div class="flex-1 flex flex-col lg:relative w-full">
     <div class="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-3 w-full shadow-sm">
       <div class="font-semibold text-primary">SCG DRESS SHOPPE</div>
       
@@ -317,8 +317,8 @@
       </div>
     </div>
 
-    <main class="flex-1 overflow-y-auto p-4 md:p-6">
-      <div class="h-full">
+    <main class="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
+      <div class="w-full max-w-full">
         <slot />
       </div>
     </main>
