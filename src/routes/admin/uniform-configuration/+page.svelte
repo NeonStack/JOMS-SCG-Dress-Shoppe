@@ -256,6 +256,14 @@
       return currentPage - 2 + i;
     }
   );
+
+  // Add state for help modal
+  let showPricingHelp = false;
+  
+  // Function to toggle help visibility
+  function togglePricingHelp() {
+    showPricingHelp = !showPricingHelp;
+  }
 </script>
 
 <div class="p-6">
@@ -708,195 +716,329 @@
               <!-- Right Column - Measurements -->
               <div class="w-full md:w-2/3 p-4 md:p-6 flex-1 overflow-y-auto">
                 <div class="rounded-xl space-y-6">
-                  <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center">
-                    <span class="bg-primary/10 p-1.5 rounded-lg mr-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
-                      </svg>
-                    </span>
-                    Measurement Specifications
-                  </h3>
+                  {#if showPricingHelp}
+                    <!-- Pricing Help Content -->
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                      <div class="bg-gradient-to-r from-primary/10 to-primary/5 p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center">
+                          <span class="bg-primary/10 p-1.5 rounded-lg mr-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                          </span>
+                          How Pricing Works
+                        </h3>
+                        <button 
+                          type="button"
+                          class="flex items-center gap-1 text-sm text-primary hover:text-primary-dark px-3 py-1 rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors"
+                          on:click={togglePricingHelp}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          </svg>
+                          Back to Measurements
+                        </button>
+                      </div>
+                      
+                      <div class="p-5 space-y-5">
+                        <p class="text-gray-600">
+                          The pricing system calculates the total cost for uniforms based on the specific measurements of each student.
+                        </p>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <h4 class="font-medium text-primary mb-3">Understanding Configuration Values:</h4>
+                          <ul class="space-y-1.5 text-gray-600">
+                            <li class="flex items-start">
+                              <span class="bg-primary/10 text-primary rounded-full p-1 mr-2 shrink-0 mt-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              </span>
+                              <span><strong>Base Price:</strong> The starting price of the uniform (e.g., ₱500 for BSIT Female Upper uniform)</span>
+                            </li>
+                            <li class="flex items-start">
+                              <span class="bg-primary/10 text-primary rounded-full p-1 mr-2 shrink-0 mt-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              </span>
+                              <span><strong>Base Measurement (cm):</strong> The standard measurement included in the base price (e.g., 50 cm for shoulder width)</span>
+                            </li>
+                            <li class="flex items-start">
+                              <span class="bg-primary/10 text-primary rounded-full p-1 mr-2 shrink-0 mt-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              </span>
+                              <span><strong>Additional Cost Per cm (₱):</strong> The price charged for each centimeter exceeding the base measurement (e.g., ₱2 per extra cm)</span>
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <div class="border-l-4 border-primary/20 pl-4 py-1">
+                          <h4 class="font-medium text-gray-700 mb-2">Example Calculation:</h4>
+                          <div class="space-y-4">
+                            <div class="grid md:grid-cols-2 gap-3">
+                              <div class="bg-white p-3 rounded-lg border border-gray-200">
+                                <h5 class="text-sm font-medium text-gray-600 mb-2">Base Configuration</h5>
+                                <ul class="space-y-1 text-sm">
+                                  <li><span class="text-gray-500">Base Price:</span> <span class="font-medium">₱500</span></li>
+                                  <li><span class="text-gray-500">Shoulder Width Base:</span> <span class="font-medium">50 cm</span></li>
+                                  <li><span class="text-gray-500">Additional Cost/cm:</span> <span class="font-medium">₱2</span></li>
+                                </ul>
+                              </div>
+                              
+                              <div class="bg-white p-3 rounded-lg border border-gray-200">
+                                <h5 class="text-sm font-medium text-gray-600 mb-2">Student's Measurements</h5>
+                                <ul class="space-y-1 text-sm">
+                                  <li><span class="text-gray-500">Student's Shoulder Width:</span> <span class="font-medium">55 cm</span></li>
+                                  <li><span class="text-gray-500">Exceeds Base by:</span> <span class="font-medium">5 cm</span></li>
+                                </ul>
+                              </div>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                              <h5 class="text-sm font-medium text-primary mb-2">Price Calculation</h5>
+                              <div class="space-y-3">
+                                <div>
+                                  <p class="text-gray-600 text-sm font-medium">1. Calculate extra measurement:</p>
+                                  <div class="bg-gray-50 p-2 rounded border border-gray-100 text-sm text-gray-700">
+                                    Student's Measurement - Base Measurement = Extra cm<br>
+                                    55 cm - 50 cm = <strong>5 cm</strong>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <p class="text-gray-600 text-sm font-medium">2. Calculate additional cost:</p>
+                                  <div class="bg-gray-50 p-2 rounded border border-gray-100 text-sm text-gray-700">
+                                    Extra cm × Additional Cost per cm = Additional Cost<br>
+                                    5 cm × ₱2 = <strong>₱10</strong>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <p class="text-gray-600 text-sm font-medium">3. Calculate final price:</p>
+                                  <div class="bg-gray-50 p-2 rounded border border-gray-100 text-sm text-gray-700">
+                                    Base Price + Additional Cost = Final Price<br>
+                                    ₱500 + ₱10 = <strong class="text-primary font-medium">₱510</strong>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <p class="text-sm text-gray-500 italic">
+                          Note: This calculation is done automatically by the system when students place orders based on their measurements.
+                        </p>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center">
+                        <span class="bg-primary/10 p-1.5 rounded-lg mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+                          </svg>
+                        </span>
+                        Measurement Specifications
+                      </h3>
+                      
+                      <!-- Help Button -->
+                      <button 
+                        type="button"
+                        class="flex items-center gap-1 text-sm text-primary hover:text-primary-dark px-3 py-1 rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors"
+                        on:click={togglePricingHelp}
+                        aria-label="Pricing information"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        How Pricing Works
+                      </button>
+                    </div>
 
-                  <!-- Selected Measurements -->
-                  {#if selectedMeasurements.size > 0}
+                    <!-- Selected Measurements -->
+                    {#if selectedMeasurements.size > 0}
+                      <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                          <h4 class="text-sm font-medium text-primary flex items-center">
+                            <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-primary text-white text-xs rounded-full">
+                              {selectedMeasurements.size}
+                            </span>
+                            Selected Measurements
+                          </h4>
+                          {#if selectedMeasurements.size > 0}
+                            <div class="flex items-center text-xs">
+                              <span class="text-gray-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                                Click on a card to remove
+                              </span>
+                            </div>
+                          {/if}
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {#each measurementTypes as measurementType}
+                            {#if selectedMeasurements.has(measurementType.id)}
+                              {@const measurementValues = selectedMeasurementMap.get(measurementType.id) || {}}
+                              <div class="group relative">
+                                <div
+                                  class="bg-white rounded-lg border border-primary/30 shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 overflow-hidden h-full"
+                                >
+                                  <!-- Card Header -->
+                                  <div class="flex justify-between items-center p-3 border-b border-gray-100 bg-primary/5">
+                                    <h5 class="font-medium text-primary truncate">{measurementType.name}</h5>
+                                    <div 
+                                      class="shrink-0 ml-2 cursor-pointer bg-white text-primary hover:bg-primary hover:text-white rounded-full p-1 border border-primary/30 transition-colors"
+                                      on:click|preventDefault|stopPropagation={() => toggleMeasurement(measurementType.id)}
+                                      title="Remove measurement"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                  
+                                  <!-- Card Body - Selected Measurements -->
+                                  <div class="p-3 space-y-3">
+                                    <!-- Hidden input to store the measurement type ID -->
+                                    <input
+                                      type="hidden"
+                                      name="selectedMeasurements"
+                                      value={measurementType.id}
+                                    />
+                                    
+                                    <div class="space-y-2.5">
+                                      <div>
+                                        <div>
+                                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                                            Base Measurement (cm)
+                                            {#if measurementType.default_base_cm !== null}
+                                              <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_base_cm}</span>
+                                            {/if}
+                                          </label>
+                                        </div>
+                                        <div class="relative">
+                                          <input
+                                            type="number"
+                                            name="baseCm_{measurementType.id}"
+                                            value={measurementValues.base_cm}
+                                            class="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                            min="0"
+                                            max="500"
+                                            step="0.1"
+                                            required
+                                            placeholder={measurementType.default_base_cm !== null ? measurementType.default_base_cm : ""}
+                                          />
+                                          <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">cm</span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div>
+                                        <div>
+                                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                                            Additional Cost Per cm (₱)
+                                            {#if measurementType.default_additional_cost_per_cm !== null}
+                                              <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_additional_cost_per_cm}</span>
+                                            {/if}
+                                          </label>
+                                        </div>
+                                        <div class="relative">
+                                          <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">₱</span>
+                                          <input
+                                            type="number"
+                                            name="costPerCm_{measurementType.id}"
+                                            value={measurementValues.additional_cost_per_cm}
+                                            class="block w-full pl-6 pr-8 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                            min="0"
+                                            step="0.01"
+                                            required
+                                            placeholder={measurementType.default_additional_cost_per_cm !== null ? measurementType.default_additional_cost_per_cm : ""}
+                                          />
+                                          <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">/cm</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            {/if}
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Available Measurements -->
                     <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-medium text-primary flex items-center">
-                          <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-primary text-white text-xs rounded-full">
-                            {selectedMeasurements.size}
+                        <h4 class="text-sm font-medium text-gray-700 flex items-center">
+                          <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-gray-200 text-gray-700 text-xs rounded-full">
+                            {measurementTypes.length - selectedMeasurements.size}
                           </span>
-                          Selected Measurements
+                          Available Measurements
                         </h4>
-                        {#if selectedMeasurements.size > 0}
+                        {#if measurementTypes.length - selectedMeasurements.size > 0}
                           <div class="flex items-center text-xs">
                             <span class="text-gray-500 flex items-center">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                               </svg>
-                              Click on a card to remove
+                              Click on a card to add
                             </span>
                           </div>
                         {/if}
                       </div>
-                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {#each measurementTypes as measurementType}
-                          {#if selectedMeasurements.has(measurementType.id)}
-                            {@const measurementValues = selectedMeasurementMap.get(measurementType.id) || {}}
-                            <div class="group relative">
-                              <div
-                                class="bg-white rounded-lg border border-primary/30 shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 overflow-hidden h-full"
+                      
+                      {#if measurementTypes.filter(m => !selectedMeasurements.has(m.id)).length > 0}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {#each measurementTypes as measurementType}
+                            {#if !selectedMeasurements.has(measurementType.id)}
+                              <!-- Available Measurements card design improvement -->
+                              <div 
+                                class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer h-full"
+                                on:click|preventDefault={() => toggleMeasurement(measurementType.id)}
                               >
-                                <!-- Card Header -->
-                                <div class="flex justify-between items-center p-3 border-b border-gray-100 bg-primary/5">
-                                  <h5 class="font-medium text-primary truncate">{measurementType.name}</h5>
-                                  <div 
-                                    class="shrink-0 ml-2 cursor-pointer bg-white text-primary hover:bg-primary hover:text-white rounded-full p-1 border border-primary/30 transition-colors"
-                                    on:click|preventDefault|stopPropagation={() => toggleMeasurement(measurementType.id)}
-                                    title="Remove measurement"
-                                  >
+                                <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                  <h5 class="font-medium text-gray-700 truncate group-hover:text-primary">{measurementType.name}</h5>
+                                  <div class="shrink-0 ml-2 bg-gray-100 text-gray-600 hover:bg-primary hover:text-white rounded-full p-1 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                      <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                     </svg>
                                   </div>
                                 </div>
-                                
-                                <!-- Card Body - Selected Measurements -->
-                                <div class="p-3 space-y-3">
-                                  <!-- Hidden input to store the measurement type ID -->
-                                  <input
-                                    type="hidden"
-                                    name="selectedMeasurements"
-                                    value={measurementType.id}
-                                  />
-                                  
-                                  <div class="space-y-2.5">
-                                    <div>
-                                      <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">
-                                          Base Measurement (cm)
-                                          {#if measurementType.default_base_cm !== null}
-                                            <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_base_cm}</span>
-                                          {/if}
-                                        </label>
-                                      </div>
-                                      <div class="relative">
-                                        <input
-                                          type="number"
-                                          name="baseCm_{measurementType.id}"
-                                          value={measurementValues.base_cm}
-                                          class="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                                          min="0"
-                                          max="500"
-                                          step="0.1"
-                                          required
-                                          placeholder={measurementType.default_base_cm !== null ? measurementType.default_base_cm : ""}
-                                        />
-                                        <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">cm</span>
-                                      </div>
-                                    </div>
-                                    
-                                    <div>
-                                      <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">
-                                          Additional Cost Per cm (₱)
-                                          {#if measurementType.default_additional_cost_per_cm !== null}
-                                            <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_additional_cost_per_cm}</span>
-                                          {/if}
-                                        </label>
-                                      </div>
-                                      <div class="relative">
-                                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">₱</span>
-                                        <input
-                                          type="number"
-                                          name="costPerCm_{measurementType.id}"
-                                          value={measurementValues.additional_cost_per_cm}
-                                          class="block w-full pl-6 pr-8 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                                          min="0"
-                                          step="0.01"
-                                          required
-                                          placeholder={measurementType.default_additional_cost_per_cm !== null ? measurementType.default_additional_cost_per_cm : ""}
-                                        />
-                                        <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">/cm</span>
-                                      </div>
-                                    </div>
+                                <div class="p-3">
+                                  <div class="space-y-2">
+                                    {#if measurementType.default_base_cm !== null || measurementType.default_additional_cost_per_cm !== null}
+                                      {#if measurementType.default_base_cm !== null}
+                                        <div class="flex items-center text-sm">
+                                          <span class="text-gray-500 w-20 shrink-0">Base:</span>
+                                          <span class="font-medium text-gray-700 ml-2">{measurementType.default_base_cm} cm</span>
+                                        </div>
+                                      {/if}
+                                      {#if measurementType.default_additional_cost_per_cm !== null}
+                                        <div class="flex items-center text-sm">
+                                          <span class="text-gray-500 w-20 shrink-0">Cost/cm:</span>
+                                          <span class="font-medium text-gray-700 ml-2">₱{measurementType.default_additional_cost_per_cm}</span>
+                                        </div>
+                                      {/if}
+                                    {:else}
+                                      <p class="text-xs text-gray-500 italic">No default values set</p>
+                                    {/if}
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          {/if}
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-
-                  <!-- Available Measurements -->
-                  <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <div class="flex items-center justify-between mb-4">
-                      <h4 class="text-sm font-medium text-gray-700 flex items-center">
-                        <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-gray-200 text-gray-700 text-xs rounded-full">
-                          {measurementTypes.length - selectedMeasurements.size}
-                        </span>
-                        Available Measurements
-                      </h4>
-                      {#if measurementTypes.length - selectedMeasurements.size > 0}
-                        <div class="flex items-center text-xs">
-                          <span class="text-gray-500 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                            </svg>
-                            Click on a card to add
-                          </span>
+                            {/if}
+                          {/each}
+                        </div>
+                      {:else}
+                        <div class="bg-white p-6 rounded-lg border border-dashed border-gray-300 text-center">
+                          <p class="text-gray-500">All measurement types have been selected</p>
                         </div>
                       {/if}
                     </div>
-                    
-                    {#if measurementTypes.filter(m => !selectedMeasurements.has(m.id)).length > 0}
-                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {#each measurementTypes as measurementType}
-                          {#if !selectedMeasurements.has(measurementType.id)}
-                            <!-- Available Measurements card design improvement -->
-                            <div 
-                              class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer h-full"
-                              on:click|preventDefault={() => toggleMeasurement(measurementType.id)}
-                            >
-                              <div class="flex justify-between items-center p-3 border-b border-gray-100">
-                                <h5 class="font-medium text-gray-700 truncate group-hover:text-primary">{measurementType.name}</h5>
-                                <div class="shrink-0 ml-2 bg-gray-100 text-gray-600 hover:bg-primary hover:text-white rounded-full p-1 transition-colors">
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-                                  </svg>
-                                </div>
-                              </div>
-                              <div class="p-3">
-                                <div class="space-y-2">
-                                  {#if measurementType.default_base_cm !== null || measurementType.default_additional_cost_per_cm !== null}
-                                    {#if measurementType.default_base_cm !== null}
-                                      <div class="flex items-center text-sm">
-                                        <span class="text-gray-500 w-20 shrink-0">Base:</span>
-                                        <span class="font-medium text-gray-700 ml-2">{measurementType.default_base_cm} cm</span>
-                                      </div>
-                                    {/if}
-                                    {#if measurementType.default_additional_cost_per_cm !== null}
-                                      <div class="flex items-center text-sm">
-                                        <span class="text-gray-500 w-20 shrink-0">Cost/cm:</span>
-                                        <span class="font-medium text-gray-700 ml-2">₱{measurementType.default_additional_cost_per_cm}</span>
-                                      </div>
-                                    {/if}
-                                  {:else}
-                                    <p class="text-xs text-gray-500 italic">No default values set</p>
-                                  {/if}
-                                </div>
-                              </div>
-                            </div>
-                          {/if}
-                        {/each}
-                      </div>
-                    {:else}
-                      <div class="bg-white p-6 rounded-lg border border-dashed border-gray-300 text-center">
-                        <p class="text-gray-500">All measurement types have been selected</p>
-                      </div>
-                    {/if}
-                  </div>
+                  {/if}
                 </div>
               </div>
             </div>
