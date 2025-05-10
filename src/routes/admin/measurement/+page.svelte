@@ -16,10 +16,15 @@
   let sortColumn = "created_at";
   let sortDirection = "desc";
   let newMeasurements = [""]; // Array to hold multiple measurement names
+  let newMeasurementBaseCm = [""]; // Array to hold base cm values
+  let newMeasurementAdditionalCost = [""]; // Array to hold additional cost values
 
   // Validation constants
   const NAME_MAX_LENGTH = 40;
   const NAME_PATTERN = /^[A-Za-z0-9\s-]+$/;
+  const NUMBER_PATTERN = /^\d*\.?\d*$/;
+  const MAX_DECIMAL_PLACES = 2;
+  const MAX_NUMERIC_VALUE = 999999.99;
 
   // Validation state
   let validationErrors = Array(newMeasurements.length).fill({});
@@ -46,6 +51,53 @@
     return Object.keys(errors).length === 0;
   }
 
+  function validateNumeric(value, fieldName, index, isEdit = false) {
+    const errors = {};
+    if (value === undefined || value === null || value === '') return {};
+    
+    // Validate format
+    if (!NUMBER_PATTERN.test(value)) {
+      errors.message = `${fieldName} must be a valid number`;
+    } else {
+      // Check decimal places
+      const parts = value.toString().split('.');
+      if (parts.length > 1 && parts[1].length > MAX_DECIMAL_PLACES) {
+        errors.message = `${fieldName} cannot have more than ${MAX_DECIMAL_PLACES} decimal places`;
+      } else {
+        // Check max value
+        const numValue = parseFloat(value);
+        if (numValue > MAX_NUMERIC_VALUE) {
+          errors.message = `${fieldName} cannot exceed ${MAX_NUMERIC_VALUE}`;
+        } else if (numValue < 0) {
+          errors.message = `${fieldName} cannot be negative`;
+        }
+      }
+    }
+    
+    return errors;
+  }
+
+  function validateMeasurementEntry(name, baseCm, additionalCost, index, isEdit = false) {
+    const nameErrors = validateMeasurementName(name, index, isEdit);
+    const baseCmErrors = validateNumeric(baseCm, "Base (cm)", index, isEdit);
+    const additionalCostErrors = validateNumeric(additionalCost, "Additional cost per cm", index, isEdit);
+    
+    const allErrors = {
+      ...nameErrors,
+      ...baseCmErrors,
+      ...additionalCostErrors
+    };
+    
+    if (isEdit) {
+      editValidationError = allErrors;
+    } else {
+      validationErrors[index] = allErrors;
+      validationErrors = [...validationErrors]; // Trigger reactivity
+    }
+    
+    return Object.keys(allErrors).length === 0;
+  }
+
   // Filter and sort measurements
   $: filteredMeasurements = measurements
     ?.filter((m) => m.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -57,6 +109,28 @@
         comparison = new Date(a.created_at) - new Date(b.created_at);
       } else if (sortColumn === "usage_count") {
         comparison = a.usage_count - b.usage_count;
+      } else if (sortColumn === "default_base_cm") {
+        // Handle null values for base_cm
+        if (a.default_base_cm === null && b.default_base_cm === null) {
+          comparison = 0;
+        } else if (a.default_base_cm === null) {
+          comparison = -1; // Nulls first when sorting ascending
+        } else if (b.default_base_cm === null) {
+          comparison = 1;
+        } else {
+          comparison = parseFloat(a.default_base_cm) - parseFloat(b.default_base_cm);
+        }
+      } else if (sortColumn === "default_additional_cost_per_cm") {
+        // Handle null values for additional_cost
+        if (a.default_additional_cost_per_cm === null && b.default_additional_cost_per_cm === null) {
+          comparison = 0;
+        } else if (a.default_additional_cost_per_cm === null) {
+          comparison = -1; // Nulls first when sorting ascending
+        } else if (b.default_additional_cost_per_cm === null) {
+          comparison = 1;
+        } else {
+          comparison = parseFloat(a.default_additional_cost_per_cm) - parseFloat(b.default_additional_cost_per_cm);
+        }
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
@@ -112,7 +186,9 @@
     isLoading = false;
     measurementToDelete = null;
     newMeasurements = [""];
-    validationErrors = Array(newMeasurements.length).fill({});
+    newMeasurementBaseCm = [""];
+    newMeasurementAdditionalCost = [""];
+    validationErrors = [{}];
     editValidationError = {};
   };
 
@@ -136,16 +212,20 @@
   const handleCreateSubmit = () => {
     let isValid = true;
     newMeasurements.forEach((name, index) => {
-      if (!validateMeasurementName(name, index)) isValid = false;
+      if (!validateMeasurementEntry(name, newMeasurementBaseCm[index], newMeasurementAdditionalCost[index], index)) {
+        isValid = false;
+      }
     });
 
     if (!isValid) return () => {}; // Prevent form submission if invalid
 
     isLoading = true;
-    // Format names before submitting
-    const formattedMeasurements = newMeasurements
-      .map((name) => toSentenceCase(name.trim()))
-      .filter((name) => name);
+    // Format values before submitting
+    const formattedMeasurements = newMeasurements.map((name, index) => ({
+      name: toSentenceCase(name.trim()),
+      baseCm: newMeasurementBaseCm[index],
+      additionalCost: newMeasurementAdditionalCost[index]
+    })).filter(m => m.name);
 
     return async ({ result }) => {
       if (result.type === "success") {
@@ -204,10 +284,16 @@
 
   const addMeasurementField = () => {
     newMeasurements = [...newMeasurements, ""];
+    newMeasurementBaseCm = [...newMeasurementBaseCm, ""];
+    newMeasurementAdditionalCost = [...newMeasurementAdditionalCost, ""];
+    validationErrors = [...validationErrors, {}];
   };
 
   const removeMeasurementField = (index) => {
     newMeasurements = newMeasurements.filter((_, i) => i !== index);
+    newMeasurementBaseCm = newMeasurementBaseCm.filter((_, i) => i !== index);
+    newMeasurementAdditionalCost = newMeasurementAdditionalCost.filter((_, i) => i !== index);
+    validationErrors = validationErrors.filter((_, i) => i !== index);
   };
 </script>
 
@@ -274,6 +360,24 @@
                 <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
               {/if}
             </th>
+            <th 
+              class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+              on:click={() => toggleSort("default_base_cm")}
+            >
+              Default Base (cm)
+              {#if sortColumn === "default_base_cm"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th 
+              class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+              on:click={() => toggleSort("default_additional_cost_per_cm")}
+            >
+              Default Cost/cm (₱)
+              {#if sortColumn === "default_additional_cost_per_cm"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
             <th
               class="p-2 cursor-pointer hover:bg-gray-200 text-left"
               on:click={() => toggleSort("usage_count")}
@@ -307,32 +411,64 @@
                     class="flex gap-2 flex-col items-start"
                   >
                     <input type="hidden" name="id" value={measurement.id} />
-                    <input
-                      type="text"
-                      name="name"
-                      value={measurement.name}
-                      on:input={(e) =>
-                        validateMeasurementName(e.target.value, 0, true)}
-                      on:blur={(e) => {
-                        measurement.name = toSentenceCase(e.target.value);
-                        validateMeasurementName(measurement.name, 0, true);
-                      }}
-                      class="px-2 py-1 border rounded {editValidationError?.message
-                        ? 'border-red-500'
-                        : ''}"
-                      maxlength={NAME_MAX_LENGTH}
-                      disabled={isLoading}
-                    />
-                    {#if editValidationError?.message}
-                      <p class="text-red-500 text-sm mt-1">
-                        {editValidationError.message}
-                      </p>
-                    {/if}
-                    <div class="flex gap-2">
+                    <div class="grid grid-cols-1 gap-3 w-full">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={measurement.name}
+                          on:input={(e) => validateMeasurementEntry(e.target.value, measurement.default_base_cm, measurement.default_additional_cost_per_cm, 0, true)}
+                          on:blur={(e) => {
+                            measurement.name = toSentenceCase(e.target.value);
+                            validateMeasurementEntry(measurement.name, measurement.default_base_cm, measurement.default_additional_cost_per_cm, 0, true);
+                          }}
+                          class="px-2 py-1 border rounded w-full {editValidationError?.message ? 'border-red-500' : ''}"
+                          maxlength={NAME_MAX_LENGTH}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Base (cm)</label>
+                        <input
+                          type="text"
+                          name="default_base_cm"
+                          value={measurement.default_base_cm || ""}
+                          on:input={(e) => validateMeasurementEntry(measurement.name, e.target.value, measurement.default_additional_cost_per_cm, 0, true)}
+                          class="px-2 py-1 border rounded w-full {editValidationError?.message ? 'border-red-500' : ''}"
+                          disabled={isLoading}
+                          placeholder="Optional"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Standard measurement value</p>
+                      </div>
+                      
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Cost/cm (₱)</label>
+                        <input
+                          type="text"
+                          name="default_additional_cost_per_cm"
+                          value={measurement.default_additional_cost_per_cm || ""}
+                          on:input={(e) => validateMeasurementEntry(measurement.name, measurement.default_base_cm, e.target.value, 0, true)}
+                          class="px-2 py-1 border rounded w-full {editValidationError?.message ? 'border-red-500' : ''}"
+                          disabled={isLoading}
+                          placeholder="Optional"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Additional cost per extra cm</p>
+                      </div>
+                      
+                      {#if editValidationError?.message}
+                        <p class="text-red-500 text-sm">
+                          {editValidationError.message}
+                        </p>
+                      {/if}
+                    </div>
+                    
+                    <div class="flex gap-2 mt-2">
                       <button
                         type="submit"
                         class="text-blue-600 hover:text-blue-800"
-                        disabled={isLoading}>Save</button
+                        disabled={isLoading || Object.keys(editValidationError).length > 0}>Save</button
                       >
                       <button
                         type="button"
@@ -348,6 +484,16 @@
                   >
                     {measurement.name}
                   </span>
+                {/if}
+              </td>
+              <td class="p-2">
+                {#if editingId !== measurement.id}
+                  {measurement.default_base_cm ? `${measurement.default_base_cm} cm` : "—"}
+                {/if}
+              </td>
+              <td class="p-2">
+                {#if editingId !== measurement.id}
+                  {measurement.default_additional_cost_per_cm ? `₱${measurement.default_additional_cost_per_cm}` : "—"}
                 {/if}
               </td>
               <td class="p-2">
@@ -469,53 +615,117 @@
         <div class="p-6 space-y-6 overflow-y-auto flex-1">
           <div class="space-y-4">
             {#each newMeasurements as measurement, index}
-              <div class="flex items-center gap-2">
-                <div class="flex-1">
-                  <label
-                    class="block text-sm font-medium text-gray-700 mb-2"
-                    for="name_{index}"
-                  >
-                    Measurement Name {index + 1}
-                  </label>
-                  <input
-                    type="text"
-                    id="name_{index}"
-                    name="names"
-                    bind:value={newMeasurements[index]}
-                    on:input={() =>
-                      validateMeasurementName(newMeasurements[index], index)}
-                    on:blur={(e) => {
-                      newMeasurements[index] = toSentenceCase(e.target.value);
-                      validateMeasurementName(newMeasurements[index], index);
-                    }}
-                    class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors[
-                      index
-                    ]?.message
-                      ? 'border-red-500'
-                      : ''}"
-                    placeholder="Enter measurement name"
-                    maxlength={NAME_MAX_LENGTH}
-                    disabled={isLoading}
-                    required
-                  />
+              <div class="border p-4 rounded-lg bg-gray-50">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="font-medium">Measurement {index + 1}</h3>
+                  {#if index > 0}
+                    <button
+                      type="button"
+                      class="text-red-600 hover:text-red-800"
+                      on:click={() => removeMeasurementField(index)}
+                    >
+                      Remove
+                    </button>
+                  {/if}
+                </div>
+                
+                <div class="space-y-3">
+                  <div>
+                    <label
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      for="name_{index}"
+                    >
+                      Measurement Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name_{index}"
+                      name="names"
+                      bind:value={newMeasurements[index]}
+                      on:input={() => validateMeasurementEntry(
+                        newMeasurements[index], 
+                        newMeasurementBaseCm[index], 
+                        newMeasurementAdditionalCost[index], 
+                        index
+                      )}
+                      on:blur={(e) => {
+                        newMeasurements[index] = toSentenceCase(e.target.value);
+                        validateMeasurementEntry(
+                          newMeasurements[index], 
+                          newMeasurementBaseCm[index], 
+                          newMeasurementAdditionalCost[index], 
+                          index
+                        );
+                      }}
+                      class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors[index]?.message ? 'border-red-500' : ''}"
+                      placeholder="Enter measurement name"
+                      maxlength={NAME_MAX_LENGTH}
+                      disabled={isLoading}
+                      required
+                    />
+                    <p class="text-gray-500 text-xs mt-1">
+                      {newMeasurements[index]?.length || 0}/{NAME_MAX_LENGTH} characters
+                    </p>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        for="base_cm_{index}"
+                      >
+                        Default Base (cm)
+                      </label>
+                      <input
+                        type="text"
+                        id="base_cm_{index}"
+                        name="default_base_cm"
+                        bind:value={newMeasurementBaseCm[index]}
+                        on:input={() => validateMeasurementEntry(
+                          newMeasurements[index], 
+                          newMeasurementBaseCm[index], 
+                          newMeasurementAdditionalCost[index], 
+                          index
+                        )}
+                        class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors[index]?.message ? 'border-red-500' : ''}"
+                        placeholder="Optional"
+                        disabled={isLoading}
+                      />
+                      <p class="text-xs text-gray-500 mt-1">Standard measurement value</p>
+                    </div>
+                    
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        for="additional_cost_{index}"
+                      >
+                        Default Cost/cm (₱)
+                      </label>
+                      <input
+                        type="text"
+                        id="additional_cost_{index}"
+                        name="default_additional_cost_per_cm"
+                        bind:value={newMeasurementAdditionalCost[index]}
+                        on:input={() => validateMeasurementEntry(
+                          newMeasurements[index], 
+                          newMeasurementBaseCm[index], 
+                          newMeasurementAdditionalCost[index], 
+                          index
+                        )}
+                        class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none {validationErrors[index]?.message ? 'border-red-500' : ''}"
+                        placeholder="Optional"
+                        disabled={isLoading}
+                      />
+                      <p class="text-xs text-gray-500 mt-1">Additional cost per extra cm</p>
+                    </div>
+                  </div>
+                  
                   {#if validationErrors[index]?.message}
-                    <p class="text-red-500 text-sm mt-1">
+                    <p class="text-red-500 text-sm">
                       {validationErrors[index].message}
                     </p>
                   {/if}
-                  <p class="text-gray-500 text-sm mt-1">
-                    {newMeasurements[index]?.length || 0}/{NAME_MAX_LENGTH} characters
-                  </p>
                 </div>
-                {#if index > 0}
-                  <button
-                    type="button"
-                    class="mt-8 p-2 text-red-600 hover:text-red-800"
-                    on:click={() => removeMeasurementField(index)}
-                  >
-                    <p class="font-bold">x</p>
-                  </button>
-                {/if}
               </div>
             {/each}
 

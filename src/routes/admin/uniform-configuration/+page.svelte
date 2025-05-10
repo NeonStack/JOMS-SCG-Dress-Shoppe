@@ -114,23 +114,47 @@
   // Track selected measurement types
   let selectedMeasurements = new Set();
 
-  // Initialize selected measurements when editing
+  // Change from Set to Map to store both selection state and default values
+  let selectedMeasurementMap = new Map();
+
+  // Initialize selected measurements and their values when editing
   $: if (selectedConfig) {
-    // Convert measurement_specs array to Set of measurement_type_ids
-    selectedMeasurements = new Set(
-      selectedConfig.measurement_specs?.map(
-        (spec) => spec.measurement_type_id
-      ) || []
-    );
+    selectedMeasurementMap = new Map();
+    selectedConfig.measurement_specs?.forEach(spec => {
+      selectedMeasurementMap.set(spec.measurement_type_id, {
+        base_cm: spec.base_cm,
+        additional_cost_per_cm: spec.additional_cost_per_cm
+      });
+    });
   }
 
-  // Handle measurement selection - Make this more robust
+  // Computed property to get just the IDs (for compatibility with existing code)
+  $: selectedMeasurements = new Set(selectedMeasurementMap.keys());
+
+  // Handle measurement selection with default values
   function toggleMeasurement(typeId) {
-    selectedMeasurements = new Set(selectedMeasurements); // Create new Set to ensure reactivity
-    if (selectedMeasurements.has(typeId)) {
-      selectedMeasurements.delete(typeId);
+    // Create a new Map to ensure reactivity
+    selectedMeasurementMap = new Map(selectedMeasurementMap);
+    
+    if (selectedMeasurementMap.has(typeId)) {
+      selectedMeasurementMap.delete(typeId);
     } else {
-      selectedMeasurements.add(typeId);
+      // Find the measurement type to get its default values
+      const measurementType = measurementTypes.find(m => m.id === typeId);
+      console.log("Selected measurement:", measurementType); // Debug
+      
+      // Use defaults or fallback to 0 if null/undefined
+      const defaultBaseCm = measurementType.default_base_cm !== null 
+                            ? measurementType.default_base_cm 
+                            : 0;
+      const defaultCostPerCm = measurementType.default_additional_cost_per_cm !== null 
+                               ? measurementType.default_additional_cost_per_cm 
+                               : 0;
+                               
+      selectedMeasurementMap.set(typeId, {
+        base_cm: defaultBaseCm,
+        additional_cost_per_cm: defaultCostPerCm
+      });
     }
   }
 
@@ -445,21 +469,36 @@
   <!-- Configuration Form Modal -->
   {#if showForm}
     <div
-      class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 md:p-4"
+      class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 md:p-4 overflow-hidden"
     >
       <div
-        class="bg-gradient-to-br from-white via-gray-50 to-muted rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(183,50,51,0.15)] border border-white/50 overflow-hidden animate-scale"
+        class="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden animate-scale border border-gray-100"
       >
         <!-- Modal Header -->
         <div
-          class="p-4 md:p-6 bg-gradient-to-r from-primary to-primary-dark border-b border-primary/10"
+          class="p-4 md:p-6 bg-gradient-to-r from-primary to-primary-dark"
         >
-          <h2 class="text-xl md:text-2xl font-bold text-white">
-            {selectedConfig ? "Edit Configuration" : "New Configuration"}
-          </h2>
-          <p class="text-sm md:text-base text-muted mt-2">
-            Configure uniform specifications and measurements
-          </p>
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-xl md:text-2xl font-bold text-white">
+                {selectedConfig ? "Edit Configuration" : "New Configuration"}
+              </h2>
+              <p class="text-sm md:text-base text-white/80 mt-1">
+                Configure uniform specifications and measurements
+              </p>
+            </div>
+            <button 
+              type="button" 
+              class="text-white/80 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+              on:click={resetForm}
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Modal Body - Scrollable -->
@@ -478,48 +517,60 @@
             <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
               <!-- Left Column - Basic Info -->
               <div
-                class="w-full md:w-1/3 p-4 md:p-6 max-h-[30vh] md:max-h-[calc(90vh-8rem)] overflow-y-auto border-b md:border-b-0 md:border-r border-primary/10"
+                class="w-full md:w-1/3 p-4 md:p-6 max-h-[30vh] md:max-h-[calc(90vh-8rem)] overflow-y-auto border-b md:border-b-0 md:border-r border-gray-200"
               >
                 <div
-                  class="bg-white/80 p-4 md:p-6 rounded-xl border border-primary/10 shadow-sm"
+                  class="rounded-xl shadow-sm space-y-5"
                 >
                   <h3
-                    class="text-base md:text-lg font-semibold text-primary mb-4"
+                    class="text-base md:text-lg font-semibold text-gray-800 mb-4 flex items-center"
                   >
+                    <span class="bg-primary/10 p-1.5 rounded-lg mr-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM9 8H4v2h5V8z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
                     Basic Information
                   </h3>
                   <div class="space-y-4">
-                    <div>
+                    <div class="group">
                       <label
-                        class="block text-sm font-medium text-gray-600 mb-1"
+                        class="block text-sm font-medium text-gray-700 mb-1 group-hover:text-primary transition-colors"
                         for="courseId">Course</label
                       >
-                      <select
-                        name="courseId"
-                        bind:value={selectedCourseId}
-                        on:change={() => {
-                          selectedGender = "";
-                          selectedWearType = "";
-                        }}
-                        class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                        disabled={selectedConfig ? true : false}
-                        required
-                      >
-                        <option value="">Select Course</option>
-                        {#each courses as course}
-                          <option
-                            value={course.id.toString()}
-                            disabled={!selectedConfig &&
-                              isCourseDisabled(course.id.toString()) &&
-                              course.id.toString() !== selectedCourseId}
-                          >
-                            {course.course_code}
-                            {#if !selectedConfig && isCourseDisabled(course.id.toString()) && course.id.toString() !== selectedCourseId}
-                              (All Configurations Set)
-                            {/if}
-                          </option>
-                        {/each}
-                      </select>
+                      <div class="relative">
+                        <select
+                          name="courseId"
+                          bind:value={selectedCourseId}
+                          on:change={() => {
+                            selectedGender = "";
+                            selectedWearType = "";
+                          }}
+                          class="block w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none appearance-none"
+                          disabled={selectedConfig ? true : false}
+                          required
+                        >
+                          <option value="">Select Course</option>
+                          {#each courses as course}
+                            <option
+                              value={course.id.toString()}
+                              disabled={!selectedConfig &&
+                                isCourseDisabled(course.id.toString()) &&
+                                course.id.toString() !== selectedCourseId}
+                            >
+                              {course.course_code}
+                              {#if !selectedConfig && isCourseDisabled(course.id.toString()) && course.id.toString() !== selectedCourseId}
+                                (All Configurations Set)
+                              {/if}
+                            </option>
+                          {/each}
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
                       {#if selectedConfig}
                         <input
                           type="hidden"
@@ -528,41 +579,49 @@
                         />
                       {/if}
                     </div>
-                    <div>
+                    
+                    <div class="group">
                       <label
-                        class="block text-sm font-medium text-gray-600 mb-1"
+                        class="block text-sm font-medium text-gray-700 mb-1 group-hover:text-primary transition-colors"
                         for="gender">Gender</label
                       >
-                      <select
-                        name="gender"
-                        bind:value={selectedGender}
-                        on:change={() => (selectedWearType = "")}
-                        class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                        disabled={selectedConfig ? true : false}
-                        required
-                      >
-                        <option value="">Select Gender</option>
-                        <option
-                          value="male"
-                          disabled={!selectedConfig &&
-                            disabledGenders.includes("male")}
+                      <div class="relative">
+                        <select
+                          name="gender"
+                          bind:value={selectedGender}
+                          on:change={() => (selectedWearType = "")}
+                          class="block w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none appearance-none"
+                          disabled={selectedConfig ? true : false}
+                          required
                         >
-                          Male
-                          {#if !selectedConfig && disabledGenders.includes("male")}
-                            (All Wear Types Configured)
-                          {/if}
-                        </option>
-                        <option
-                          value="female"
-                          disabled={!selectedConfig &&
-                            disabledGenders.includes("female")}
-                        >
-                          Female
-                          {#if !selectedConfig && disabledGenders.includes("female")}
-                            (All Wear Types Configured)
-                          {/if}
-                        </option>
-                      </select>
+                          <option value="">Select Gender</option>
+                          <option
+                            value="male"
+                            disabled={!selectedConfig &&
+                              disabledGenders.includes("male")}
+                          >
+                            Male
+                            {#if !selectedConfig && disabledGenders.includes("male")}
+                              (All Wear Types Configured)
+                            {/if}
+                          </option>
+                          <option
+                            value="female"
+                            disabled={!selectedConfig &&
+                              disabledGenders.includes("female")}
+                          >
+                            Female
+                            {#if !selectedConfig && disabledGenders.includes("female")}
+                              (All Wear Types Configured)
+                            {/if}
+                          </option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
                       {#if selectedConfig}
                         <input
                           type="hidden"
@@ -571,40 +630,48 @@
                         />
                       {/if}
                     </div>
-                    <div>
+                    
+                    <div class="group">
                       <label
-                        class="block text-sm font-medium text-gray-600 mb-1"
+                        class="block text-sm font-medium text-gray-700 mb-1 group-hover:text-primary transition-colors"
                         for="wearType">Wear Type</label
                       >
-                      <select
-                        name="wearType"
-                        bind:value={selectedWearType}
-                        class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                        disabled={selectedConfig ? true : false}
-                        required
-                      >
-                        <option value="">Select Wear Type</option>
-                        <option
-                          value="upper"
-                          disabled={!selectedConfig &&
-                            disabledWearTypes.includes("upper")}
+                      <div class="relative">
+                        <select
+                          name="wearType"
+                          bind:value={selectedWearType}
+                          class="block w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none appearance-none"
+                          disabled={selectedConfig ? true : false}
+                          required
                         >
-                          Upper
-                          {#if !selectedConfig && disabledWearTypes.includes("upper")}
-                            (Already Configured)
-                          {/if}
-                        </option>
-                        <option
-                          value="lower"
-                          disabled={!selectedConfig &&
-                            disabledWearTypes.includes("lower")}
-                        >
-                          Lower
-                          {#if !selectedConfig && disabledWearTypes.includes("lower")}
-                            (Already Configured)
-                          {/if}
-                        </option>
-                      </select>
+                          <option value="">Select Wear Type</option>
+                          <option
+                            value="upper"
+                            disabled={!selectedConfig &&
+                              disabledWearTypes.includes("upper")}
+                          >
+                            Upper
+                            {#if !selectedConfig && disabledWearTypes.includes("upper")}
+                              (Already Configured)
+                            {/if}
+                          </option>
+                          <option
+                            value="lower"
+                            disabled={!selectedConfig &&
+                              disabledWearTypes.includes("lower")}
+                          >
+                            Lower
+                            {#if !selectedConfig && disabledWearTypes.includes("lower")}
+                              (Already Configured)
+                            {/if}
+                          </option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
                       {#if selectedConfig}
                         <input
                           type="hidden"
@@ -613,19 +680,26 @@
                         />
                       {/if}
                     </div>
-                    <div>
+                    
+                    <div class="group">
                       <label
-                        class="block text-sm font-medium text-gray-600 mb-1"
+                        class="block text-sm font-medium text-gray-700 mb-1 group-hover:text-primary transition-colors"
                         for="basePrice">Base Price (₱)</label
                       >
-                      <input
-                        type="number"
-                        name="basePrice"
-                        step="0.01"
-                        value={selectedConfig?.base_price || ""}
-                        class="block w-full px-3 py-2 rounded-lg border border-gray-200 bg-white/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
-                        required
-                      />
+                      <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                          ₱
+                        </span>
+                        <input
+                          type="number"
+                          name="basePrice"
+                          step="0.01"
+                          value={selectedConfig?.base_price || ""}
+                          class="block w-full pl-7 pr-3 py-2.5 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none"
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -633,87 +707,118 @@
 
               <!-- Right Column - Measurements -->
               <div class="w-full md:w-2/3 p-4 md:p-6 flex-1 overflow-y-auto">
-                <div
-                  class="bg-white/80 p-4 md:p-6 rounded-xl border border-primary/10 shadow-sm space-y-4 md:space-y-6"
-                >
-                  <h3 class="text-base md:text-lg font-semibold text-primary">
+                <div class="rounded-xl space-y-6">
+                  <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center">
+                    <span class="bg-primary/10 p-1.5 rounded-lg mr-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+                      </svg>
+                    </span>
                     Measurement Specifications
                   </h3>
 
                   <!-- Selected Measurements -->
                   {#if selectedMeasurements.size > 0}
-                    <div>
-                      <h4
-                        class="text-xs md:text-sm font-medium text-primary/70 mb-3"
-                      >
-                        Selected Measurements
-                      </h4>
-                      <div
-                        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
-                      >
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-medium text-primary flex items-center">
+                          <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-primary text-white text-xs rounded-full">
+                            {selectedMeasurements.size}
+                          </span>
+                          Selected Measurements
+                        </h4>
+                        {#if selectedMeasurements.size > 0}
+                          <div class="flex items-center text-xs">
+                            <span class="text-gray-500 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                              </svg>
+                              Click on a card to remove
+                            </span>
+                          </div>
+                        {/if}
+                      </div>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {#each measurementTypes as measurementType}
                           {#if selectedMeasurements.has(measurementType.id)}
-                            {@const spec =
-                              selectedConfig?.measurement_specs?.find(
-                                (s) =>
-                                  s.measurement_type_id === measurementType.id
-                              )}
-                            <div
-                              class="group"
-                              on:click|preventDefault={() =>
-                                toggleMeasurement(measurementType.id)}
-                            >
+                            {@const measurementValues = selectedMeasurementMap.get(measurementType.id) || {}}
+                            <div class="group relative">
                               <div
-                                class="bg-primary/5 p-3 rounded-lg border border-primary/20 shadow-sm cursor-pointer group-hover:border-primary/50 group-hover:shadow-md transition-all duration-200"
+                                class="bg-white rounded-lg border border-primary/30 shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 overflow-hidden h-full"
                               >
-                                <div
-                                  class="flex items-center justify-between p-2"
-                                >
-                                  <span class="font-medium text-primary"
-                                    >{measurementType.name}</span
+                                <!-- Card Header -->
+                                <div class="flex justify-between items-center p-3 border-b border-gray-100 bg-primary/5">
+                                  <h5 class="font-medium text-primary truncate">{measurementType.name}</h5>
+                                  <div 
+                                    class="shrink-0 ml-2 cursor-pointer bg-white text-primary hover:bg-primary hover:text-white rounded-full p-1 border border-primary/30 transition-colors"
+                                    on:click|preventDefault|stopPropagation={() => toggleMeasurement(measurementType.id)}
+                                    title="Remove measurement"
                                   >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                  </div>
+                                </div>
+                                
+                                <!-- Card Body - Selected Measurements -->
+                                <div class="p-3 space-y-3">
+                                  <!-- Hidden input to store the measurement type ID -->
                                   <input
-                                    type="checkbox"
+                                    type="hidden"
                                     name="selectedMeasurements"
                                     value={measurementType.id}
-                                    checked={true}
-    
-                                    class="w-4 h-4 rounded-md border-gray-300 text-primary focus:ring-primary pointer-events-none"
                                   />
-                                </div>
-                                <!-- Stop propagation for input fields to allow interaction -->
-                                <div
-                                  class="space-y-2 mt-2"
-                                  on:click|stopPropagation
-                                >
-                                  <div>
-                                    <label class="block text-xs text-gray-600"
-                                      >Base (cm)</label
-                                    >
-                                    <input
-                                      type="number"
-                                      name="baseCm_{measurementType.id}"
-                                      value={spec?.base_cm ?? 0}
-                                      class="block w-full px-2 py-1 text-sm rounded-md border border-gray-200 bg-white/50"
-                                      min="0"
-                                      max="500"
-                                      step="0.1"
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <label class="block text-xs text-gray-600"
-                                      >Cost per extra cm (₱)</label
-                                    >
-                                    <input
-                                      type="number"
-                                      name="costPerCm_{measurementType.id}"
-                                      value={spec?.additional_cost_per_cm ?? 0}
-                                      class="block w-full px-2 py-1 text-sm rounded-md border border-gray-200 bg-white/50"
-                                      min="0"
-                                      step="0.01"
-                                      required
-                                    />
+                                  
+                                  <div class="space-y-2.5">
+                                    <div>
+                                      <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">
+                                          Base Measurement (cm)
+                                          {#if measurementType.default_base_cm !== null}
+                                            <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_base_cm}</span>
+                                          {/if}
+                                        </label>
+                                      </div>
+                                      <div class="relative">
+                                        <input
+                                          type="number"
+                                          name="baseCm_{measurementType.id}"
+                                          value={measurementValues.base_cm}
+                                          class="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                          min="0"
+                                          max="500"
+                                          step="0.1"
+                                          required
+                                          placeholder={measurementType.default_base_cm !== null ? measurementType.default_base_cm : ""}
+                                        />
+                                        <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">cm</span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">
+                                          Additional Cost Per cm (₱)
+                                          {#if measurementType.default_additional_cost_per_cm !== null}
+                                            <span class="block text-xs font-normal text-gray-500">Default: {measurementType.default_additional_cost_per_cm}</span>
+                                          {/if}
+                                        </label>
+                                      </div>
+                                      <div class="relative">
+                                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">₱</span>
+                                        <input
+                                          type="number"
+                                          name="costPerCm_{measurementType.id}"
+                                          value={measurementValues.additional_cost_per_cm}
+                                          class="block w-full pl-6 pr-8 py-2 text-sm rounded-md border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                          min="0"
+                                          step="0.01"
+                                          required
+                                          placeholder={measurementType.default_additional_cost_per_cm !== null ? measurementType.default_additional_cost_per_cm : ""}
+                                        />
+                                        <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">/cm</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -725,45 +830,72 @@
                   {/if}
 
                   <!-- Available Measurements -->
-                  <div>
-                    <h4
-                      class="text-xs md:text-sm font-medium text-gray-500 mb-3"
-                    >
-                      Available Measurements
-                    </h4>
-                    <div
-                      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
-                    >
-                      {#each measurementTypes as measurementType}
-                        {#if !selectedMeasurements.has(measurementType.id)}
-                          <div
-                            class="group"
-                            on:click|preventDefault={() =>
-                              toggleMeasurement(measurementType.id)}
-                          >
-                            <div
-                              class="bg-white/90 p-3 rounded-lg border border-gray-100 hover:border-primary/20 hover:shadow-sm cursor-pointer transition-all duration-200"
+                  <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div class="flex items-center justify-between mb-4">
+                      <h4 class="text-sm font-medium text-gray-700 flex items-center">
+                        <span class="inline-flex items-center justify-center w-5 h-5 mr-2 bg-gray-200 text-gray-700 text-xs rounded-full">
+                          {measurementTypes.length - selectedMeasurements.size}
+                        </span>
+                        Available Measurements
+                      </h4>
+                      {#if measurementTypes.length - selectedMeasurements.size > 0}
+                        <div class="flex items-center text-xs">
+                          <span class="text-gray-500 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                            Click on a card to add
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                    
+                    {#if measurementTypes.filter(m => !selectedMeasurements.has(m.id)).length > 0}
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {#each measurementTypes as measurementType}
+                          {#if !selectedMeasurements.has(measurementType.id)}
+                            <!-- Available Measurements card design improvement -->
+                            <div 
+                              class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer h-full"
+                              on:click|preventDefault={() => toggleMeasurement(measurementType.id)}
                             >
-                              <div
-                                class="flex items-center justify-between p-2"
-                              >
-                                <span
-                                  class="font-medium text-gray-600 group-hover:text-primary"
-                                  >{measurementType.name}</span
-                                >
-                                <input
-                                  type="checkbox"
-                                  name="selectedMeasurements"
-                                  value={measurementType.id}
-                                  checked={false}
-                                  class="w-4 h-4 rounded-md border-gray-300 text-primary focus:ring-primary pointer-events-none"
-                                />
+                              <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <h5 class="font-medium text-gray-700 truncate group-hover:text-primary">{measurementType.name}</h5>
+                                <div class="shrink-0 ml-2 bg-gray-100 text-gray-600 hover:bg-primary hover:text-white rounded-full p-1 transition-colors">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <div class="p-3">
+                                <div class="space-y-2">
+                                  {#if measurementType.default_base_cm !== null || measurementType.default_additional_cost_per_cm !== null}
+                                    {#if measurementType.default_base_cm !== null}
+                                      <div class="flex items-center text-sm">
+                                        <span class="text-gray-500 w-20 shrink-0">Base:</span>
+                                        <span class="font-medium text-gray-700 ml-2">{measurementType.default_base_cm} cm</span>
+                                      </div>
+                                    {/if}
+                                    {#if measurementType.default_additional_cost_per_cm !== null}
+                                      <div class="flex items-center text-sm">
+                                        <span class="text-gray-500 w-20 shrink-0">Cost/cm:</span>
+                                        <span class="font-medium text-gray-700 ml-2">₱{measurementType.default_additional_cost_per_cm}</span>
+                                      </div>
+                                    {/if}
+                                  {:else}
+                                    <p class="text-xs text-gray-500 italic">No default values set</p>
+                                  {/if}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        {/if}
-                      {/each}
-                    </div>
+                          {/if}
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="bg-white p-6 rounded-lg border border-dashed border-gray-300 text-center">
+                        <p class="text-gray-500">All measurement types have been selected</p>
+                      </div>
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -772,14 +904,12 @@
         </div>
 
         <!-- Modal Footer -->
-        <div
-          class="p-4 md:p-6 border-t border-primary/5 bg-gradient-to-b from-transparent to-white/80"
-        >
+        <div class="p-4 md:p-6 border-t border-gray-200 bg-gray-50">
           <div class="flex justify-end gap-3 md:gap-4">
             <button
               type="button"
               on:click={resetForm}
-              class="px-4 md:px-6 py-2 text-sm md:text-base text-gray-600 hover:text-primary font-medium rounded-lg hover:bg-primary/5 transition-all duration-300"
+              class="px-4 md:px-6 py-2.5 font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200"
               disabled={isLoading}
             >
               Cancel
@@ -787,12 +917,22 @@
             <button
               type="submit"
               form="configForm"
-              class="px-6 md:px-8 py-2 text-sm md:text-base bg-gradient-to-r from-primary to-primary-dark text-white rounded-lg hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
-              disabled={isLoading}
+              class="px-6 md:px-8 py-2.5 font-medium rounded-lg border border-primary bg-primary text-white hover:bg-primary-dark transition-all duration-200 shadow-sm disabled:opacity-50 flex items-center gap-2"
+              disabled={isLoading || selectedMeasurements.size === 0}
             >
-              {isLoading ? "Saving..." : selectedConfig ? "Update" : "Create"}
+              {#if isLoading}
+                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+              {/if}
+              {isLoading ? "Saving..." : selectedConfig ? "Update Configuration" : "Create Configuration"}
             </button>
           </div>
+          
+          {#if selectedMeasurements.size === 0}
+            <p class="text-red-500 text-xs mt-2 text-center">Please select at least one measurement type</p>
+          {/if}
         </div>
       </div>
     </div>

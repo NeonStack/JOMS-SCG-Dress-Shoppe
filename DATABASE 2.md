@@ -20,6 +20,8 @@ created_at timestamptz default now() not null
 create table measurement_types (
 id serial primary key,
 name text not null,
+default_base_cm numeric(10, 2),
+default_additional_cost_per_cm numeric(10, 2),
 created_at timestamptz default now() not null,
 unique(name)
 );

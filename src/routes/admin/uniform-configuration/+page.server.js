@@ -47,7 +47,7 @@ export const load = async ({ locals }) => {
         // Fetch all measurement types for the selection
         const { data: measurementTypes, error: measurementError } = await supabase
             .from('measurement_types')
-            .select('id, name')
+            .select('id, name, default_base_cm, default_additional_cost_per_cm')  // Add the default fields
             .order('name');
 
         if (measurementError) throw measurementError;
