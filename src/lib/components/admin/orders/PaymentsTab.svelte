@@ -24,9 +24,8 @@
       : "No payment";
   }
   
-  // Updated sort function to better align with other tabs
+  // Updated sort function without debugging logs
   function sort(field) {
-    console.log(`PaymentsTab: Sorting by ${field}`);
     dispatch("sort", { field });
   }
   

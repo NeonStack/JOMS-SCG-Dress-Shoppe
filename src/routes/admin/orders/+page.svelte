@@ -56,7 +56,6 @@
   // Function to manually trigger reactive updates
   function triggerFilterUpdate() {
     filterUpdateTrigger += 1;
-    console.log("Filter update triggered:", filterUpdateTrigger);
   }
 
   $: filteredStudents = data.students.filter((student) =>
@@ -65,13 +64,10 @@
       .includes(searchTerm.toLowerCase())
   );
 
-  // Improved sort function with better debugging
+  // Improved sort function without debugging logs
   $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
     let comparison = 0;
     try {
-      // Add detailed logging for debugging
-      console.log(`Sorting field: ${sortField}`);
-      
       if (sortField === "id") {
         // Handle numeric ID comparison
         comparison = parseInt(a.id) - parseInt(b.id);
@@ -86,9 +82,7 @@
         const bDate = b[sortField] ? new Date(b[sortField]) : new Date(0);
         comparison = aDate - bDate;
       } else if (sortField === "total_amount" || sortField === "amount_paid" || sortField === "balance") {
-        // Handle numeric amount comparison with more detailed logging
-        console.log(`Comparing ${sortField}:`, a[sortField], b[sortField]);
-        
+        // Handle numeric amount comparison
         const aValue = parseFloat(a[sortField] || 0);
         const bValue = parseFloat(b[sortField] || 0);
         comparison = aValue - bValue;
@@ -108,7 +102,6 @@
         comparison = aValue.localeCompare(bValue);
       }
     } catch (error) {
-      console.error(`Sorting error for field ${sortField}:`, error);
       return 0; // Keep original order on error
     }
     
@@ -163,7 +156,6 @@
   $: {
     // Make this statement directly dependent on dateRange values
     dateFilteredOrders = sortedOrders.filter(order => matchesDateFilter(order));
-    console.log("Date filtering applied", dateRange);
   }
 
   // Then apply search filter to the date-filtered orders for regular tabs
@@ -359,7 +351,6 @@
     }
     sortDirection = "desc";
     lastTab = activeTab;
-    console.log(`Tab switched to ${activeTab}, default sort: ${sortField} ${sortDirection}`);
   }
   
   // Remove or comment out the old reactive statement 
@@ -390,8 +381,6 @@
     
     // Force filter update
     triggerFilterUpdate();
-    
-    console.log("All filters have been reset");
   }
 
   // Tab switching
@@ -459,23 +448,9 @@
     }
   }
 
-  // Handle sorting for all tabs with improved handling
+  // Handle sorting for all tabs with improved handling - without debug logs
   function handleSort(event) {
     const field = event.detail.field;
-    
-    // Check if field exists in data object and log a detailed message
-    if (data.orders && data.orders.length > 0) {
-      const firstOrder = data.orders[0];
-      const hasField = field in firstOrder || field === "student";
-      console.log(`Sorting by ${field} (field exists in data: ${hasField})`);
-      
-      if (!hasField) {
-        console.warn(`Field "${field}" might not exist in the data objects!`);
-      }
-    }
-    
-    // Log the current and new sort fields and direction
-    console.log(`Sorting: ${sortField} ${sortDirection} -> ${field} ${sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc'}`);
     
     // Toggle direction if same field, otherwise set to asc
     if (sortField === field) {
@@ -484,9 +459,6 @@
       sortField = field;
       sortDirection = "asc";
     }
-    
-    // Log the new sort state
-    console.log(`New sort state: ${sortField} ${sortDirection}`);
   }
 
   function resetForm() {
