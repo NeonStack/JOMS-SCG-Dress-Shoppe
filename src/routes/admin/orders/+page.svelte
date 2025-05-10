@@ -409,9 +409,13 @@
     }
   }
 
-  // Simplify sorting - no need for a separate function for payments
+  // Handle sorting for all tabs with improved handling
   function handleSort(event) {
-    sort(event.detail.field);
+    const field = event.detail.field;
+    sort(field);
+    
+    // Log sorting action for debugging
+    console.log(`Sorting by ${field} in ${sortDirection} direction`);
   }
 
   function resetForm() {

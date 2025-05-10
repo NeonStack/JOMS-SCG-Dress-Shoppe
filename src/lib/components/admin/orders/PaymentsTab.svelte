@@ -49,9 +49,10 @@
             {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status", "payment_updated_by"] as field}
               <th 
                 class="p-2 cursor-pointer hover:bg-gray-200 text-left" 
-                on:click={() => sort(field.toLowerCase())}
+                on:click={() => sort(field)}
               >
-                {field === "total_amount" ? "Total" : 
+                {field === "id" ? "Order ID" : 
+                 field === "total_amount" ? "Total" : 
                  field === "amount_paid" ? "Paid" : 
                  field === "payment_date" ? "Last Payment" : 
                  field === "payment_status" ? "Payment Status" : 
@@ -69,7 +70,12 @@
           {#each paginatedOrders as order}
             <tr class="border-b hover:bg-muted">
               <td class="p-2">{order.id}</td>
-              <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+              <td class="p-2">
+                <div>
+                  <span class="font-medium">{order.student?.first_name} {order.student?.last_name}</span>
+                  <span class="text-xs text-gray-500 block">ID: {order.student?.id}</span>
+                </div>
+              </td>
               <td class="p-2">
                 <span class={`px-2 py-1 rounded-full text-sm
                   ${order.status === "completed" ? "bg-green-100 text-green-800" : 

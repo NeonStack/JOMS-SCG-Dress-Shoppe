@@ -157,7 +157,9 @@
                 class="p-2 cursor-pointer hover:bg-gray-200 text-left"
                 on:click={() => sort(field)}
               >
-                {field === "created_at" ? "Ordered At" : field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ")}
+                {field === "id" ? "Order ID" : 
+                 field === "created_at" ? "Ordered At" : 
+                 field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ")}
                 {#if sortField === field}
                   <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
                 {/if}
@@ -178,7 +180,12 @@
                 />
               </td>
               <td class="p-2">{order.id}</td>
-              <td class="p-2">{order.student?.first_name} {order.student?.last_name}</td>
+              <td class="p-2">
+                <div>
+                  <span class="font-medium">{order.student?.first_name} {order.student?.last_name}</span>
+                  <span class="text-xs text-gray-500 block">ID: {order.student?.id}</span>
+                </div>
+              </td>
               <td class="p-2">{order.uniform_type}</td>
               <td class="p-2">{format(new Date(order.created_at), "MMM d, yyyy h:mm a")}</td>
               <td class="p-2">{format(new Date(order.due_date), "MMM d, yyyy")}</td>
