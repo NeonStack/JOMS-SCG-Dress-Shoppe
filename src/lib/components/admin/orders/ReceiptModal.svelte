@@ -3,12 +3,13 @@
   import { format } from "date-fns";
   import { browser } from "$app/environment";
   import QRCode from "qrcode";
-  // Import html2pdf at the top level instead of dynamically
-  import html2pdf from 'html2pdf.js';
+  // Remove the top-level import
+  // import html2pdf from 'html2pdf.js';
 
   export let orderForReceipt = null;
 
   const dispatch = createEventDispatcher();
+  let html2pdfLib; // We'll assign this dynamically 
 
   function closeModal() {
     dispatch("close");
@@ -76,6 +77,11 @@
           isPrinting = true;
         }
         errorMessage = '';
+
+        // Dynamically import html2pdf.js only in the browser
+        if (!html2pdfLib) {
+          html2pdfLib = await import('html2pdf.js');
+        }
         
         const receiptElement = document.getElementById("receipt");
         if (!receiptElement) {
@@ -99,7 +105,7 @@
         };
         
         // Create the PDF generator instance
-        const worker = html2pdf().set(opt).from(receiptElement);
+        const worker = html2pdfLib.default().set(opt).from(receiptElement);
         
         if (action === 'download') {
           // Save the PDF to disk

@@ -66,20 +66,36 @@
 
   $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
     let comparison = 0;
-    if (sortField === "id") {
-      comparison = a.id - b.id;
-    } else if (sortField === "student") {
-      comparison =
-        `${a.student?.first_name} ${a.student?.last_name}`.localeCompare(
-          `${b.student?.first_name} ${b.student?.last_name}`
-        );
-    } else if (sortField === "created_at" || sortField === "due_date" || sortField === "payment_date") {
-      comparison = new Date(a[sortField] || 0) - new Date(b[sortField] || 0);
-    } else {
-      comparison = (a[sortField] || "")
-        .toString()
-        .localeCompare((b[sortField] || "").toString());
+    try {
+      if (sortField === "id") {
+        // Handle numeric ID comparison
+        comparison = parseInt(a.id) - parseInt(b.id);
+      } else if (sortField === "student") {
+        // Handle student name comparison
+        const aName = a.student ? `${a.student.first_name} ${a.student.last_name}` : '';
+        const bName = b.student ? `${b.student.first_name} ${b.student.last_name}` : '';
+        comparison = aName.localeCompare(bName);
+      } else if (sortField === "created_at" || sortField === "due_date" || sortField === "payment_date") {
+        // Handle date comparison - use 0 as fallback for null values
+        const aDate = a[sortField] ? new Date(a[sortField]) : new Date(0);
+        const bDate = b[sortField] ? new Date(b[sortField]) : new Date(0);
+        comparison = aDate - bDate;
+      } else if (sortField === "total_amount" || sortField === "amount_paid" || sortField === "balance") {
+        // Handle numeric amount comparison
+        const aValue = parseFloat(a[sortField] || 0);
+        const bValue = parseFloat(b[sortField] || 0);
+        comparison = aValue - bValue;
+      } else {
+        // Default string comparison with fallback for null/undefined values
+        const aValue = (a[sortField] || "").toString().toLowerCase();
+        const bValue = (b[sortField] || "").toString().toLowerCase();
+        comparison = aValue.localeCompare(bValue);
+      }
+    } catch (error) {
+      console.error(`Sorting error for field ${sortField}:`, error);
+      return 0; // Keep original order on error
     }
+    
     return sortDirection === "asc" ? comparison : -comparison;
   });
 
@@ -412,10 +428,20 @@
   // Handle sorting for all tabs with improved handling
   function handleSort(event) {
     const field = event.detail.field;
-    sort(field);
     
-    // Log sorting action for debugging
-    console.log(`Sorting by ${field} in ${sortDirection} direction`);
+    // Log the current and new sort fields and direction
+    console.log(`Sorting: ${sortField} ${sortDirection} -> ${field} ${sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc'}`);
+    
+    // Toggle direction if same field, otherwise set to asc
+    if (sortField === field) {
+      sortDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      sortField = field;
+      sortDirection = "asc";
+    }
+    
+    // Log the new sort state
+    console.log(`New sort state: ${sortField} ${sortDirection}`);
   }
 
   function resetForm() {

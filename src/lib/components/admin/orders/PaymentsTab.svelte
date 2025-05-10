@@ -25,6 +25,8 @@
   }
   
   function sort(field) {
+    // Log which field is being sorted to debug
+    console.log(`PaymentsTab: Sorting by ${field}`);
     dispatch("sort", { field });
   }
   
@@ -46,23 +48,61 @@
       <table class="w-full">
         <thead>
           <tr class="bg-muted max-md:whitespace-nowrap">
-            {#each ["id", "student", "status", "total_amount", "amount_paid", "balance", "payment_date", "payment_status", "payment_updated_by"] as field}
-              <th 
-                class="p-2 cursor-pointer hover:bg-gray-200 text-left" 
-                on:click={() => sort(field)}
-              >
-                {field === "id" ? "Order ID" : 
-                 field === "total_amount" ? "Total" : 
-                 field === "amount_paid" ? "Paid" : 
-                 field === "payment_date" ? "Last Payment" : 
-                 field === "payment_status" ? "Payment Status" : 
-                 field === "payment_updated_by" ? "Updated By" : 
-                 field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ")}
-                {#if sortField === field}
-                  <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                {/if}
-              </th>
-            {/each}
+            <!-- Ensure these field names exactly match the property names in the order object -->
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("id")}>
+              Order ID
+              {#if sortField === "id"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("student")}>
+              Student
+              {#if sortField === "student"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("status")}>
+              Status
+              {#if sortField === "status"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("total_amount")}>
+              Total
+              {#if sortField === "total_amount"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("amount_paid")}>
+              Paid
+              {#if sortField === "amount_paid"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("balance")}>
+              Balance
+              {#if sortField === "balance"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_date")}>
+              Last Payment
+              {#if sortField === "payment_date"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_status")}>
+              Payment Status
+              {#if sortField === "payment_status"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
+            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_updated_by")}>
+              Updated By
+              {#if sortField === "payment_updated_by"}
+                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+              {/if}
+            </th>
             <th class="p-2">Actions</th>
           </tr>
         </thead>
