@@ -28,6 +28,7 @@
   let sortField = "created_at";
   let sortDirection = "desc";
   let activeTab = "pending";
+  let lastTab = "pending"; // Add this to track last active tab
   let selectAll = false;
   let filteredResults = null;
   let orderToDelete = null;
@@ -64,9 +65,13 @@
       .includes(searchTerm.toLowerCase())
   );
 
+  // Improved sort function with better debugging
   $: sortedOrders = [...(filteredResults || data.orders || [])].sort((a, b) => {
     let comparison = 0;
     try {
+      // Add detailed logging for debugging
+      console.log(`Sorting field: ${sortField}`);
+      
       if (sortField === "id") {
         // Handle numeric ID comparison
         comparison = parseInt(a.id) - parseInt(b.id);
@@ -81,10 +86,21 @@
         const bDate = b[sortField] ? new Date(b[sortField]) : new Date(0);
         comparison = aDate - bDate;
       } else if (sortField === "total_amount" || sortField === "amount_paid" || sortField === "balance") {
-        // Handle numeric amount comparison
+        // Handle numeric amount comparison with more detailed logging
+        console.log(`Comparing ${sortField}:`, a[sortField], b[sortField]);
+        
         const aValue = parseFloat(a[sortField] || 0);
         const bValue = parseFloat(b[sortField] || 0);
         comparison = aValue - bValue;
+      } else if (sortField === "payment_status") {
+        // Special handling for payment status - use calculated display value
+        const getStatusValue = (order) => {
+          if (order.amount_paid === 0) return 0; // Not Paid
+          if (order.amount_paid >= order.total_amount) return 2; // Fully Paid
+          return 1; // Partial
+        };
+        
+        comparison = getStatusValue(a) - getStatusValue(b);
       } else {
         // Default string comparison with fallback for null/undefined values
         const aValue = (a[sortField] || "").toString().toLowerCase();
@@ -332,7 +348,22 @@
     };
   }
 
-  // Set default sort field based on tab
+  // Replace the problematic reactive statement with this improved version
+  // that only sets default sort when switching tabs, not on every update
+  $: if (activeTab !== lastTab) {
+    // Only set default sort field when first switching to a tab
+    if (activeTab === "payments") {
+      sortField = "payment_date";
+    } else {
+      sortField = "created_at";
+    }
+    sortDirection = "desc";
+    lastTab = activeTab;
+    console.log(`Tab switched to ${activeTab}, default sort: ${sortField} ${sortDirection}`);
+  }
+  
+  // Remove or comment out the old reactive statement 
+  /*
   $: {
     if (activeTab === "payments" && sortField !== "payment_date") {
       sortField = "payment_date";
@@ -340,6 +371,7 @@
       sortField = "created_at";
     }
   }
+  */
 
   // Filter reset function
   function resetAllFilters() {
@@ -364,13 +396,15 @@
 
   // Tab switching
   function switchTab(tab) {
-    activeTab = tab;
-    selectedOrders = []; // Clear selections when switching tabs
-    
-    if (browser) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", tab);
-      history.pushState({}, "", url.toString());
+    if (activeTab !== tab) {
+      activeTab = tab;
+      selectedOrders = []; // Clear selections when switching tabs
+      
+      if (browser) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", tab);
+        history.pushState({}, "", url.toString());
+      }
     }
   }
 
@@ -428,6 +462,17 @@
   // Handle sorting for all tabs with improved handling
   function handleSort(event) {
     const field = event.detail.field;
+    
+    // Check if field exists in data object and log a detailed message
+    if (data.orders && data.orders.length > 0) {
+      const firstOrder = data.orders[0];
+      const hasField = field in firstOrder || field === "student";
+      console.log(`Sorting by ${field} (field exists in data: ${hasField})`);
+      
+      if (!hasField) {
+        console.warn(`Field "${field}" might not exist in the data objects!`);
+      }
+    }
     
     // Log the current and new sort fields and direction
     console.log(`Sorting: ${sortField} ${sortDirection} -> ${field} ${sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc'}`);

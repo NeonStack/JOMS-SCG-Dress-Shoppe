@@ -24,8 +24,8 @@
       : "No payment";
   }
   
+  // Updated sort function to better align with other tabs
   function sort(field) {
-    // Log which field is being sorted to debug
     console.log(`PaymentsTab: Sorting by ${field}`);
     dispatch("sort", { field });
   }
@@ -39,6 +39,19 @@
   function handleReceiptClick(order) {
     dispatch("generateReceipt", { order });
   }
+
+  // Create a mapping between display names and data properties
+  const columnMapping = {
+    "id": "id",
+    "student": "student",
+    "status": "status",
+    "total": "total_amount",
+    "paid": "amount_paid", 
+    "balance": "balance",
+    "payment_date": "payment_date",
+    "payment_status": "payment_status", 
+    "updated_by": "payment_updated_by"
+  };
 </script>
 
 <div>
@@ -48,61 +61,24 @@
       <table class="w-full">
         <thead>
           <tr class="bg-muted max-md:whitespace-nowrap">
-            <!-- Ensure these field names exactly match the property names in the order object -->
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("id")}>
-              Order ID
-              {#if sortField === "id"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("student")}>
-              Student
-              {#if sortField === "student"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("status")}>
-              Status
-              {#if sortField === "status"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("total_amount")}>
-              Total
-              {#if sortField === "total_amount"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("amount_paid")}>
-              Paid
-              {#if sortField === "amount_paid"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("balance")}>
-              Balance
-              {#if sortField === "balance"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_date")}>
-              Last Payment
-              {#if sortField === "payment_date"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_status")}>
-              Payment Status
-              {#if sortField === "payment_status"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
-            <th class="p-2 cursor-pointer hover:bg-gray-200 text-left" on:click={() => sort("payment_updated_by")}>
-              Updated By
-              {#if sortField === "payment_updated_by"}
-                <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-              {/if}
-            </th>
+            <!-- Using the same each approach as other tabs, but with our column mapping -->
+            {#each ["id", "student", "status", "total", "paid", "balance", "payment_date", "payment_status", "updated_by"] as column}
+              <th
+                class="p-2 cursor-pointer hover:bg-gray-200 text-left"
+                on:click={() => sort(columnMapping[column])}
+              >
+                {column === "id" ? "Order ID" : 
+                 column === "total" ? "Total" : 
+                 column === "paid" ? "Paid" : 
+                 column === "payment_date" ? "Last Payment" : 
+                 column === "payment_status" ? "Payment Status" : 
+                 column === "updated_by" ? "Updated By" : 
+                 column.charAt(0).toUpperCase() + column.slice(1).replace("_", " ")}
+                {#if sortField === columnMapping[column]}
+                  <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                {/if}
+              </th>
+            {/each}
             <th class="p-2">Actions</th>
           </tr>
         </thead>
