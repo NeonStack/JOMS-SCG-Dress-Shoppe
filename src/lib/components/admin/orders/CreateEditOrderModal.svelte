@@ -216,8 +216,14 @@
 
   const handleSubmit = () => {
     return async ({ result }) => {
-      if (result.type === "success") {
-        dispatch("success", { action: isEditing ? "edit" : "create" });
+      isLoading = true;
+      
+      try {
+        if (result.type === "success") {
+          dispatch("success", { action: isEditing ? "edit" : "create" });
+        }
+      } finally {
+        isLoading = false;
       }
     };
   };
@@ -244,6 +250,7 @@
     <!-- Scrollable content area -->
     <div class="flex-1 overflow-auto p-6">
       <form
+        id="orderForm"
         method="POST"
         action={isEditing ? "?/editOrder" : "?/createOrder"}
         use:enhance={handleSubmit}
@@ -495,7 +502,7 @@
         disabled={!selectedStudent || !selectedUniformType || !selectedDueDate || isLoading}
       >
         {#if isLoading}
-          <div class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+          <div class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
         {/if}
         {isEditing ? "Save Changes" : "Create Order"}
       </button>
